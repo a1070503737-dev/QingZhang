@@ -13,3 +13,6 @@ captures/
 *.jks
 *.keystore
 keystore.properties
+
+# 例外：放在 dist/ 下供直接下载安装的 APK
+!dist/*.apk
