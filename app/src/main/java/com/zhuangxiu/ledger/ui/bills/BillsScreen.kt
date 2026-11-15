@@ -33,6 +33,20 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.Color
+import com.zhuangxiu.ledger.data.db.ExpenseWithDetails
+import com.zhuangxiu.ledger.ui.components.ConfirmDialog
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,8 +71,13 @@ fun BillsScreen(
     viewModel: BillsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // 等待用户确认删除的账单（左滑或长按触发）
+    var pendingDelete by remember { mutableStateOf<ExpenseWithDetails?>(null) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     Scaffold(
         bottomBar = bottomBar,
+        snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAdd,
@@ -161,12 +180,104 @@ fun BillsScreen(
                         }
                     }
                     items(group.items, key = { it.expense.id }) { item ->
-                        ExpenseRow(item, onClick = { onOpenExpense(item.expense.id) })
+                        SwipeToDeleteRow(
+                            item = item,
+                            // 只有正在确认的这一行保持滑开，其他行（以及取消后）自动弹回
+                            confirming = pendingDelete?.expense?.id == item.expense.id,
+                            onRequestDelete = { pendingDelete = item },
+                            onClick = { onOpenExpense(item.expense.id) },
+                            modifier = Modifier.animateItem(),
+                        )
                     }
                 }
             }
         }
     }
+
+    pendingDelete?.let { item ->
+        DeleteExpenseDialog(
+            item = item,
+            onConfirm = {
+                viewModel.delete(item.expense.id)
+                pendingDelete = null
+                scope.launch { snackbar.showSnackbar("已删除账单") }
+            },
+            onDismiss = { pendingDelete = null },
+        )
+    }
+}
+
+/**
+ * 可左滑删除的账单行：向左滑过 40% 宽度露出红色删除区并请求删除；长按同样请求删除。
+ * 真正删除前由外层弹确认框，[confirming] 变为 false 时（取消或删除完成）自动弹回。
+ */
+@Composable
+private fun SwipeToDeleteRow(
+    item: ExpenseWithDetails,
+    confirming: Boolean,
+    onRequestDelete: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val swipeState = rememberSwipeToDismissBoxState(positionalThreshold = { width -> width * 0.4f })
+    LaunchedEffect(confirming) {
+        if (!confirming && swipeState.currentValue != SwipeToDismissBoxValue.Settled) swipeState.reset()
+    }
+    SwipeToDismissBox(
+        state = swipeState,
+        modifier = modifier,
+        // 只允许向左滑（从右往左）
+        enableDismissFromStartToEnd = false,
+        onDismiss = { onRequestDelete() },
+        backgroundContent = {
+            val swiping = swipeState.dismissDirection == SwipeToDismissBoxValue.EndToStart
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .background(if (swiping) MaterialTheme.colorScheme.error else Color.Transparent)
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (swiping) {
+                    Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onError)
+                    Spacer(Modifier.width(6.dp))
+                    Text("删除", color = MaterialTheme.colorScheme.onError, style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        },
+    ) {
+        // 行本身要有不透明背景，否则滑动时会透出下面的红色
+        ExpenseRow(
+            item = item,
+            onClick = onClick,
+            onLongClick = onRequestDelete,
+            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+        )
+    }
+}
+
+/** 删除确认框：说明会一并删除的内容 */
+@Composable
+private fun DeleteExpenseDialog(item: ExpenseWithDetails, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val extras = buildList {
+        if (item.payments.isNotEmpty()) add("${item.payments.size} 条付款记录")
+        if (item.attachments.isNotEmpty()) add("${item.attachments.size} 张凭证图片")
+    }
+    ConfirmDialog(
+        title = "删除这笔账单？",
+        text = buildString {
+            append(item.expense.payee.ifBlank { "${item.stage.name} · ${item.type.name}" })
+            append("，").append(Money.format(item.expense.totalCents)).append("，").append(Dates.format(item.expense.date))
+            append("。\n\n")
+            if (extras.isNotEmpty()) append(extras.joinToString("、")).append("会一并删除，")
+            append("删除后无法恢复。")
+        },
+        confirmLabel = "删除",
+        destructive = true,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+    )
 }
 
 /** 一个下拉式筛选标签：未选时显示名称，选中后显示所选项 */

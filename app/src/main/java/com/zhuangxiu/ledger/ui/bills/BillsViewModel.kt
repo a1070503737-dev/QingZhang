@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** 账单筛选条件；为 null 表示不限 */
@@ -42,7 +43,7 @@ data class BillsUiState(
 
 @HiltViewModel
 class BillsViewModel @Inject constructor(
-    expenseRepository: ExpenseRepository,
+    private val expenseRepository: ExpenseRepository,
     categoryRepository: CategoryRepository,
 ) : ViewModel() {
 
@@ -73,6 +74,11 @@ class BillsViewModel @Inject constructor(
     fun setType(id: Long?) = filter.update { it.copy(typeId = id) }
     fun setStatus(status: PaymentStatus?) = filter.update { it.copy(status = status) }
     fun clearFilter() = filter.update { BillFilter() }
+
+    /** 删除账单（连同付款记录和凭证图片），列表会随数据库变化自动刷新 */
+    fun delete(expenseId: Long) {
+        viewModelScope.launch { expenseRepository.delete(expenseId) }
+    }
 
     /** 搜索范围：商家/工人、备注、阶段名、类型名 */
     private fun matches(item: ExpenseWithDetails, filter: BillFilter): Boolean {

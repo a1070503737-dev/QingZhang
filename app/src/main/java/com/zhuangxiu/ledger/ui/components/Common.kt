@@ -2,6 +2,7 @@ package com.zhuangxiu.ledger.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -150,13 +153,33 @@ fun StatusChip(status: PaymentStatus, modifier: Modifier = Modifier) {
     )
 }
 
-/** 账单列表的一行 */
+/**
+ * 账单列表的一行。
+ * @param onLongClick 长按回调（例如删除）；为 null 时不响应长按
+ */
 @Composable
-fun ExpenseRow(item: ExpenseWithDetails, onClick: () -> Unit, modifier: Modifier = Modifier, showDate: Boolean = false) {
+fun ExpenseRow(
+    item: ExpenseWithDetails,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    showDate: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
+) {
+    val haptic = LocalHapticFeedback.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick?.let { action ->
+                    {
+                        // 长按时轻微震动，提示已触发
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        action()
+                    }
+                },
+                onLongClickLabel = if (onLongClick != null) "删除" else null,
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
