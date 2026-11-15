@@ -8,6 +8,7 @@ import com.zhuangxiu.ledger.data.db.ExpenseWithDetails
 import com.zhuangxiu.ledger.data.db.PaymentStatus
 import com.zhuangxiu.ledger.data.repository.CategoryRepository
 import com.zhuangxiu.ledger.data.repository.ExpenseRepository
+import com.zhuangxiu.ledger.util.Dates
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -74,6 +75,18 @@ class BillsViewModel @Inject constructor(
     fun setType(id: Long?) = filter.update { it.copy(typeId = id) }
     fun setStatus(status: PaymentStatus?) = filter.update { it.copy(status = status) }
     fun clearFilter() = filter.update { BillFilter() }
+
+    /** 登记一次付款（付款日期记为今天），超出剩余金额的部分按剩余金额记录 */
+    fun addPayment(expenseId: Long, amountCents: Long) {
+        viewModelScope.launch { expenseRepository.addPayment(expenseId, amountCents, Dates.today()) }
+    }
+
+    /** 标记为已付清：自动补记一笔今天的结清付款 */
+    fun markPaid(item: ExpenseWithDetails) {
+        viewModelScope.launch {
+            expenseRepository.update(item.expense.copy(status = PaymentStatus.PAID), settleDate = Dates.today())
+        }
+    }
 
     /** 删除账单（连同付款记录和凭证图片），列表会随数据库变化自动刷新 */
     fun delete(expenseId: Long) {

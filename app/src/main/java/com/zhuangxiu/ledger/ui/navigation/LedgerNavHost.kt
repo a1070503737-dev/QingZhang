@@ -99,6 +99,8 @@ fun LedgerNavHost(
                 bottomBar = { LedgerBottomBar(Routes.BILLS, switchTab) },
                 onAdd = { navController.navigate(Routes.edit()) },
                 onOpenExpense = { navController.navigate(Routes.detail(it)) },
+                onEditExpense = { navController.navigate(Routes.edit(id = it)) },
+                onCopyExpense = { navController.navigate(Routes.edit(copyFrom = it)) },
             )
         }
         composable(Routes.STATS) {
@@ -112,7 +114,10 @@ fun LedgerNavHost(
         }
         composable(
             Routes.EDIT,
-            arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L }),
+            arguments = listOf(
+                navArgument("id") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("copyFrom") { type = NavType.LongType; defaultValue = -1L },
+            ),
         ) {
             EditScreen(onBack = back)
         }

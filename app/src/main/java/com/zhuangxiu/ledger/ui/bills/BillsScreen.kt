@@ -33,6 +33,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
+import com.zhuangxiu.ledger.ui.components.AmountInputDialog
+import com.zhuangxiu.ledger.ui.components.StatusChip
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -68,11 +84,17 @@ fun BillsScreen(
     bottomBar: @Composable () -> Unit,
     onAdd: () -> Unit,
     onOpenExpense: (Long) -> Unit,
+    onEditExpense: (Long) -> Unit,
+    onCopyExpense: (Long) -> Unit,
     viewModel: BillsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 等待用户确认删除的账单（左滑或长按触发）
     var pendingDelete by remember { mutableStateOf<ExpenseWithDetails?>(null) }
+    // 长按弹出操作菜单的账单
+    var menuTarget by remember { mutableStateOf<ExpenseWithDetails?>(null) }
+    // 正在登记付款的账单
+    var paymentTarget by remember { mutableStateOf<ExpenseWithDetails?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     Scaffold(
@@ -185,6 +207,7 @@ fun BillsScreen(
                             // 只有正在确认的这一行保持滑开，其他行（以及取消后）自动弹回
                             confirming = pendingDelete?.expense?.id == item.expense.id,
                             onRequestDelete = { pendingDelete = item },
+                            onLongClick = { menuTarget = item },
                             onClick = { onOpenExpense(item.expense.id) },
                             modifier = Modifier.animateItem(),
                         )
@@ -192,6 +215,43 @@ fun BillsScreen(
                 }
             }
         }
+    }
+
+    menuTarget?.let { item ->
+        ExpenseActionSheet(
+            item = item,
+            onDismiss = { menuTarget = null },
+            onAction = { action ->
+                menuTarget = null
+                val id = item.expense.id
+                when (action) {
+                    ExpenseAction.OPEN -> onOpenExpense(id)
+                    ExpenseAction.EDIT -> onEditExpense(id)
+                    ExpenseAction.ADD_PAYMENT -> paymentTarget = item
+                    ExpenseAction.MARK_PAID -> {
+                        viewModel.markPaid(item)
+                        scope.launch { snackbar.showSnackbar("已标记为已付清，补记了 ${Money.format(item.remainingCents)} 的付款") }
+                    }
+                    ExpenseAction.COPY -> onCopyExpense(id)
+                    ExpenseAction.DELETE -> pendingDelete = item
+                }
+            },
+        )
+    }
+
+    paymentTarget?.let { item ->
+        AmountInputDialog(
+            title = "登记付款",
+            initialCents = item.remainingCents,
+            label = "本次付款金额（元）",
+            hint = "剩余待付 ${Money.format(item.remainingCents)}，超出部分按剩余金额记录。付款日期记为今天。",
+            onConfirm = { cents ->
+                viewModel.addPayment(item.expense.id, cents)
+                paymentTarget = null
+                scope.launch { snackbar.showSnackbar("已登记付款 ${Money.format(minOf(cents, item.remainingCents))}") }
+            },
+            onDismiss = { paymentTarget = null },
+        )
     }
 
     pendingDelete?.let { item ->
@@ -207,8 +267,87 @@ fun BillsScreen(
     }
 }
 
+/** 长按菜单里的操作 */
+private enum class ExpenseAction { OPEN, EDIT, ADD_PAYMENT, MARK_PAID, COPY, DELETE }
+
 /**
- * 可左滑删除的账单行：向左滑过 40% 宽度露出红色删除区并请求删除；长按同样请求删除。
+ * 长按账单弹出的底部操作菜单。
+ * 顶部显示账单摘要；“登记付款”“标记为已付清”只在还有余款时出现。
+ */
+@Composable
+private fun ExpenseActionSheet(
+    item: ExpenseWithDetails,
+    onDismiss: () -> Unit,
+    onAction: (ExpenseAction) -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        // 账单摘要
+        Column(Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    item.expense.payee.ifBlank { item.type.name },
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Spacer(Modifier.width(8.dp))
+                StatusChip(item.expense.status)
+            }
+            Text(
+                "${item.stage.name} · ${item.type.name} · ${Dates.format(item.expense.date)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                buildString {
+                    append(Money.format(item.expense.totalCents))
+                    if (item.remainingCents > 0) append("，待付 ").append(Money.format(item.remainingCents))
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        SheetItem(Icons.Outlined.Info, "查看详情") { onAction(ExpenseAction.OPEN) }
+        SheetItem(Icons.Outlined.Edit, "编辑") { onAction(ExpenseAction.EDIT) }
+        if (item.remainingCents > 0) {
+            SheetItem(Icons.Outlined.Payments, "登记付款", "分期付款，记一笔这次付的钱") { onAction(ExpenseAction.ADD_PAYMENT) }
+            SheetItem(Icons.Outlined.TaskAlt, "标记为已付清", "自动补记 ${Money.format(item.remainingCents)} 的结清付款") {
+                onAction(ExpenseAction.MARK_PAID)
+            }
+        }
+        SheetItem(Icons.Outlined.ContentCopy, "再记一笔", "沿用这笔的阶段、类型和商家") { onAction(ExpenseAction.COPY) }
+        SheetItem(Icons.Outlined.DeleteOutline, "删除", destructive = true) { onAction(ExpenseAction.DELETE) }
+        Spacer(Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun SheetItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    destructive: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    ListItem(
+        headlineContent = { Text(title, color = color) },
+        supportingContent = subtitle?.let { { Text(it) } },
+        leadingContent = {
+            Icon(icon, contentDescription = null, tint = if (destructive) color else MaterialTheme.colorScheme.secondary)
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onClick),
+    )
+}
+
+/**
+ * 可左滑删除的账单行：向左滑过 40% 宽度露出红色删除区并请求删除；长按弹出操作菜单。
  * 真正删除前由外层弹确认框，[confirming] 变为 false 时（取消或删除完成）自动弹回。
  */
 @Composable
@@ -216,6 +355,7 @@ private fun SwipeToDeleteRow(
     item: ExpenseWithDetails,
     confirming: Boolean,
     onRequestDelete: () -> Unit,
+    onLongClick: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -251,7 +391,7 @@ private fun SwipeToDeleteRow(
         ExpenseRow(
             item = item,
             onClick = onClick,
-            onLongClick = onRequestDelete,
+            onLongClick = onLongClick,
             modifier = Modifier.background(MaterialTheme.colorScheme.background),
         )
     }

@@ -70,6 +70,9 @@ class EditViewModel @Inject constructor(
 
     private val expenseId: Long = savedStateHandle.get<Long>("id") ?: -1L
 
+    /** “再记一笔”时作为模板的账单 id，-1 表示没有 */
+    private val copyFromId: Long = savedStateHandle.get<Long>("copyFrom") ?: -1L
+
     private val _uiState = MutableStateFlow(EditUiState(isNew = expenseId <= 0))
     val uiState: StateFlow<EditUiState> = _uiState.asStateFlow()
 
@@ -81,16 +84,19 @@ class EditViewModel @Inject constructor(
             val stages = categoryRepository.list(CategoryKind.STAGE)
             val types = categoryRepository.list(CategoryKind.TYPE)
             val existing = if (expenseId > 0) expenseRepository.get(expenseId) else null
+            val template = if (existing == null && copyFromId > 0) expenseRepository.get(copyFromId)?.expense else null
             _uiState.update { state ->
                 if (existing == null) {
-                    // 新建：默认选中第一个阶段和类型，方便快速记账
+                    // 新建：有模板时沿用模板的阶段、类型、商家（金额、日期、凭证都重新填）；
+                    // 否则默认选中第一个阶段和类型，方便快速记账
                     state.copy(
                         loading = false,
                         isNew = true,
                         stages = stages,
                         types = types,
-                        stageId = stages.firstOrNull()?.id,
-                        typeId = types.firstOrNull()?.id,
+                        stageId = template?.stageId?.takeIf { id -> stages.any { it.id == id } } ?: stages.firstOrNull()?.id,
+                        typeId = template?.typeId?.takeIf { id -> types.any { it.id == id } } ?: types.firstOrNull()?.id,
+                        payee = template?.payee.orEmpty(),
                     )
                 } else {
                     val e = existing.expense

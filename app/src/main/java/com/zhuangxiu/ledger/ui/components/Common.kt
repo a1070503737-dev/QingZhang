@@ -155,7 +155,7 @@ fun StatusChip(status: PaymentStatus, modifier: Modifier = Modifier) {
 
 /**
  * 账单列表的一行。
- * @param onLongClick 长按回调（例如删除）；为 null 时不响应长按
+ * @param onLongClick 长按回调（例如弹出操作菜单）；为 null 时不响应长按
  */
 @Composable
 fun ExpenseRow(
@@ -178,7 +178,7 @@ fun ExpenseRow(
                         action()
                     }
                 },
-                onLongClickLabel = if (onLongClick != null) "删除" else null,
+                onLongClickLabel = if (onLongClick != null) "更多操作" else null,
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
