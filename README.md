@@ -4,7 +4,7 @@
 
 ## 下载安装
 
-不想自己编译的话，可以直接下载安装包：[`dist/renovation-ledger-1.0.0-debug.apk`](dist/renovation-ledger-1.0.0-debug.apk)（约 26 MB，点开后按 **Download raw file**）。
+不想自己编译的话，可以直接下载安装包：[`dist/renovation-ledger-1.0.1-debug.apk`](dist/renovation-ledger-1.0.1-debug.apk)（约 26 MB，点开后按 **Download raw file**）。
 
 - 下载到手机后点击安装，系统会提示“允许安装未知来源的应用”，允许即可。
 - 这是**调试版**安装包，用临时的调试签名。以后如果改用自己签名的正式包，需要先卸载这个版本——卸载会清空数据，请先在 App 里导出备份。
