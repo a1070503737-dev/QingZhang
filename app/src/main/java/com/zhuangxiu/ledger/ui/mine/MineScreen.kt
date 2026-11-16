@@ -1,6 +1,13 @@
 package com.zhuangxiu.ledger.ui.mine
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Cottage
+import androidx.compose.material.icons.outlined.Shield
+import com.zhuangxiu.ledger.ui.components.PageHeading
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -51,14 +58,25 @@ fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit) 
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(horizontal = 20.dp, vertical = 24.dp),
         ) {
-            Text("我的", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            PageHeading("我的家装", "预算、凭证和账本，一处整理")
+            Spacer(Modifier.height(20.dp))
+            LedgerCard(Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.primaryContainer) {
+                Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Cottage, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text("新家，慢慢变成喜欢的样子", style = MaterialTheme.typography.titleMedium)
+                        Text("装修记账 · 让每一笔花费有迹可循", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
             Spacer(Modifier.height(16.dp))
             LedgerCard(Modifier.fillMaxWidth()) {
                 ENTRIES.forEachIndexed { index, entry ->
                     if (index > 0) {
-                        HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                        HorizontalDivider(Modifier.padding(start = 72.dp, end = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     }
                     Row(
                         Modifier
@@ -67,7 +85,9 @@ fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit) 
                             .padding(horizontal = 16.dp, vertical = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(entry.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                            Icon(entry.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
+                        }
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) {
                             Text(entry.title, style = MaterialTheme.typography.bodyLarge)
