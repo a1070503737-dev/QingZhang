@@ -50,3 +50,7 @@
 <img src="screenshots/update-shared-access-1.0.5.png" width="300" alt="1.0.5 共享更新访问已就绪，无需逐用户配置">
 
 预览由 Robolectric 渲染共享访问状态；未执行真机安装测试。
+
+正式包已使用现有密钥签名，1.0.3 / 1.0.4 → 1.0.5 的签名、包名、递增版本号及 ZIP 对齐检查通过。[签名验证记录](SIGNING-VERIFICATION-1.0.5.txt)。
+
+APK SHA-256：`5a54dfd30fce9cd3a8df3eef075604f47841862b555fc3754319ecadd09cdee0`
