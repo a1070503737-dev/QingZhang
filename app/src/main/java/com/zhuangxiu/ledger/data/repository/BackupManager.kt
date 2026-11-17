@@ -86,11 +86,15 @@ class BackupManager @Inject constructor(
             }
             val file = File(temp, BackupZip.DB_ENTRY)
             val oldVersion = SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use { it.version }
-            if (oldVersion == 1) BackupDatabaseValidator.validate(file, 1, AppDatabase.V1_IDENTITY)
-            else BackupDatabaseValidator.validate(file, current.version, identity)
+            when (oldVersion) {
+                1 -> BackupDatabaseValidator.validate(file, 1, AppDatabase.V1_IDENTITY)
+                2 -> BackupDatabaseValidator.validate(file, 2, AppDatabase.V2_IDENTITY)
+                else -> BackupDatabaseValidator.validate(file, current.version, identity)
+            }
             // 先在临时数据库迁移并验证，失败绝不关闭或替换当前数据库。
             val prepared = Room.databaseBuilder(context, AppDatabase::class.java, file.absolutePath)
-                .addMigrations(AppDatabase.MIGRATION_1_2).setJournalMode(androidx.room.RoomDatabase.JournalMode.TRUNCATE).build()
+                .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+                .setJournalMode(androidx.room.RoomDatabase.JournalMode.TRUNCATE).build()
             try {
                 prepared.openHelper.writableDatabase
                 if (oldVersion == 1) db.withTransaction {
@@ -99,18 +103,20 @@ class BackupManager @Inject constructor(
                     prepared.withTransaction {
                         books.forEach { prepared.dailyDao().copyBook(it); prepared.dailyDao().updateBook(it) }
                         entries.forEach { prepared.dailyDao().insert(it) }
+                        prepared.dailyDao().insertCategories(db.dailyDao().dailyCategories())
+                        db.dailyDao().allBatches().forEach { prepared.dailyDao().insertBatch(it) }
                     }
                 }
                 // 枚举/业务字段也应能够读取；拒绝损坏的关联或非正金额。
                 val books = prepared.dailyDao().books().associateBy { it.id }
                 prepared.dailyDao().all().forEach { entry ->
-                    if (books[entry.bookId]?.kind != com.zhuangxiu.ledger.data.db.BookKind.DAILY ||
+                    if (entry.bookId !in books ||
                         entry.amountCents !in 1..99_999_999_999L || entry.category.kind != entry.kind ||
-                        entry.minute !in 0..1439 || entry.note.length > 1000 ||
+                        entry.minute !in -1..1439 || entry.note.length > 1000 ||
                         java.time.LocalDate.ofEpochDay(entry.day).year !in 1..9999) throw IOException("备份中有无效的生活账目")
                 }
             } finally { prepared.close() }
-            BackupDatabaseValidator.validate(file, 2, identity)
+            BackupDatabaseValidator.validate(file, current.version, identity)
             before = snapshot()
             val recovery = DatabaseSafety.recoveryZip(context).apply { parentFile?.mkdirs() }
             val recoveryTemp = File(recovery.path + ".tmp")

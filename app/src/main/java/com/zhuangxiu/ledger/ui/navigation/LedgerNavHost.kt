@@ -1,12 +1,10 @@
 package com.zhuangxiu.ledger.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import com.zhuangxiu.ledger.ui.daily.*
 import com.zhuangxiu.ledger.data.db.BookKind
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.PieChartOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +18,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.Modifier
+import com.zhuangxiu.ledger.ui.importing.ImportScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavHostController
@@ -39,7 +47,6 @@ import com.zhuangxiu.ledger.ui.mine.CategoriesScreen
 import com.zhuangxiu.ledger.ui.mine.MineScreen
 import com.zhuangxiu.ledger.ui.mine.ReminderScreen
 import com.zhuangxiu.ledger.ui.mine.UpdateScreen
-import com.zhuangxiu.ledger.ui.stats.StatsScreen
 import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -92,6 +99,16 @@ fun LedgerNavHost(
         }
     }
     val back: () -> Unit = { navController.popBackStack() }
+    var pickQuickBook by rememberSaveable { mutableStateOf(false) }
+    if (pickQuickBook) AlertDialog(
+        onDismissRequest = { pickQuickBook = false }, title = { Text("记到哪个账本？") },
+        text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+            bookState.books.filterNot { it.archived }.forEach { book ->
+                TextButton({ pickQuickBook = false; navController.navigate(Routes.dailyEdit(book.id)) }) { Text(book.name) }
+            }
+        } },
+        confirmButton = { TextButton({ pickQuickBook = false }) { Text("取消") } },
+    )
 
     LaunchedEffect(pendingExpenseId) {
         if (pendingExpenseId != null) {
@@ -102,33 +119,52 @@ fun LedgerNavHost(
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
-            if (bookState.selected?.kind == BookKind.RENOVATION) HomeScreen(
-                header = header,
-                bottomBar = { LedgerBottomBar(Routes.HOME, switchTab) },
-                onAdd = { navController.navigate(Routes.edit()) },
+            val projectBook = bookState.selected?.takeIf { !bookState.all && it.kind == BookKind.RENOVATION }
+            DailyHomeScreen(dailyState, header, { LedgerBottomBar(Routes.HOME, switchTab) },
+                dailyViewModel::month, dailyViewModel::currentMonth,
+                onAdd = {
+                    if (bookState.all) pickQuickBook = true
+                    else bookState.selected?.let { navController.navigate(Routes.dailyEdit(it.id)) }
+                },
+                onEdit = { id ->
+                    val projectId = id.takeIf { it.startsWith("payment:") }?.split(':')?.getOrNull(1)?.toLongOrNull()
+                    if (projectId != null) navController.navigate(Routes.detail(projectId))
+                    else navController.navigate(Routes.dailyEdit(1, id))
+                },
+                onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
+                bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
+                canAdd = bookState.selected != null,
+            )
+        }
+        composable(Routes.PROJECTS, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) { entry ->
+            val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
+            HomeScreen(
+                header = { androidx.compose.material3.TopAppBar(title = { Text("装修项目") },
+                    navigationIcon = { TextButton(back) { Text("返回") } }) },
+                bottomBar = {},
+                onAdd = { navController.navigate(Routes.edit(bookId = bookId)) },
                 onOpenExpense = { navController.navigate(Routes.detail(it)) },
-                onOpenBills = { switchTab(Routes.BILLS) },
+                onOpenBills = { navController.navigate(Routes.bills(bookId)) },
                 onOpenBudget = { navController.navigate(Routes.BUDGET) },
+                showBudget = bookId == 2L,
                 onOpenPending = {
-                    switchTab(Routes.BILLS)
+                    navController.navigate(Routes.bills(bookId))
                     navController.getBackStackEntry(Routes.BILLS).savedStateHandle["showPending"] = true
                 },
-            ) else DailyHomeScreen(dailyState, header, { LedgerBottomBar(Routes.HOME, switchTab) },
-                dailyViewModel::month, dailyViewModel::currentMonth,
-                onAdd = { bookState.selected?.let { navController.navigate(Routes.dailyEdit(it.id)) } },
-                onEdit = { id -> bookState.selected?.let { navController.navigate(Routes.dailyEdit(it.id, id)) } })
+            )
         }
         composable(Routes.BOOKS) {
             BooksScreen(bookState, bottomBar = { LedgerBottomBar(Routes.BOOKS, switchTab) },
                 onSelect = { dailyViewModel.select(it); switchTab(Routes.HOME) },
-                onAdd = dailyViewModel::addBook, onRename = dailyViewModel::renameBook,
+                onSave = dailyViewModel::saveBook,
                 onSettings = { navController.navigate(Routes.MINE) }, onClearError = dailyViewModel::clearError)
         }
         composable(Routes.DAILY_EDIT, arguments = listOf(
             navArgument("bookId") { type = NavType.LongType; defaultValue = 1L },
             navArgument("entryId") { type = NavType.StringType; defaultValue = "" },
         )) { DailyEditScreen(onBack = back) }
-        composable(Routes.BILLS) { entry ->
+        composable(Routes.BILLS, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) { entry ->
+            val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
             val billsViewModel: BillsViewModel = hiltViewModel()
             // 每次从首页进入都消费一次请求，支持恢复已存在的账单页状态。
             val pendingRequest by entry.savedStateHandle.getStateFlow("showPending", false).collectAsStateWithLifecycle()
@@ -141,15 +177,14 @@ fun LedgerNavHost(
             BillsScreen(
                 viewModel = billsViewModel,
                 bottomBar = { LedgerBottomBar(Routes.BILLS, switchTab) },
-                onAdd = { navController.navigate(Routes.edit()) },
+                onAdd = { navController.navigate(Routes.edit(bookId = bookId)) },
                 onOpenExpense = { navController.navigate(Routes.detail(it)) },
                 onEditExpense = { navController.navigate(Routes.edit(id = it)) },
-                onCopyExpense = { navController.navigate(Routes.edit(copyFrom = it)) },
+                onCopyExpense = { navController.navigate(Routes.edit(copyFrom = it, bookId = bookId)) },
             )
         }
         composable(Routes.STATS) {
-            if (bookState.selected?.kind == BookKind.RENOVATION) StatsScreen(header = header, bottomBar = { LedgerBottomBar(Routes.STATS, switchTab) })
-            else DailyStatsScreen(dailyState, header, { LedgerBottomBar(Routes.STATS, switchTab) }, dailyViewModel::month, dailyViewModel::currentMonth)
+            DailyStatsScreen(dailyState, header, { LedgerBottomBar(Routes.STATS, switchTab) }, dailyViewModel::month, dailyViewModel::currentMonth)
         }
         composable(Routes.MINE) {
             MineScreen(
@@ -163,6 +198,7 @@ fun LedgerNavHost(
             arguments = listOf(
                 navArgument("id") { type = NavType.LongType; defaultValue = -1L },
                 navArgument("copyFrom") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("bookId") { type = NavType.LongType; defaultValue = 2L },
             ),
         ) {
             EditScreen(onBack = back)
@@ -189,6 +225,7 @@ fun LedgerNavHost(
         composable(Routes.BUDGET) { BudgetScreen(onBack = back) }
         composable(Routes.CATEGORIES) { CategoriesScreen(onBack = back) }
         composable(Routes.BACKUP) { BackupScreen(onBack = back) }
+        composable(Routes.IMPORT) { ImportScreen(onBack = back) }
         composable(Routes.REMINDER) { ReminderScreen(onBack = back) }
         composable(Routes.UPDATE) { UpdateScreen(onBack = back) }
     }

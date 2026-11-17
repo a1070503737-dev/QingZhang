@@ -1,5 +1,8 @@
 package com.zhuangxiu.ledger.ui.detail
 
+import com.zhuangxiu.ledger.data.db.PayMethod
+import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -128,16 +131,18 @@ fun DetailScreen(
         )
     }
     if (showAddPayment && item != null) {
+        var method by remember { mutableStateOf(PayMethod.UNSPECIFIED) }
         AmountInputDialog(
             title = "登记付款",
             initialCents = item.remainingCents,
             label = "本次付款金额（元）",
             hint = "剩余待付 ${Money.format(item.remainingCents)}，超出部分按剩余金额记录。付款日期记为今天。",
             onConfirm = {
-                viewModel.addPayment(it, Dates.today())
+                viewModel.addPayment(it, Dates.today(), method)
                 showAddPayment = false
             },
             onDismiss = { showAddPayment = false },
+            extra = { PaymentMethodPicker(method) { method = it } },
         )
     }
     paymentToDelete?.let { payment ->
@@ -244,7 +249,7 @@ private fun PaymentCard(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
-                                Dates.format(payment.date),
+                                "${Dates.format(payment.date)} · ${payment.payMethod.label}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

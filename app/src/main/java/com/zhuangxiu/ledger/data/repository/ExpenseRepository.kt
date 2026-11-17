@@ -7,6 +7,7 @@ import com.zhuangxiu.ledger.data.db.AttachmentWithExpense
 import com.zhuangxiu.ledger.data.db.ExpenseEntity
 import com.zhuangxiu.ledger.data.db.ExpenseWithDetails
 import com.zhuangxiu.ledger.data.db.PaymentEntity
+import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.data.db.PaymentStatus
 import com.zhuangxiu.ledger.domain.PaymentLogic
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +46,7 @@ class ExpenseRepository @Inject constructor(
         draft: ExpenseEntity,
         inputPaidCents: Long = 0,
         attachmentFiles: List<String> = emptyList(),
+        payMethod: PayMethod = PayMethod.UNSPECIFIED,
     ): Long = db.withTransaction {
         val paid = PaymentLogic.initialPaid(draft.status, draft.totalCents, inputPaidCents)
         val status = PaymentLogic.resolveStatus(draft.status, draft.totalCents, paid)
@@ -58,7 +60,7 @@ class ExpenseRepository @Inject constructor(
         )
         if (paid > 0) {
             val note = if (status == PaymentStatus.DEPOSIT) "定金" else ""
-            dao.insertPayment(PaymentEntity(expenseId = id, amountCents = paid, date = draft.date, note = note))
+            dao.insertPayment(PaymentEntity(expenseId = id, amountCents = paid, date = draft.date, note = note, payMethod = payMethod))
         }
         attachmentFiles.forEach { dao.insertAttachment(AttachmentEntity(expenseId = id, fileName = it)) }
         id
@@ -75,6 +77,7 @@ class ExpenseRepository @Inject constructor(
         settleDate: Long,
         addedFiles: List<String> = emptyList(),
         removedAttachmentIds: List<Long> = emptyList(),
+        payMethod: PayMethod = PayMethod.UNSPECIFIED,
     ) {
         val removedFiles = ArrayList<String>()
         db.withTransaction {
@@ -87,6 +90,7 @@ class ExpenseRepository @Inject constructor(
                         amountCents = expense.totalCents - paid,
                         date = settleDate,
                         note = "结清",
+                        payMethod = payMethod,
                     ),
                 )
                 paid = expense.totalCents
@@ -121,12 +125,12 @@ class ExpenseRepository @Inject constructor(
      * 付款金额超过剩余金额时按剩余金额记录。
      * @return 实际登记的金额；账单不存在或已付清时返回 0
      */
-    suspend fun addPayment(expenseId: Long, amountCents: Long, date: Long, note: String = ""): Long =
+    suspend fun addPayment(expenseId: Long, amountCents: Long, date: Long, note: String = "", payMethod: PayMethod = PayMethod.UNSPECIFIED): Long =
         db.withTransaction {
             val current = dao.getById(expenseId) ?: return@withTransaction 0L
             val amount = amountCents.coerceAtMost(current.remainingCents)
             if (amount <= 0) return@withTransaction 0L
-            dao.insertPayment(PaymentEntity(expenseId = expenseId, amountCents = amount, date = date, note = note))
+            dao.insertPayment(PaymentEntity(expenseId = expenseId, amountCents = amount, date = date, note = note, payMethod = payMethod))
             refreshStatus(expenseId)
             amount
         }

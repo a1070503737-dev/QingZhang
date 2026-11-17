@@ -35,9 +35,10 @@ fun HomeScreen(
     onOpenPending: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
     header: @Composable () -> Unit = {},
+    showBudget: Boolean = true,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    HomeContent(state, bottomBar, onAdd, onOpenExpense, onOpenBills, onOpenBudget, onOpenPending, header)
+    HomeContent(state, bottomBar, onAdd, onOpenExpense, onOpenBills, onOpenBudget, onOpenPending, header, showBudget)
 }
 
 /** 无数据库依赖的首页内容，同时用于界面预览与测试。 */
@@ -51,6 +52,7 @@ fun HomeContent(
     onOpenBudget: () -> Unit,
     onOpenPending: () -> Unit,
     header: @Composable () -> Unit = {},
+    showBudget: Boolean = true,
 ) {
     Scaffold(
         topBar = header,
@@ -81,7 +83,7 @@ fun HomeContent(
             if (state.loading) {
                 item { LoadingHint() }
             } else {
-                item { BudgetOverviewCard(state.summary, state.totalBudget, onOpenBudget) }
+                if (showBudget) item { BudgetOverviewCard(state.summary, state.totalBudget, onOpenBudget) }
                 item {
                     BoxWithConstraints {
                         val compact = maxWidth < 340.dp || LocalDensity.current.fontScale > 1.2f

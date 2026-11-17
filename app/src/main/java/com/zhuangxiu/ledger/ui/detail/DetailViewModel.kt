@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhuangxiu.ledger.data.db.ExpenseWithDetails
 import com.zhuangxiu.ledger.data.db.PaymentEntity
+import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.data.repository.ExpenseRepository
 import com.zhuangxiu.ledger.data.repository.ImageStore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,8 +39,8 @@ class DetailViewModel @Inject constructor(
     fun imageFile(fileName: String): File = imageStore.file(fileName)
 
     /** 登记一次付款 */
-    fun addPayment(amountCents: Long, date: Long) {
-        viewModelScope.launch { expenseRepository.addPayment(expenseId, amountCents, date) }
+    fun addPayment(amountCents: Long, date: Long, method: PayMethod) {
+        viewModelScope.launch { expenseRepository.addPayment(expenseId, amountCents, date, payMethod = method) }
     }
 
     fun deletePayment(payment: PaymentEntity) {

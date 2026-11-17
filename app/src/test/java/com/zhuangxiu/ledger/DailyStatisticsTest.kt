@@ -18,7 +18,7 @@ class DailyStatisticsTest {
             row("other", 99999, "2026-11-01", book = 3)), 1, YearMonth.of(2026, 11))
         assertEquals(10101L, result.totals.income); assertEquals(303L, result.totals.expense)
         assertEquals(9798L, result.totals.balance)
-        assertEquals(listOf(DailyCategory.FOOD to 303L), result.categories)
+        assertEquals(listOf(DailyCategory.FOOD.label to 303L), result.categories)
         assertEquals(4, result.entries.size)
         assertEquals(result.totals, result.months.last().totals)
     }
@@ -31,7 +31,7 @@ class DailyStatisticsTest {
     }
     @Test fun rankingAndEmptyMonthsHaveNoInventedAmounts() {
         val result = DailyStatistics.calculate(listOf(row("a", 200, "2026-11-01"), row("b", 300, "2026-11-01", DailyCategory.SHOPPING)), 1, YearMonth.of(2026, 11))
-        assertEquals(listOf(DailyCategory.SHOPPING, DailyCategory.FOOD), result.categories.map { it.first })
+        assertEquals(listOf(DailyCategory.SHOPPING.label, DailyCategory.FOOD.label), result.categories.map { it.first })
         val empty = DailyStatistics.calculate(emptyList(), 1, YearMonth.of(2026, 11))
         assertEquals(0L, empty.totals.balance); assertTrue(empty.categories.isEmpty()); assertEquals(6, empty.months.size)
     }

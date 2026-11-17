@@ -20,6 +20,8 @@ data class DailyEditState(
     val category: DailyCategory = DailyCategory.FOOD, val day: Long = LocalDate.now().toEpochDay(),
     val minute: Int = LocalTime.now().let { it.hour * 60 + it.minute },
     val method: PayMethod = PayMethod.WECHAT, val note: String = "",
+    val categoryName: String? = null, val customCategories: List<DailyCategoryEntity> = emptyList(),
+    val originalCategory: String? = null, val account: String? = null, val sourceMethod: String? = null,
     val loading: Boolean = true, val busy: Boolean = false, val complete: Boolean = false,
     val error: String? = null, val missing: Boolean = false,
 ) {
@@ -32,22 +34,28 @@ class DailyEditViewModel @Inject constructor(private val repository: DailyReposi
     private val id: String = saved.get<String>("entryId")?.takeIf { it.isNotEmpty() }
         ?: saved.get<String>("draftId") ?: UUID.randomUUID().toString().also { saved["draftId"] = it }
     private var bookId = saved.get<Long>("bookId") ?: 1L
+    private var original: DailyEntryEntity? = null
     private val _state = MutableStateFlow(DailyEditState())
     val state = _state.asStateFlow()
 
     init { viewModelScope.launch {
         try {
             val entry = if (editing) repository.get(id) else null
+            original = entry
             if (editing && entry == null) { _state.value = DailyEditState(loading = false, missing = true, error = "这笔记录不存在或已被删除"); return@launch }
             if (entry != null) bookId = entry.bookId
             val base = entry?.let { DailyEditState(amount = Money.toInput(it.amountCents), kind = it.kind, category = it.category,
-                day = it.day, minute = it.minute, method = it.payMethod, note = it.note) } ?: DailyEditState()
+                day = it.day, minute = it.minute, method = it.payMethod, note = it.note, categoryName = it.categoryName,
+                originalCategory = it.sourceCategory, account = it.account, sourceMethod = it.sourceMethod) } ?: DailyEditState()
             _state.value = base.copy(amount = saved["amount"] ?: base.amount,
                 kind = saved.get<String>("kind")?.let(EntryKind::valueOf) ?: base.kind,
                 category = saved.get<String>("category")?.let(DailyCategory::valueOf) ?: base.category,
                 day = saved["day"] ?: base.day, minute = saved["minute"] ?: base.minute,
                 method = saved.get<String>("method")?.let(PayMethod::valueOf) ?: base.method,
-                note = saved["note"] ?: base.note, loading = false, complete = saved["complete"] ?: false)
+                note = saved["note"] ?: base.note, loading = false, complete = saved["complete"] ?: false,
+                categoryName = if (saved.contains("categoryName")) saved["categoryName"] else base.categoryName,
+                sourceMethod = if (saved.contains("sourceMethod")) saved["sourceMethod"] else base.sourceMethod,
+                customCategories = repository.categories())
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { _state.value = DailyEditState(loading = false, missing = true, error = "无法读取记录，请返回重试") }
     } }
@@ -57,14 +65,19 @@ class DailyEditViewModel @Inject constructor(private val repository: DailyReposi
         _state.value = s
         saved["amount"] = s.amount; saved["kind"] = s.kind.name; saved["category"] = s.category.name
         saved["day"] = s.day; saved["minute"] = s.minute; saved["method"] = s.method.name; saved["note"] = s.note
+        saved["categoryName"] = s.categoryName; saved["sourceMethod"] = s.sourceMethod
     }
-    fun kind(kind: EntryKind) = change { it.copy(kind = kind, category = DailyCategory.entries.first { it.kind == kind }) }
+    fun kind(kind: EntryKind) = change {
+        if (it.kind == kind) it else it.copy(kind = kind, category = DailyCategory.entries.first { category -> category.kind == kind }, categoryName = null)
+    }
     fun save() {
         val s = _state.value
         if (s.busy || s.loading || s.complete || s.missing) return
         if (!s.valid) { _state.value = s.copy(error = "请输入有效的正数金额，最多两位小数"); return }
         operate {
-            repository.save(DailyEntryEntity(id, bookId, requireNotNull(Money.parseToCents(s.amount)), s.kind, s.category, s.day, s.minute, s.method, s.note.trim()), editing)
+            repository.save(DailyEntryEntity(id, bookId, requireNotNull(Money.parseToCents(s.amount)), s.kind, s.category, s.day, s.minute, s.method, s.note.trim(),
+                categoryName = s.categoryName, sourceCategory = original?.sourceCategory, account = s.account, sourceMethod = s.sourceMethod,
+                importFingerprint = original?.importFingerprint, importBatchId = original?.importBatchId), editing)
         }
     }
     fun delete() { if (editing && !_state.value.busy && !_state.value.complete) operate { repository.delete(id) } }

@@ -97,22 +97,41 @@ fun DailyEditContent(state: DailyEditState, editing: Boolean, onBack: () -> Unit
             val categories = DailyCategory.entries.filter { it.kind == state.kind }
             categories.chunked(3).forEach { row -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { category ->
-                    FilterChip(selected = state.category == category, onClick = { onChange { it.copy(category = category) } }, enabled = !state.busy,
+                    FilterChip(selected = state.category == category && state.categoryName == null, onClick = { onChange { it.copy(category = category, categoryName = null) } }, enabled = !state.busy,
                         label = { Column(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(category.icon(), null, Modifier.size(22.dp)); Text(category.label, style = MaterialTheme.typography.labelMedium)
                         } }, modifier = Modifier.weight(1f))
                 }
                 repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             } }
+            val custom = (listOfNotNull(state.categoryName) + state.customCategories.filter { it.kind == state.kind }.map { it.name }).distinct()
+            if (custom.isNotEmpty()) {
+                var categoriesOpen by remember { mutableStateOf(false) }
+                Box {
+                    TextButton({ categoriesOpen = true }) { Text(state.categoryName ?: "更多分类") }
+                    DropdownMenu(categoriesOpen, { categoriesOpen = false }, Modifier.heightIn(max = 320.dp)) {
+                        custom.forEach { name ->
+                            DropdownMenuItem(text = { Text(name) }, onClick = {
+                                onChange { it.copy(categoryName = name, category = DailyCategory.entries.last { cat -> cat.kind == it.kind }) }
+                                categoriesOpen = false
+                            })
+                        }
+                    }
+                }
+            }
+            state.originalCategory?.let { Text("原分类 · $it", style = MaterialTheme.typography.labelMedium) }
+            state.account?.let { Text("原账户 · $it", style = MaterialTheme.typography.labelMedium) }
+            state.sourceMethod?.let { Text("支付方式 · $it", style = MaterialTheme.typography.labelMedium) }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PayMethod.entries.forEach { method -> FilterChip(state.method == method, { onChange { it.copy(method = method) } }, enabled = !state.busy,
+                PayMethod.entries.forEach { method -> FilterChip(state.method == method, { onChange { it.copy(method = method, sourceMethod = null) } }, enabled = !state.busy,
                     label = { Text(method.label) }, leadingIcon = { Icon(method.icon(), null, Modifier.size(18.dp)) }) }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { datePicker = true }, enabled = !state.busy) { Icon(Icons.Outlined.CalendarToday, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(LocalDate.ofEpochDay(state.day).toString()) }
                 OutlinedButton(onClick = {
-                    TimePickerDialog(context, { _, hour, minute -> onChange { it.copy(minute = hour * 60 + minute) } }, state.minute / 60, state.minute % 60, true).show()
-                }, enabled = !state.busy) { Icon(Icons.Outlined.Schedule, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("%02d:%02d".format(state.minute / 60, state.minute % 60)) }
+                    val initial = state.minute.coerceAtLeast(0)
+                    TimePickerDialog(context, { _, hour, minute -> onChange { it.copy(minute = hour * 60 + minute) } }, initial / 60, initial % 60, true).show()
+                }, enabled = !state.busy) { Icon(Icons.Outlined.Schedule, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(if (state.minute < 0) "时间未指定" else "%02d:%02d".format(state.minute / 60, state.minute % 60)) }
             }
             OutlinedTextField(state.note, { note -> onChange { it.copy(note = note) } }, Modifier.fillMaxWidth().onFocusChanged { noteFocused = it.isFocused }, enabled = !state.busy,
                 label = { Text("备注（可选）") }, maxLines = 3, isError = state.note.length > 1000,

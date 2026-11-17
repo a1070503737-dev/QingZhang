@@ -291,6 +291,7 @@ fun AmountInputDialog(
     allowEmpty: Boolean = false,
     onConfirm: (Long) -> Unit,
     onDismiss: () -> Unit,
+    extra: @Composable () -> Unit = {},
 ) {
     var text by remember { mutableStateOf(Money.toInput(initialCents)) }
     val focusRequester = remember { FocusRequester() }
@@ -320,6 +321,7 @@ fun AmountInputDialog(
                     Spacer(Modifier.height(8.dp))
                     Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                extra()
             }
         },
         confirmButton = {
@@ -328,6 +330,25 @@ fun AmountInputDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
+}
+
+@Composable
+fun PaymentMethodPicker(
+    method: com.zhuangxiu.ledger.data.db.PayMethod,
+    onChange: (com.zhuangxiu.ledger.data.db.PayMethod) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton({ expanded = true }) { Text("支付方式 · ${method.label} ▾") }
+        androidx.compose.material3.DropdownMenu(expanded, { expanded = false }) {
+            com.zhuangxiu.ledger.data.db.PayMethod.entries.forEach { item ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(item.label) },
+                    onClick = { onChange(item); expanded = false },
+                )
+            }
+        }
+    }
 }
 
 /** 输入一行文字的对话框（新增 / 重命名分类） */
@@ -393,8 +414,11 @@ fun LedgerDatePickerDialog(
     onPick: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val date = initialEpochDay ?: Dates.today()
+    val year = java.time.LocalDate.ofEpochDay(date).year
     val state = rememberDatePickerState(
-        initialSelectedDateMillis = Dates.epochDayToUtcMillis(initialEpochDay ?: Dates.today()),
+        initialSelectedDateMillis = Dates.epochDayToUtcMillis(date),
+        yearRange = minOf(year, 1900)..maxOf(year, 2100),
     )
     DatePickerDialog(
         onDismissRequest = onDismiss,

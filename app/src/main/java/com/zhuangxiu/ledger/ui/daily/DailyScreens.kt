@@ -3,6 +3,7 @@ package com.zhuangxiu.ledger.ui.daily
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -52,7 +53,7 @@ fun PayMethod.icon(): ImageVector = when(this) {
     PayMethod.ALIPAY -> Icons.Outlined.AccountBalanceWallet
     PayMethod.BANK -> Icons.Outlined.CreditCard
     PayMethod.CASH -> Icons.Outlined.Payments
-    PayMethod.OTHER -> Icons.Outlined.MoreHoriz
+    PayMethod.OTHER, PayMethod.UNSPECIFIED -> Icons.Outlined.MoreHoriz
 }
 
 @Composable
@@ -63,13 +64,14 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
             Text("轻账", style = MaterialTheme.typography.titleLarge)
             Box {
                 TextButton(onClick = { expanded = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.semantics { contentDescription = "切换账本" }) {
-                    Text(state.selected?.name ?: "正在打开账本")
+                    Text(if (state.all) "全部账本" else state.selected?.name ?: "请选择账本")
                     Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
                 }
                 DropdownMenu(expanded, { expanded = false }) {
-                    state.books.forEach { book -> DropdownMenuItem(text = { Text(book.name) },
+                    DropdownMenuItem(text = { Text("全部账本") }, onClick = { onSelect(0); expanded = false })
+                    state.books.filterNot { it.archived }.forEach { book -> DropdownMenuItem(text = { Text(book.name) },
                         leadingIcon = { Icon(if (book.kind == BookKind.DAILY) Icons.Outlined.AccountBalanceWallet else Icons.Outlined.Cottage, null) },
-                        trailingIcon = { if (book.id == state.selected?.id) Icon(Icons.Outlined.Check, null) },
+                        trailingIcon = { if (!state.all && book.id == state.selected?.id) Icon(Icons.Outlined.Check, null) },
                         onClick = { onSelect(book.id); expanded = false }) }
                 }
             }
@@ -79,12 +81,21 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
 
 @Composable
 fun MonthSelector(month: YearMonth, onMonth: (Long) -> Unit, onToday: () -> Unit) {
+    var showDatePicker by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = { onMonth(-1) }) { Icon(Icons.Outlined.ChevronLeft, "上个月") }
-        Text("${month.year}年${month.monthValue}月", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+        TextButton({ showDatePicker = true }, Modifier.weight(1f)) {
+            Text("${month.year}年${month.monthValue}月", style = MaterialTheme.typography.titleMedium)
+        }
         TextButton(onClick = onToday) { Text("本月") }
         IconButton(onClick = { onMonth(1) }) { Icon(Icons.Outlined.ChevronRight, "下个月") }
     }
+    if (showDatePicker) LedgerDatePickerDialog(month.atDay(1).toEpochDay(),
+        onPick = {
+            val target = YearMonth.from(LocalDate.ofEpochDay(it))
+            onMonth(java.time.temporal.ChronoUnit.MONTHS.between(month, target))
+            showDatePicker = false
+        }, onDismiss = { showDatePicker = false })
 }
 
 @Composable
@@ -116,16 +127,19 @@ private fun TotalsCard(totals: DailyTotals) {
 
 @Composable
 fun DailyHomeScreen(state: DailyState, header: @Composable () -> Unit, bottomBar: @Composable () -> Unit,
-                    onMonth: (Long) -> Unit, onToday: () -> Unit, onAdd: () -> Unit, onEdit: (String) -> Unit) {
+                    onMonth: (Long) -> Unit, onToday: () -> Unit, onAdd: () -> Unit, onEdit: (String) -> Unit,
+                    onProjects: (() -> Unit)? = null, bookNames: Map<Long, String> = emptyMap(), canAdd: Boolean = true) {
     var query by rememberSaveable { mutableStateOf("") }
     Scaffold(topBar = header, bottomBar = bottomBar, floatingActionButton = {
-        ExtendedFloatingActionButton(onClick = onAdd, icon = { Icon(Icons.Outlined.Add, null) }, text = { Text("记一笔") },
+        if (canAdd) ExtendedFloatingActionButton(onClick = onAdd, icon = { Icon(Icons.Outlined.Add, null) }, text = { Text("记一笔") },
             containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
     }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             item { MonthSelector(state.month, onMonth, onToday) }
+            if (onProjects != null) item { OutlinedButton(onProjects, Modifier.fillMaxWidth()) { Text("装修项目") } }
             if (state.error != null) item { Text(state.error, color = MaterialTheme.colorScheme.error) }
+            else if (!canAdd && state.summary == null) item { Text("没有使用中的账本，请在账本页创建或恢复一个账本") }
             else if (state.summary == null) item { LoadingHint() }
             else {
                 item { TotalsCard(state.summary.totals) }
@@ -133,17 +147,17 @@ fun DailyHomeScreen(state: DailyState, header: @Composable () -> Unit, bottomBar
                 item { OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
                     placeholder = { Text("搜索分类、备注或支付方式") }, leadingIcon = { Icon(Icons.Outlined.Search, null) },
                     trailingIcon = { if (query.isNotEmpty()) IconButton({ query = "" }) { Icon(Icons.Outlined.Close, "清空搜索") } }) }
-                val entries = state.summary.entries.filter { query.isBlank() || "${it.category.label} ${it.note} ${it.payMethod.label}".contains(query.trim(), true) }
+                val entries = state.summary.entries.filter { query.isBlank() || "${it.displayCategory} ${it.note} ${it.displayPayment} ${it.sourceCategory.orEmpty()}".contains(query.trim(), true) }
                 if (entries.isEmpty()) item { LedgerCard(Modifier.fillMaxWidth()) {
                     EmptyHint(Icons.AutoMirrored.Outlined.ReceiptLong, if (query.isBlank()) "这个月还没有账目，记下生活的第一笔吧" else "没有找到匹配的账目")
                 } }
-                items(entries, key = { it.id }) { entry -> DailyEntryRow(entry) { onEdit(entry.id) } }
+                items(entries, key = { it.id }) { entry -> DailyEntryRow(entry, bookNames[entry.bookId]) { onEdit(entry.id) } }
             }
         }
     }
 }
 
-@Composable private fun DailyEntryRow(entry: DailyEntryEntity, onClick: () -> Unit) {
+@Composable private fun DailyEntryRow(entry: DailyEntryEntity, bookName: String?, onClick: () -> Unit) {
     LedgerCard(Modifier.fillMaxWidth(), onClick = onClick) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -151,12 +165,13 @@ fun DailyHomeScreen(state: DailyState, header: @Composable () -> Unit, bottomBar
                     Icon(entry.category.icon(), null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                 }
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                    Text(entry.category.label, style = MaterialTheme.typography.titleMedium)
-                    Text("${LocalDate.ofEpochDay(entry.day)} · ${"%02d:%02d".format(entry.minute / 60, entry.minute % 60)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(entry.displayCategory, style = MaterialTheme.typography.titleMedium)
+                    val time = if (entry.minute < 0) "" else " · ${"%02d:%02d".format(entry.minute / 60, entry.minute % 60)}"
+                    Text("${LocalDate.ofEpochDay(entry.day)}$time", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(entry.payMethod.label, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(listOfNotNull(bookName, entry.displayPayment).joinToString(" · "), Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text((if (entry.kind == EntryKind.INCOME) "+" else "−") + Money.format(entry.amountCents), style = MaterialTheme.typography.titleLarge,
                     color = if (entry.kind == EntryKind.INCOME) LedgerTheme.extra.success else MaterialTheme.colorScheme.onSurface)
             }
@@ -183,10 +198,10 @@ fun DailyStatsScreen(state: DailyState, header: @Composable () -> Unit, bottomBa
                         Text("支出分类", style = MaterialTheme.typography.titleLarge)
                         if (summary.categories.isEmpty()) Text("本月暂无支出，收入会显示在下方趋势中。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         else {
-                            PieChart(summary.categories.map { CategorySlice(it.first.ordinal.toLong(), it.first.label, it.second) }, exactAmount = true)
+                            PieChart(summary.categories.mapIndexed { i, (label, cents) -> CategorySlice(i.toLong(), label, cents) }, exactAmount = true)
                             summary.categories.forEach { (category, amount) ->
                                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Row { Text(category.label, Modifier.weight(1f)); Text(Money.format(amount)) }
+                                    Row { Text(category, Modifier.weight(1f)); Text(Money.format(amount)) }
                                     LinearProgressIndicator(progress = { (amount.toDouble() / summary.totals.expense).toFloat() }, Modifier.fillMaxWidth())
                                 }
                             }
@@ -204,7 +219,7 @@ fun DailyStatsScreen(state: DailyState, header: @Composable () -> Unit, bottomBa
                                 Text("收入 ${Money.format(month.totals.income)}   支出 ${Money.format(month.totals.expense)}", style = MaterialTheme.typography.bodySmall)
                             }
                         }
-                        Text("退款计入收入；装修账本独立统计。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("装修项目按实际付款日期计入支出。全部账本包含已归档账本的历史交易。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } }
             }
@@ -227,37 +242,77 @@ fun DailyStatsScreen(state: DailyState, header: @Composable () -> Unit, bottomBa
 
 @Composable
 fun BooksScreen(state: BookState, bottomBar: @Composable () -> Unit, onSelect: (Long) -> Unit,
-                onAdd: (String, () -> Unit) -> Unit, onRename: (Long, String, () -> Unit) -> Unit,
+                onSave: (BookEntity, () -> Unit) -> Unit,
                 onSettings: () -> Unit, onClearError: () -> Unit) {
-    var editing by remember { mutableStateOf<BookEntity?>(null) }
+    var editingId by rememberSaveable { mutableStateOf(0L) }
+    var kind by rememberSaveable { mutableStateOf(BookKind.DAILY) }
+    var trackPayments by rememberSaveable { mutableStateOf(true) }
+    var trackPhotos by rememberSaveable { mutableStateOf(true) }
+    var archived by rememberSaveable { mutableStateOf(false) }
     var showDialog by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     LaunchedEffect(state.error) { if (state.error != null) saving = false }
-    Scaffold(topBar = { TopAppBar(title = { Text("我的账本") }, actions = { IconButton(onSettings) { Icon(Icons.Outlined.Settings, "设置") } }) }, bottomBar = bottomBar) { padding ->
+    if (!showDialog) Scaffold(topBar = { TopAppBar(title = { Text("我的账本") }, actions = { IconButton(onSettings) { Icon(Icons.Outlined.Settings, "设置") } }) }, bottomBar = bottomBar) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item { Text("把生活与装修分开，账目更清楚。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            items(state.books, key = { it.id }) { book -> LedgerCard(Modifier.fillMaxWidth(), onClick = { onSelect(book.id) }) {
+            items(state.books, key = { it.id }) { book -> LedgerCard(Modifier.fillMaxWidth(), onClick = if (book.archived) null else { { onSelect(book.id) } }) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(if (book.kind == BookKind.DAILY) Icons.Outlined.AccountBalanceWallet else Icons.Outlined.Cottage, null, tint = MaterialTheme.colorScheme.primary)
                         Text(book.name, Modifier.weight(1f).padding(horizontal = 12.dp), style = MaterialTheme.typography.titleLarge)
-                        IconButton({ editing = book; name = book.name; showDialog = true }) { Icon(Icons.Outlined.Edit, "重命名${book.name}") }
+                        IconButton({
+                            editingId = book.id; name = book.name; kind = book.kind; archived = book.archived
+                            trackPayments = book.trackPayments; trackPhotos = book.trackPhotos; showDialog = true
+                        }) { Icon(Icons.Outlined.Edit, "编辑${book.name}") }
                     }
-                    Text(if (book.kind == BookKind.DAILY) "日常收入、支出与月度统计" else "装修项目、预算、付款与凭证", style = MaterialTheme.typography.bodyMedium)
-                    Text(if (book.id == state.selected?.id) "正在使用" else "点击切换", color = MaterialTheme.colorScheme.primary)
+                    Text(if (book.kind == BookKind.DAILY) "普通账本" else "装修账本", style = MaterialTheme.typography.bodyMedium)
+                    Text(if (book.archived) "已归档" else if (!state.all && book.id == state.selected?.id) "正在使用" else "点击切换", color = MaterialTheme.colorScheme.primary)
                 }
             } }
-            item { OutlinedButton({ editing = null; name = ""; showDialog = true }, Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Add, null); Text("新建生活类型账本") } }
+            item { OutlinedButton({
+                editingId = 0; kind = BookKind.DAILY; trackPayments = true; trackPhotos = true
+                archived = false; name = ""; showDialog = true
+            }, Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Add, null); Text("新建账本") } }
             item { Text("数据仅保存在本机，无需登录。请定期在设置中导出全部账本备份。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (state.error != null && !showDialog) item { Text(state.error, color = MaterialTheme.colorScheme.error); TextButton(onClearError) { Text("知道了") } }
         }
     }
-    if (showDialog) AlertDialog(onDismissRequest = { if (!saving) { showDialog = false; onClearError() } }, title = { Text(if (editing == null) "新建账本" else "重命名账本") },
-        text = { Column { OutlinedTextField(name, { name = it.take(20) }, label = { Text("账本名称") }, singleLine = true, enabled = !saving)
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) } } },
-        confirmButton = { TextButton(enabled = name.isNotBlank() && !saving, onClick = {
-            saving = true; onClearError(); val done = { showDialog = false; saving = false }
-            editing?.let { onRename(it.id, name, done) } ?: onAdd(name, done)
-        }) { Text(if (saving) "保存中" else "保存") } }, dismissButton = { TextButton(enabled = !saving, onClick = { showDialog = false; onClearError() }) { Text("取消") } })
+    if (showDialog) {
+        val close = { if (!saving) { showDialog = false; onClearError() } }
+        androidx.activity.compose.BackHandler(onBack = close)
+        Surface(Modifier.fillMaxSize()) {
+            SubPageScaffold(if (editingId == 0L) "新建账本" else "编辑账本", onBack = close) { padding ->
+                Column(padding.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(name, { name = it.take(20) }, Modifier.fillMaxWidth(),
+                        label = { Text("账本名称") }, singleLine = true, enabled = !saving)
+                    if (editingId == 0L) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(kind == BookKind.DAILY, { kind = BookKind.DAILY }, { Text("普通账本") }, enabled = !saving)
+                        FilterChip(kind == BookKind.RENOVATION, { kind = BookKind.RENOVATION }, { Text("装修账本") }, enabled = !saving)
+                    }
+                    if (kind == BookKind.RENOVATION) {
+                        BookOption("分期付款、订金与尾款", trackPayments, !saving) { trackPayments = it }
+                        BookOption("项目凭证照片", trackPhotos, !saving) { trackPhotos = it }
+                    }
+                    if (editingId != 0L) BookOption("归档账本", archived, !saving) { archived = it }
+                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    Button(enabled = name.isNotBlank() && !saving, onClick = {
+                        saving = true
+                        onClearError()
+                        val done = { showDialog = false; saving = false }
+                        onSave(BookEntity(editingId, name, kind, archived, trackPayments && kind == BookKind.RENOVATION,
+                            trackPhotos && kind == BookKind.RENOVATION), done)
+                    }) { Text(if (saving) "保存中" else "保存") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookOption(label: String, enabled: Boolean, editable: Boolean, onChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(enabled, onChange, enabled = editable)
+        Text(label)
+    }
 }

@@ -18,14 +18,14 @@ object DatabaseSafety {
         val db = context.getDatabasePath(AppDatabase.DB_NAME)
         if (!db.exists()) return
         val version = SQLiteDatabase.openDatabase(db.path, null, SQLiteDatabase.OPEN_READONLY).use { it.version }
-        if (version == 1) {
-            val dest = File(root(context), "before-upgrade-v1")
+        if (version in 1..2) {
+            val dest = File(root(context), "before-upgrade-v$version")
             if (!File(dest, "complete").exists()) {
                 dest.deleteRecursively(); dest.mkdirs()
                 // 在任何 Room / Worker 连接创建之前保存主库与 WAL；不修改源库。
                 db.copyTo(File(dest, AppDatabase.DB_NAME), overwrite = true)
                 File(db.path + "-wal").takeIf { it.exists() }?.copyTo(File(dest, AppDatabase.DB_NAME + "-wal"), overwrite = true)
-                syncWrite(File(dest, "complete"), "1")
+                syncWrite(File(dest, "complete"), version.toString())
             }
         }
     }

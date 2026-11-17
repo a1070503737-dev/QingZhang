@@ -39,14 +39,17 @@ class HomeViewModel @Inject constructor(
     expenseRepository: ExpenseRepository,
     budgetRepository: BudgetRepository,
     categoryRepository: CategoryRepository,
+    saved: androidx.lifecycle.SavedStateHandle,
 ) : ViewModel() {
+    private val bookId = saved.get<Long>("bookId") ?: 2L
 
     val uiState: StateFlow<HomeUiState> = combine(
         expenseRepository.observeAll(),
         budgetRepository.observeAll(),
         categoryRepository.observeAll(),
-    ) { expenses, budgets, categories ->
-        val items = BudgetCalculator.budgetItems(budgets, categories, expenses)
+    ) { allExpenses, budgets, categories ->
+        val expenses = allExpenses.filter { it.expense.bookId == bookId }
+        val items = BudgetCalculator.budgetItems(if (bookId == 2L) budgets else emptyList(), categories, expenses)
         HomeUiState(
             loading = false,
             summary = BudgetCalculator.summary(expenses),

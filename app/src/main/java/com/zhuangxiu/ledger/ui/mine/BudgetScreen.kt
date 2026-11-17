@@ -69,7 +69,8 @@ class BudgetViewModel @Inject constructor(
         expenseRepository.observeAll(),
         budgetRepository.observeAll(),
         categoryRepository.observeAll(),
-    ) { expenses, budgets, categories ->
+    ) { allExpenses, budgets, categories ->
+        val expenses = allExpenses.filter { it.expense.bookId == 2L }
         val budgetMap = budgets.associate { it.categoryId to it.amountCents }
         val spent = BudgetCalculator.spentByCategory(expenses)
         // 这里要把没设置预算的分类也列出来，方便用户点进去设置

@@ -23,13 +23,16 @@ class ReminderChecker @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val settingsRepository: SettingsRepository,
     private val notifier: Notifier,
+    private val dailyRepository: com.zhuangxiu.ledger.data.repository.DailyRepository,
 ) {
     /** 检查待付款到期：到期日在“提前天数”以内（含已逾期）且还有余款的账单 */
     suspend fun checkDuePayments() {
         val settings = settingsRepository.reminderSettings.first()
         if (!settings.paymentReminderEnabled) return
         val today = Dates.today()
+        val active = dailyRepository.books.first().filter { !it.archived && it.trackPayments }.map { it.id }.toSet()
         for (item in expenseRepository.listAll()) {
+            if (item.expense.bookId !in active) continue
             val due = item.expense.dueDate ?: continue
             if (item.remainingCents <= 0) continue
             val daysLeft = due - today
@@ -54,11 +57,11 @@ class ReminderChecker @Inject constructor(
      */
     suspend fun checkBudgets() {
         val settings = settingsRepository.reminderSettings.first()
-        if (!settings.budgetAlertEnabled) return
+        if (!settings.budgetAlertEnabled || dailyRepository.book(2L)?.archived != false) return
         val items = BudgetCalculator.budgetItems(
             budgets = budgetRepository.listAll(),
             categories = categoryRepository.observeAll().first(),
-            expenses = expenseRepository.listAll(),
+            expenses = expenseRepository.listAll().filter { it.expense.bookId == 2L },
         )
         val notified = settingsRepository.notifiedBudgetKeys()
         val active = HashSet<String>()

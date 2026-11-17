@@ -45,7 +45,8 @@ import com.zhuangxiu.ledger.ui.navigation.Routes
 private data class MineEntry(val icon: ImageVector, val title: String, val subtitle: String, val route: String)
 
 private val ENTRIES = listOf(
-    MineEntry(Icons.Outlined.AccountBalanceWallet, "装修预算", "总预算、按阶段或类型的预算", Routes.BUDGET),
+    MineEntry(Icons.Outlined.SettingsBackupRestore, "数据导入", "从鲨鱼记账导入", Routes.IMPORT),
+    MineEntry(Icons.Outlined.AccountBalanceWallet, "原装修账本预算", "总预算、按阶段或类型的预算", Routes.BUDGET),
     MineEntry(Icons.Outlined.Category, "装修分类", "装修阶段和费用类型的增删改、排序", Routes.CATEGORIES),
     MineEntry(Icons.Outlined.PhotoLibrary, "凭证库", "按时间查看所有小票、合同照片", Routes.GALLERY),
     MineEntry(Icons.Outlined.NotificationsNone, "提醒设置", "待付款到期提醒、预算预警", Routes.REMINDER),

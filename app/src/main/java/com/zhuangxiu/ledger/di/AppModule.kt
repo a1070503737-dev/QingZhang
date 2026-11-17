@@ -26,7 +26,7 @@ object AppModule {
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
         com.zhuangxiu.ledger.data.repository.DatabaseSafety.prepare(context)
         return Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.DB_NAME)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .addCallback(AppDatabase.SEED_CALLBACK) // 首次建库时写入默认分类
             .build()
     }

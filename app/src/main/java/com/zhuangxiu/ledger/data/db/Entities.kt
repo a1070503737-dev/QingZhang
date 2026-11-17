@@ -51,7 +51,7 @@ data class CategoryEntity(
             onDelete = ForeignKey.RESTRICT,
         ),
     ],
-    indices = [Index("stageId"), Index("typeId"), Index("date")],
+    indices = [Index("stageId"), Index("typeId"), Index("date"), Index("bookId")],
 )
 data class ExpenseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -69,6 +69,7 @@ data class ExpenseEntity(
     val dueDate: Long? = null,
     /** 创建时间（毫秒时间戳） */
     val createdAt: Long = System.currentTimeMillis(),
+    @androidx.room.ColumnInfo(defaultValue = "2") val bookId: Long = 2,
 )
 
 /** 付款记录：一笔账单可以分多次付款 */
@@ -92,6 +93,7 @@ data class PaymentEntity(
     /** 付款日期（epochDay） */
     val date: Long,
     val note: String = "",
+    @androidx.room.ColumnInfo(defaultValue = "'UNSPECIFIED'") val payMethod: PayMethod = PayMethod.UNSPECIFIED,
 )
 
 /** 凭证图片：文件本体保存在 App 私有目录，这里只记录文件名 */

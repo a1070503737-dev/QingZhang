@@ -1,5 +1,7 @@
 package com.zhuangxiu.ledger.ui.edit
 
+import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -172,7 +174,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
             }
 
             // ---------- 付款状态 ----------
-            FormSection("付款状态") {
+            if (state.trackPayments) FormSection("付款状态") {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PaymentStatus.entries.forEach { status ->
                         FilterChip(
@@ -226,6 +228,12 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                 }
             }
 
+            if (state.status != PaymentStatus.UNPAID && (state.isNew ||
+                    state.status == PaymentStatus.PAID &&
+                    (Money.parseToCents(state.amountText) ?: 0L) > state.existingPaidCents)) {
+                PaymentMethodPicker(state.payMethod, viewModel::setPayMethod)
+            }
+
             // ---------- 日期 ----------
             PickerRow(
                 icon = Icons.Outlined.CalendarToday,
@@ -256,7 +264,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
             )
 
             // ---------- 凭证 ----------
-            FormSection("凭证（小票、合同照片）") {
+            if (state.trackPhotos || state.images.isNotEmpty()) FormSection("凭证（小票、合同照片）") {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -290,9 +298,11 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                             }
                         }
                     }
-                    AddImageTile(Icons.Outlined.PhotoCamera, "拍照") { showCamera = true }
-                    AddImageTile(Icons.Outlined.PhotoLibrary, "相册") {
-                        pickImages.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    if (state.trackPhotos) {
+                        AddImageTile(Icons.Outlined.PhotoCamera, "拍照") { showCamera = true }
+                        AddImageTile(Icons.Outlined.PhotoLibrary, "相册") {
+                            pickImages.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        }
                     }
                 }
             }

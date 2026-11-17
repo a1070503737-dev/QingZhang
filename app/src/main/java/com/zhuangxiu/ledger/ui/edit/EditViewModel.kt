@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.zhuangxiu.ledger.data.db.CategoryEntity
 import com.zhuangxiu.ledger.data.db.CategoryKind
 import com.zhuangxiu.ledger.data.db.ExpenseEntity
+import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.data.db.PaymentStatus
 import com.zhuangxiu.ledger.data.repository.CategoryRepository
 import com.zhuangxiu.ledger.data.repository.ExpenseRepository
@@ -56,6 +57,9 @@ data class EditUiState(
     val saved: Boolean = false,
     /** 需要提示给用户的错误信息 */
     val error: String? = null,
+    val trackPayments: Boolean = true,
+    val trackPhotos: Boolean = true,
+    val payMethod: PayMethod = PayMethod.UNSPECIFIED,
 )
 
 @HiltViewModel
@@ -66,9 +70,11 @@ class EditViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val imageStore: ImageStore,
     private val reminderChecker: ReminderChecker,
+    private val dailyRepository: com.zhuangxiu.ledger.data.repository.DailyRepository,
 ) : ViewModel() {
 
     private val expenseId: Long = savedStateHandle.get<Long>("id") ?: -1L
+    private var bookId: Long = savedStateHandle.get<Long>("bookId") ?: 2L
 
     /** “再记一笔”时作为模板的账单 id，-1 表示没有 */
     private val copyFromId: Long = savedStateHandle.get<Long>("copyFrom") ?: -1L
@@ -85,6 +91,12 @@ class EditViewModel @Inject constructor(
             val types = categoryRepository.list(CategoryKind.TYPE)
             val existing = if (expenseId > 0) expenseRepository.get(expenseId) else null
             val template = if (existing == null && copyFromId > 0) expenseRepository.get(copyFromId)?.expense else null
+            bookId = existing?.expense?.bookId ?: template?.bookId ?: bookId
+            val book = dailyRepository.book(bookId)
+            if (existing == null && (book?.kind != com.zhuangxiu.ledger.data.db.BookKind.RENOVATION || book.archived)) {
+                _uiState.update { it.copy(loading = false, error = "请选择未归档的装修账本") }
+                return@launch
+            }
             _uiState.update { state ->
                 if (existing == null) {
                     // 新建：有模板时沿用模板的阶段、类型、商家（金额、日期、凭证都重新填）；
@@ -97,6 +109,8 @@ class EditViewModel @Inject constructor(
                         stageId = template?.stageId?.takeIf { id -> stages.any { it.id == id } } ?: stages.firstOrNull()?.id,
                         typeId = template?.typeId?.takeIf { id -> types.any { it.id == id } } ?: types.firstOrNull()?.id,
                         payee = template?.payee.orEmpty(),
+                        trackPayments = book?.trackPayments ?: true,
+                        trackPhotos = book?.trackPhotos ?: true,
                     )
                 } else {
                     val e = existing.expense
@@ -115,6 +129,8 @@ class EditViewModel @Inject constructor(
                         status = e.status,
                         dueDate = e.dueDate,
                         images = existing.attachments.map { FormImage(it.id, it.fileName) },
+                        trackPayments = book?.trackPayments != false || e.status != PaymentStatus.PAID,
+                        trackPhotos = book?.trackPhotos != false,
                     )
                 }
             }
@@ -129,6 +145,7 @@ class EditViewModel @Inject constructor(
     fun setPayee(text: String) = _uiState.update { it.copy(payee = text.take(40)) }
     fun setNote(text: String) = _uiState.update { it.copy(note = text.take(300)) }
     fun setStatus(status: PaymentStatus) = _uiState.update { it.copy(status = status) }
+    fun setPayMethod(method: PayMethod) = _uiState.update { it.copy(payMethod = method) }
     fun setDueDate(date: Long?) = _uiState.update { it.copy(dueDate = date) }
     fun clearError() = _uiState.update { it.copy(error = null) }
 
@@ -193,13 +210,14 @@ class EditViewModel @Inject constructor(
                 note = state.note.trim(),
                 status = state.status,
                 dueDate = state.dueDate,
+                bookId = bookId,
             )
             val newFiles = state.images.filter { it.id == null }.map { it.fileName }
             try {
                 if (state.isNew) {
-                    expenseRepository.create(draft, paid ?: 0, newFiles)
+                    expenseRepository.create(draft, paid ?: 0, newFiles, state.payMethod)
                 } else {
-                    expenseRepository.update(draft, Dates.today(), newFiles, removedAttachmentIds)
+                    expenseRepository.update(draft, Dates.today(), newFiles, removedAttachmentIds, state.payMethod)
                 }
                 _uiState.update { it.copy(saving = false, saved = true) }
                 // 记完账立即检查预算是否需要预警

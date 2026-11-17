@@ -53,7 +53,9 @@ data class BillsUiState(
 class BillsViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
     categoryRepository: CategoryRepository,
+    saved: androidx.lifecycle.SavedStateHandle,
 ) : ViewModel() {
+    private val bookId = saved.get<Long>("bookId") ?: 2L
 
     private val messages = Channel<String>(Channel.BUFFERED)
     val events = messages.receiveAsFlow()
@@ -65,7 +67,7 @@ class BillsViewModel @Inject constructor(
         categoryRepository.observeAll(),
         filter,
     ) { expenses, categories, filter ->
-        val filtered = expenses.filter { matches(it, filter) }
+        val filtered = expenses.filter { it.expense.bookId == bookId && matches(it, filter) }
         BillsUiState(
             loading = false,
             filter = filter,
