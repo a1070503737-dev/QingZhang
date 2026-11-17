@@ -45,6 +45,10 @@ Robolectric 预览使用 1.0.5 演示更新状态，不代表已经发布 1.0.5�
 | <img src="screenshots/update-idle.png" width="280"> | <img src="screenshots/update-available.png" width="280"> | <img src="screenshots/mine-1.0.4.png" width="280"> |
 
 - 2026-11-17：73 项自动化测试通过，0 失败、0 错误、0 跳过。
-- Android lint：0 错误，4 条已有建议。
+- Android lint：0 错误，6 条建议（原有备份规则、资源目录、测试依赖建议，以及两条 SharedPreferences KTX 写法建议）。
 - 使用已授权身份通过 GitHub 附件 API 实际下载 1.0.3 APK，核对 SHA-256 一致，确认私有附件下载接口可用。该连接身份未嵌入应用。
 - 真正的安装和系统权限确认仍由 Android 执行；此次未做真机测试。
+
+正式 APK 已沿用 1.0.3 的签名，版本号 4 → 5，更新元数据和 ZIP 对齐校验通过。[签名验证记录](SIGNING-VERIFICATION-1.0.4.txt)。
+
+APK SHA-256：`4b06b0653dfa34af479daad0d77102bff62cfa021c965cb7232947ed1643566c`
