@@ -44,3 +44,9 @@ python3 tools/create_update_manifest.py dist/renovation-ledger-1.0.9-signed.apk 
 回归测试模拟 REST API 配额耗尽时仍能通过发行版文件读取版本、读取和下载均不访问 REST API、不读取或发送令牌、拒绝损坏或过大的清单、固定下载域名以及精确核对 versionCode。云端网络可能提供额外身份，不能把云端访问成功当作手机网络必定可用或凭据有效的证明。
 
 87 项自动化测试通过，0 失败、0 错误、0 跳过；其中 6 项新增回归覆盖静态清单和直接 APK 下载。
+
+## 1.0.8 交付校验
+
+正式构建与签名验证通过；包名不变、版本号递增、签名与上一版一致。APK 和静态清单的版本、大小、SHA-256 一致，公开包不含令牌。[签名记录](SIGNING-VERIFICATION-1.0.8.txt)。
+
+APK SHA-256：`94702759bad04fc12936dc0fadd03505eda3657f9879e4469511b98439a382b5`

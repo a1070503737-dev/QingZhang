@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.0.8",
+  "versionCode": 9,
+  "notes": "修复检查更新遭遇 GitHub API 限流的问题。公开更新改为读取发行版内的 update.json，直接下载 APK，不再依赖 REST API 配额，也不需要访问令牌。继续保留文件、版本和签名校验。安装本版后可检查 1.0.9 测试更新。",
+  "apk": {
+    "fileName": "renovation-ledger-1.0.8-signed.apk",
+    "size": 3020392,
+    "sha256": "94702759bad04fc12936dc0fadd03505eda3657f9879e4469511b98439a382b5"
+  }
+}
