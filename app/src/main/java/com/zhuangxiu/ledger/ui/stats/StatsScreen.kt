@@ -50,12 +50,13 @@ import com.zhuangxiu.ledger.util.Money
 fun StatsScreen(
     bottomBar: @Composable () -> Unit,
     viewModel: StatsViewModel = hiltViewModel(),
+    header: @Composable () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showRangePicker by remember { mutableStateOf(false) }
     val options = state.options
 
-    Scaffold(bottomBar = bottomBar) { padding ->
+    Scaffold(topBar = header, bottomBar = bottomBar) { padding ->
         Column(
             Modifier
                 .fillMaxSize()

@@ -17,18 +17,18 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-// 奶油白与松绿：用明晰的层级区分预算、支出和提醒。
+// 轻账：蓝色品牌、浅灰背景，收入使用独立绿色。
 
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF2E6655),            // 松绿
+    primary = Color(0xFF3568D4),            // 品牌蓝
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFDDECE3),
-    onPrimaryContainer = Color(0xFF163C30),
-    secondary = Color(0xFF936348),          // 暖木色
+    primaryContainer = Color(0xFFDFE8FF),
+    onPrimaryContainer = Color(0xFF132E66),
+    secondary = Color(0xFF596985),          // 暖木色
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFF3E3D5),
-    onSecondaryContainer = Color(0xFF432A1B),
-    tertiary = Color(0xFF526C48),           // 橄榄绿，做少量点缀
+    secondaryContainer = Color(0xFFE2E8F4),
+    onSecondaryContainer = Color(0xFF20314F),
+    tertiary = Color(0xFF27765A),           // 橄榄绿，做少量点缀
     onTertiary = Color(0xFFFFFFFF),
     tertiaryContainer = Color(0xFFE0EDD8),
     onTertiaryContainer = Color(0xFF20331B),
@@ -36,31 +36,31 @@ private val LightColors = lightColorScheme(
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFFCDAD5),
     onErrorContainer = Color(0xFF410E0B),
-    background = Color(0xFFF7F8F2),         // 奶油白
-    onBackground = Color(0xFF202D27),
-    surface = Color(0xFFF7F8F2),
-    onSurface = Color(0xFF202D27),
-    surfaceVariant = Color(0xFFE8ECE3),
-    onSurfaceVariant = Color(0xFF626E65),
-    outline = Color(0xFF89958C),
-    outlineVariant = Color(0xFFDFE5DC),
+    background = Color(0xFFF6F8FC),         // 浅灰白
+    onBackground = Color(0xFF1C2536),
+    surface = Color(0xFFF6F8FC),
+    onSurface = Color(0xFF1C2536),
+    surfaceVariant = Color(0xFFE5EAF3),
+    onSurfaceVariant = Color(0xFF5C687D),
+    outline = Color(0xFF8793A8),
+    outlineVariant = Color(0xFFDEE4EE),
     surfaceContainerLowest = Color(0xFFFFFFFF),
     surfaceContainerLow = Color(0xFFFFFFFF),
-    surfaceContainer = Color(0xFFEDF1E9),
-    surfaceContainerHigh = Color(0xFFE5EBE0),
-    surfaceContainerHighest = Color(0xFFDEE6D9),
+    surfaceContainer = Color(0xFFEDF1F8),
+    surfaceContainerHigh = Color(0xFFE6ECF6),
+    surfaceContainerHighest = Color(0xFFDDE5F1),
 )
 
 /** 深色模式：深松绿底色与柔和的浅绿色。 */
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFA6D5BC),
-    onPrimary = Color(0xFF0B3828),
-    primaryContainer = Color(0xFF24503D),
-    onPrimaryContainer = Color(0xFFDDECE3),
-    secondary = Color(0xFFE5BFA5),
-    onSecondary = Color(0xFF452C1C),
-    secondaryContainer = Color(0xFF60422F),
-    onSecondaryContainer = Color(0xFFF8DDC8),
+    primary = Color(0xFFB0C8FF),
+    onPrimary = Color(0xFF0E2F68),
+    primaryContainer = Color(0xFF26487E),
+    onPrimaryContainer = Color(0xFFDFE8FF),
+    secondary = Color(0xFFB7C6E2),
+    onSecondary = Color(0xFF1E2C44),
+    secondaryContainer = Color(0xFF36455F),
+    onSecondaryContainer = Color(0xFFDDE7FA),
     tertiary = Color(0xFFBED5AB),
     onTertiary = Color(0xFF293C20),
     tertiaryContainer = Color(0xFF405636),
@@ -69,19 +69,19 @@ private val DarkColors = darkColorScheme(
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF8C1D18),
     onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF151C18),
-    onBackground = Color(0xFFE2EAE0),
-    surface = Color(0xFF151C18),
-    onSurface = Color(0xFFE2EAE0),
-    surfaceVariant = Color(0xFF414D43),
-    onSurfaceVariant = Color(0xFFC0CDC1),
-    outline = Color(0xFF8B9B8E),
-    outlineVariant = Color(0xFF3C493F),
-    surfaceContainerLowest = Color(0xFF101612),
-    surfaceContainerLow = Color(0xFF1D2720),
-    surfaceContainer = Color(0xFF233027),
-    surfaceContainerHigh = Color(0xFF2D3A30),
-    surfaceContainerHighest = Color(0xFF37453A),
+    background = Color(0xFF121824),
+    onBackground = Color(0xFFE3E9F4),
+    surface = Color(0xFF121824),
+    onSurface = Color(0xFFE3E9F4),
+    surfaceVariant = Color(0xFF414B5E),
+    onSurfaceVariant = Color(0xFFC3CDDF),
+    outline = Color(0xFF8E9AB0),
+    outlineVariant = Color(0xFF354156),
+    surfaceContainerLowest = Color(0xFF0D121D),
+    surfaceContainerLow = Color(0xFF1A2333),
+    surfaceContainer = Color(0xFF222D40),
+    surfaceContainerHigh = Color(0xFF2A364B),
+    surfaceContainerHighest = Color(0xFF334158),
 )
 
 /** 圆角统一偏大，营造柔和的家居感 */
@@ -116,18 +116,18 @@ data class ExtraColors(
 
 private val LightExtra = ExtraColors(
     warning = Color(0xFFB7791F),
-    success = Color(0xFF5E7D4A),
+    success = Color(0xFF18734B),
     chart = listOf(
-        Color(0xFF2E6655), Color(0xFFD9A05B), Color(0xFF936348), Color(0xFF7D8F5C), Color(0xFFB98A8A),
+        Color(0xFF3568D4), Color(0xFFD9A05B), Color(0xFF596985), Color(0xFF7D8F5C), Color(0xFFB98A8A),
         Color(0xFF5F8A8B), Color(0xFFE0B8A0), Color(0xFF9C7BA8), Color(0xFFA8A17A), Color(0xFF6E5A4E),
     ),
 )
 
 private val DarkExtra = ExtraColors(
     warning = Color(0xFFF2C46D),
-    success = Color(0xFFA9C993),
+    success = Color(0xFF83D8AC),
     chart = listOf(
-        Color(0xFFA6D5BC), Color(0xFFE8C07F), Color(0xFFC4A283), Color(0xFFA9BC87), Color(0xFFD9A9A9),
+        Color(0xFFB0C8FF), Color(0xFFE8C07F), Color(0xFFC4A283), Color(0xFFA9BC87), Color(0xFFD9A9A9),
         Color(0xFF8DB8B9), Color(0xFFF0CDB8), Color(0xFFC0A3CB), Color(0xFFC9C39C), Color(0xFFA08B7E),
     ),
 )

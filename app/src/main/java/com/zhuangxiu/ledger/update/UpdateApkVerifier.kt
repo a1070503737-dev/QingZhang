@@ -28,7 +28,7 @@ internal object UpdateApkVerifier {
     }
 
     fun validateIdentity(current: ApkIdentity, update: ApkIdentity, expectedVersion: String, expectedCode: Long? = null) {
-        if (update.packageName != current.packageName) throw IOException("安装包不属于装修记账，已停止安装")
+        if (update.packageName != current.packageName) throw IOException("安装包不属于轻账，已停止安装")
         if (update.versionCode <= current.versionCode || update.versionName != expectedVersion ||
             (expectedCode != null && update.versionCode != expectedCode)) {
             throw IOException("安装包版本不符合更新要求，请重新检查更新")

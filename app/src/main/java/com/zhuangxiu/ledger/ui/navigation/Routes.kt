@@ -2,11 +2,14 @@ package com.zhuangxiu.ledger.ui.navigation
 
 /** 全部页面路由 */
 object Routes {
-    // 底部导航的 4 个页面
+    // 首页、统计、账本及保留的装修子页面
     const val HOME = "home"
     const val BILLS = "bills"
     const val STATS = "stats"
     const val MINE = "mine"
+    const val BOOKS = "books"
+    const val DAILY_EDIT = "daily-edit?bookId={bookId}&entryId={entryId}"
+    fun dailyEdit(bookId: Long, entryId: String = "") = "daily-edit?bookId=$bookId&entryId=$entryId"
 
     // 记账 / 编辑页：id 为 -1 表示新建；copyFrom 为某笔账单 id 时，新建并预填它的阶段、类型、商家
     const val EDIT = "edit?id={id}&copyFrom={copyFrom}"

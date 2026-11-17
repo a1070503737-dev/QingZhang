@@ -91,7 +91,7 @@ fun UpdateScreen(onBack: () -> Unit, viewModel: UpdateViewModel = hiltViewModel(
             try {
                 if (context.packageManager.canRequestPackageInstalls()) viewModel.requestInstall()
                 else permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:${context.packageName}".toUri()))
-            } catch (_: Exception) { viewModel.showError("请在系统设置中允许装修记账安装应用，再返回重试") }
+            } catch (_: Exception) { viewModel.showError("请在系统设置中允许轻账安装应用，再返回重试") }
         },
         onOpenReleases = {
             try { context.startActivity(Intent(Intent.ACTION_VIEW, UpdateSource.RELEASES_URL.toUri())) }

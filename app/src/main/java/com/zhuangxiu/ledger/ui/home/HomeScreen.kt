@@ -34,9 +34,10 @@ fun HomeScreen(
     onOpenBudget: () -> Unit,
     onOpenPending: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
+    header: @Composable () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    HomeContent(state, bottomBar, onAdd, onOpenExpense, onOpenBills, onOpenBudget, onOpenPending)
+    HomeContent(state, bottomBar, onAdd, onOpenExpense, onOpenBills, onOpenBudget, onOpenPending, header)
 }
 
 /** 无数据库依赖的首页内容，同时用于界面预览与测试。 */
@@ -49,8 +50,10 @@ fun HomeContent(
     onOpenBills: () -> Unit,
     onOpenBudget: () -> Unit,
     onOpenPending: () -> Unit,
+    header: @Composable () -> Unit = {},
 ) {
     Scaffold(
+        topBar = header,
         bottomBar = bottomBar,
         floatingActionButton = {
             ExtendedFloatingActionButton(

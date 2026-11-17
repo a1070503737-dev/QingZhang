@@ -75,6 +75,7 @@ class BackupViewModel @Inject constructor(
     val uiState: StateFlow<BackupUiState> = _uiState.asStateFlow()
 
     fun defaultFileName(): String = backupManager.defaultFileName()
+    fun exportRecoveryTo(uri: Uri) = runBusy { backupManager.exportRecoveryTo(uri); _uiState.update { it.copy(message = "恢复前安全副本已保存") } }
 
     /** 导出到用户选择的位置 */
     fun exportTo(uri: Uri) = runBusy {
@@ -102,6 +103,8 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 block()
+            } catch (e: com.zhuangxiu.ledger.data.repository.RestoreRestartRequired) {
+                _uiState.update { it.copy(restored = true, message = e.message) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "操作失败：${e.message ?: "未知错误"}") }
             } finally {
@@ -118,6 +121,9 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
     val context = LocalContext.current
     var pendingRestore by remember { mutableStateOf<Uri?>(null) }
 
+    val recoveryDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) viewModel.exportRecoveryTo(uri)
+    }
     // 系统文件选择器：选择保存位置 / 选择备份文件
     val createDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) viewModel.exportTo(uri)
@@ -134,7 +140,8 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
         }
     }
 
-    SubPageScaffold(title = "备份与恢复", onBack = onBack) { modifier ->
+    androidx.activity.compose.BackHandler(state.busy || state.restored) { }
+    SubPageScaffold(title = "备份与恢复", onBack = { if (!state.busy && !state.restored) onBack() }) { modifier ->
         Box(modifier.fillMaxSize()) {
             Column(
                 Modifier
@@ -144,7 +151,7 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    "备份文件是一个 zip 压缩包，包含全部账单数据和凭证图片。",
+                    "备份文件是一个 zip 压缩包，包含所有生活账本、装修账单、预算和凭证图片。旧版装修备份也可恢复，且会保留当前生活账目。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -153,6 +160,9 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
                 }
                 ActionCard(Icons.Outlined.IosShare, "分享备份", "通过微信、网盘、邮件等发送备份文件", !state.busy) {
                     viewModel.prepareShare()
+                }
+                ActionCard(Icons.Outlined.SaveAlt, "导出恢复前安全副本", "找回最近一次恢复之前的数据", !state.busy) {
+                    recoveryDocument.launch("轻账恢复前安全副本.zip")
                 }
                 ActionCard(Icons.Outlined.Restore, "从备份恢复", "选择备份文件，覆盖当前的全部数据", !state.busy) {
                     openDocument.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
@@ -165,7 +175,7 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
     pendingRestore?.let { uri ->
         ConfirmDialog(
             title = "从备份恢复？",
-            text = "当前的全部账单、预算、分类和凭证图片都会被备份里的内容覆盖，且无法撤销。恢复完成后应用会自动重启。",
+            text = "新版备份会替换全部账本；旧版装修备份仅替换装修数据，保留当前生活账目。恢复前自动保存安全副本，可在本页导出找回。完成后需要重启应用。",
             confirmLabel = "恢复",
             destructive = true,
             onConfirm = {
@@ -182,8 +192,8 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
         // 数据库文件已被替换，必须重启进程才能重新打开
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("恢复成功") },
-            text = { Text("数据已恢复，点击“重启”重新打开应用。") },
+            title = { Text("需要重启") },
+            text = { Text("点击“重启”重新打开数据库。若恢复中断，启动时会自动恢复原数据。") },
             confirmButton = { TextButton(onClick = { restartApp(context) }) { Text("重启") } },
         )
     }

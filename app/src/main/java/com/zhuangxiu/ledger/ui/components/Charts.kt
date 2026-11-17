@@ -45,7 +45,7 @@ import com.zhuangxiu.ledger.util.Money
  * 环形饼图 + 图例：展示各分类的花费占比。图表用 Compose Canvas 绘制。
  */
 @Composable
-fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier) {
+fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAmount: Boolean = false) {
     val palette = LedgerTheme.extra.chart
     val total = slices.sumOf { it.cents }
     val gapColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -88,7 +88,7 @@ fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier) {
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("合计", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(Money.formatShort(total), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(if (exactAmount) Money.format(total) else Money.formatShort(total), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
         }
         Spacer(Modifier.height(16.dp))

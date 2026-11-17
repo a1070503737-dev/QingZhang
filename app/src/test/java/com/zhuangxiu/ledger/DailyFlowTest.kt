@@ -1,0 +1,72 @@
+package com.zhuangxiu.ledger
+
+import android.graphics.Bitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import java.io.File
+
+/** 真正启动 Activity、Hilt、Room，以界面操作完成 CRUD、重建、账本切换。 */
+@RunWith(RobolectricTestRunner::class)
+@Config(application = LedgerApp::class, sdk = [35], qualifiers = "w393dp-h852dp-xxhdpi")
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class DailyFlowTest {
+    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    private fun awaitText(text: String) { compose.waitUntil(20000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
+    private fun awaitDescription(text: String) { compose.waitUntil(20000) { compose.onAllNodesWithContentDescription(text).fetchSemanticsNodes().isNotEmpty() } }
+    private fun capture(name: String) {
+        val file = File("build/reports/ui/$name.png"); file.parentFile!!.mkdirs()
+        file.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+    @Test fun dailyCrudStatisticsRestartAndBookSwitch() {
+        awaitText("生活账本")
+        awaitDescription("本月结余 ¥0.00")
+        capture("qingzhang-empty")
+        compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
+        awaitDescription("日常记账金额")
+        compose.onNodeWithContentDescription("保存日常账目").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("日常记账金额").performTextInput("25.50")
+        capture("qingzhang-quick-entry")
+        compose.onNodeWithContentDescription("保存日常账目").performClick()
+        awaitDescription("本月支出 ¥25.50")
+        compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
+        awaitDescription("日常记账金额")
+        compose.onNodeWithText("收入", useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription("日常记账金额").performTextInput("100")
+        compose.onNodeWithContentDescription("保存日常账目").performClick()
+        awaitDescription("本月结余 ¥74.50")
+        capture("qingzhang-home")
+        compose.onNodeWithText("统计").performClick()
+        awaitText("支出分类")
+        capture("qingzhang-stats")
+        compose.onNodeWithText("首页").performClick()
+        compose.onNodeWithText("餐饮").performScrollTo().performClick()
+        awaitText("编辑账目")
+        compose.onNodeWithContentDescription("日常记账金额").performTextReplacement("20")
+        compose.onNodeWithContentDescription("保存日常账目").performClick()
+        awaitDescription("本月结余 ¥80.00")
+        compose.activityRule.scenario.recreate()
+        awaitDescription("本月结余 ¥80.00")
+        compose.onNodeWithText("餐饮").performScrollTo().performClick()
+        awaitText("编辑账目")
+        compose.onNodeWithContentDescription("删除账目").performClick()
+        compose.onNodeWithText("取消").performClick()
+        compose.onNodeWithContentDescription("删除账目").performClick()
+        compose.onNodeWithText("删除", useUnmergedTree = true).performClick()
+        awaitDescription("本月结余 ¥100.00")
+        compose.onNodeWithContentDescription("切换账本").performClick()
+        compose.onNodeWithText("装修账本").performClick()
+        awaitText("我家装修")
+        compose.activityRule.scenario.recreate()
+        awaitText("我家装修")
+        compose.onNodeWithContentDescription("切换账本").performClick()
+        compose.onNodeWithText("生活账本").performClick()
+        awaitDescription("本月结余 ¥100.00")
+    }
+}

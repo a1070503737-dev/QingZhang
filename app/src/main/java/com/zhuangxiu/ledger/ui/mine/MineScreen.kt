@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PhotoLibrary
@@ -44,8 +45,8 @@ import com.zhuangxiu.ledger.ui.navigation.Routes
 private data class MineEntry(val icon: ImageVector, val title: String, val subtitle: String, val route: String)
 
 private val ENTRIES = listOf(
-    MineEntry(Icons.Outlined.AccountBalanceWallet, "预算设置", "总预算、按阶段或类型的预算", Routes.BUDGET),
-    MineEntry(Icons.Outlined.Category, "分类管理", "装修阶段和费用类型的增删改、排序", Routes.CATEGORIES),
+    MineEntry(Icons.Outlined.AccountBalanceWallet, "装修预算", "总预算、按阶段或类型的预算", Routes.BUDGET),
+    MineEntry(Icons.Outlined.Category, "装修分类", "装修阶段和费用类型的增删改、排序", Routes.CATEGORIES),
     MineEntry(Icons.Outlined.PhotoLibrary, "凭证库", "按时间查看所有小票、合同照片", Routes.GALLERY),
     MineEntry(Icons.Outlined.NotificationsNone, "提醒设置", "待付款到期提醒、预算预警", Routes.REMINDER),
     MineEntry(Icons.Outlined.SettingsBackupRestore, "备份与恢复", "导出 zip 备份或从备份恢复", Routes.BACKUP),
@@ -54,8 +55,10 @@ private val ENTRIES = listOf(
 
 /** “我的”页面：各项设置的入口 */
 @Composable
-fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit) {
-    Scaffold(bottomBar = bottomBar) { padding ->
+fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit, onBack: () -> Unit = {}) {
+    Scaffold(topBar = { androidx.compose.material3.TopAppBar(title = { Text("设置") }, navigationIcon = {
+        androidx.compose.material3.IconButton(onBack) { Icon(Icons.Outlined.ChevronLeft, "返回") }
+    }) }, bottomBar = bottomBar) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
@@ -63,15 +66,15 @@ fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit) 
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 24.dp),
         ) {
-            PageHeading("我的家装", "预算、凭证和账本，一处整理")
+            PageHeading("轻账", "认真生活，轻松记账")
             Spacer(Modifier.height(20.dp))
             LedgerCard(Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.primaryContainer) {
                 Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Cottage, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(16.dp))
                     Column {
-                        Text("新家，慢慢变成喜欢的样子", style = MaterialTheme.typography.titleMedium)
-                        Text("装修记账 · 让每一笔花费有迹可循", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("每一笔，都心中有数", style = MaterialTheme.typography.titleMedium)
+                        Text("生活与装修 · 本地保存 · 无需登录", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

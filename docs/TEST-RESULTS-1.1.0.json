@@ -1,0 +1,266 @@
+{
+  "version": "1.1.0",
+  "versionCode": 11,
+  "totals": {
+    "tests": 106,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "framework": "JUnit / Robolectric SDK 35 / Room / Compose",
+  "physical_device_tested": false,
+  "suites": [
+    {
+      "name": "com.zhuangxiu.ledger.AppUpdateTest",
+      "tests": 7,
+      "failures": 0,
+      "cases": [
+        "packageVersionAndSignerMustAllPermitAnUpdate",
+        "redirectsStayOnGithubHttpsAndCredentialsStayOnRepositoryApi",
+        "debugApkIsNotAnUpdateCandidate",
+        "stableReleaseUsesExactSignedApkAndAssetApi",
+        "versionsCompareNumericallyAndRejectPrereleaseNames",
+        "missingDigestOrOversizedAssetIsRejected",
+        "draftAndPrereleaseAreNotOffered"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.BackupDatabaseValidatorTest",
+      "tests": 2,
+      "failures": 0,
+      "cases": [
+        "rejectsFileWithOnlySqliteHeader",
+        "acceptsMatchingDatabaseButRejectsDifferentSchemaOrVersion"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.BackupZipTest",
+      "tests": 4,
+      "failures": 0,
+      "cases": [
+        "rejectsZipSlipEntries",
+        "nonBackupZipFailsValidation",
+        "backupWorksWithoutImages",
+        "zipThenUnzip_restoresDatabaseAndImages"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.BudgetCalculatorTest",
+      "tests": 12,
+      "failures": 0,
+      "cases": [
+        "budgetItems_totalFirst_skipsCategoriesWithoutBudget",
+        "budgetItems_emptyWhenNoBudgets",
+        "spentRemainingAndPercent",
+        "initialPaidForNewExpense",
+        "below80Normal_at80Warning",
+        "overBudget_percentAbove100ButFractionCapped",
+        "spentByCategory_countsStageAndType",
+        "exactly100IsWarning_oneCentOverIsOver",
+        "summary_spentByOrderTotal_pendingByRemaining",
+        "statusDerivedFromTotalAndPaid",
+        "largeAmountsDoNotOverflow",
+        "noBudget_levelNoneAndZeroPercent"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.DailyDatabaseTest",
+      "tests": 8,
+      "failures": 0,
+      "cases": [
+        "crudIsPersistentAndDuplicateSaveIsIdempotent",
+        "rejectsInvalidAndStaleUpdates",
+        "invalidBackupDoesNotCloseOrOverwriteCurrentDatabase",
+        "interruptedRestoreRollsBackBeforeRoomOpens",
+        "oldBackupRestoresRenovationButPreservesCurrentDailyEntries",
+        "booksAreIndependentAndRenovationRejectsDailyWrites",
+        "v2BackupRoundTripIncludesAllBooksAndImages",
+        "migratesActualV1SchemaWithoutChangingAnyRenovationRows"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.DailyEditViewModelTest",
+      "tests": 3,
+      "failures": 0,
+      "cases": [
+        "rapidSaveAndRestoredDraftCannotCreateDuplicateRecord",
+        "selectedBookSurvivesClosingAndReopeningDataStore",
+        "missingHistoricalEntryCannotBecomeANewEntry"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.DailyFlowTest",
+      "tests": 1,
+      "failures": 0,
+      "cases": [
+        "dailyCrudStatisticsRestartAndBookSwitch"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.DailyScreenTest",
+      "tests": 3,
+      "failures": 0,
+      "cases": [
+        "darkHomeUsesActualSummary",
+        "smallScreenLargeFontCanSaveAndSelectCategory",
+        "customNumberPadChangesExactInput"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.DailyStatisticsTest",
+      "tests": 4,
+      "failures": 0,
+      "cases": [
+        "yearBoundaryLeapDayAndSixMonthsIncludeZeroMonths",
+        "illegalAmountsCannotSave",
+        "rankingAndEmptyMonthsHaveNoInventedAmounts",
+        "centsRefundsAndBookIsolationUseOneRule"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.GitHubAccessTest",
+      "tests": 10,
+      "failures": 0,
+      "cases": [
+        "untrustedRedirectIsRejectedBeforeOpeningAnotherConnection",
+        "tokenIsEncryptedWithRandomNonceAndCanBeReadBack",
+        "manifestApkDownloadsDirectlyWithoutAnyRestApiRequest",
+        "insufficientPermissionShowsAccessAdviceWithoutRevealingToken",
+        "publicAssetRedirectNeverReadsTokenOrForwardsAuthorization",
+        "absentCredentialsDoNotCauseAnAnonymousRetryLoop",
+        "publicReleaseWorksWithoutReadingOrSendingAStaleToken",
+        "privateReleaseRetriesWithAuthorizationOnlyAfterAnonymousFailure",
+        "authHeaderIsNotForwardedOnAssetRedirect",
+        "wrongKeyCannotReadStoredToken"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.HomeScreenTest",
+      "tests": 4,
+      "failures": 0,
+      "cases": [
+        "pendingCardOpensUnpaidBills",
+        "smallScreenWithLargeTextCanStillRecordExpense",
+        "darkThemeKeepsTotalsReadable",
+        "emptyLedgerCanStartFirstExpense"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.LedgerFlowTest",
+      "tests": 1,
+      "failures": 0,
+      "cases": [
+        "recordUnpaidBillThenOpenPendingAndNavigateTabs"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.MoneyTest",
+      "tests": 7,
+      "failures": 0,
+      "cases": [
+        "shortFormatForCharts",
+        "centsToInputText",
+        "oversizedInputIsRejectedWithoutChangingItsLeadingDigits",
+        "invalidInputReturnsNull",
+        "parseYuanToCentsWithoutFloatError",
+        "sanitizeKeepsDigitsAndTwoDecimals",
+        "formatWithYuanSymbolAndThousandsSeparator"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.PublicUpdateFeedTest",
+      "tests": 5,
+      "failures": 0,
+      "cases": [
+        "apkVersionCodeMustMatchTheManifestExactly",
+        "invalidManifestCannotOfferAnInstallation",
+        "checksUpdateWithoutRestApiEvenWhenItsQuotaIsExhausted",
+        "oversizedFeedIsRejectedAndConnectionIsClosed",
+        "downloadLocationIsDerivedFromTheTrustedRepository"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.RepositoryTest",
+      "tests": 19,
+      "failures": 0,
+      "cases": [
+        "deletingPaymentRevertsStatus",
+        "galleryListsAllAttachments",
+        "installments_statusFollowsPaymentsUntilSettled",
+        "expensesOrderedByDateDescending",
+        "setUpdateAndClearBudget",
+        "categoryInUseCannotBeDeleted_unusedDeletesWithBudget",
+        "deleteExpense_cascadesPaymentsAndImageFiles",
+        "renameCategory",
+        "updateToPaid_addsSettlingPayment",
+        "createPaid_addsFullPayment",
+        "createUnpaid_noPayment_keepsDueDate",
+        "createDeposit_recordsTotalPaidAndRemaining",
+        "updateRaisingTotal_paidBecomesBalanceDue",
+        "seedsDefaultCategoriesOnFirstCreate",
+        "settleUsesLatestBillAndIsIdempotent",
+        "addCategory_appendsLast_rejectsDuplicateOrBlank",
+        "paymentAboveRemainingIsCapped",
+        "updateAttachments_removedImageFileDeleted",
+        "moveCategoryUpAndDown"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.StatsCalculatorTest",
+      "tests": 5,
+      "failures": 0,
+      "cases": [
+        "emptyInputGivesEmptyResults",
+        "byType",
+        "filterByRangeIsInclusive",
+        "byStage_sortedDescending",
+        "byMonth_fillsEmptyMonthsWithZero"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.UpdateCredentialsTest",
+      "tests": 3,
+      "failures": 0,
+      "cases": [
+        "buildWithoutSharedAccessRetainsExistingManualConfiguration",
+        "sharedAccessSupersedesAnExpiredUserToken",
+        "sharedAccessWorksEvenIfOldDeviceStorageCannotBeRead"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.UpdateScreenTest",
+      "tests": 4,
+      "failures": 0,
+      "cases": [
+        "downloadingCanBeCancelledButCannotBeInstalled",
+        "verifiedPackageOffersInstallation",
+        "sharedAccessDoesNotAskEachUserForAToken",
+        "newerReleaseCanBeDownloadedInApp"
+      ]
+    },
+    {
+      "name": "com.zhuangxiu.ledger.VerifiedDownloadTest",
+      "tests": 4,
+      "failures": 0,
+      "cases": [
+        "hashMatchesPublishedSha256Encoding",
+        "corruptOrTruncatedOrOversizedDownloadsAreNotInstallable",
+        "cancellationRemovesPartialDownload",
+        "verifiedDownloadIsCommittedAndReportsProgress"
+      ]
+    }
+  ],
+  "build": {
+    "tasks": [
+      "testDebugUnitTest",
+      "assembleDebug",
+      "assembleRelease",
+      "lintDebug"
+    ],
+    "offline": true,
+    "result": "BUILD SUCCESSFUL",
+    "duration": "6m 50s",
+    "lint_errors": 0,
+    "lint_warnings": 6
+  }
+}

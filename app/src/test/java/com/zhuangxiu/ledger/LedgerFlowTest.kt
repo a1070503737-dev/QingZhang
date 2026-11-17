@@ -32,6 +32,9 @@ class LedgerFlowTest {
     }
 
     @Test fun recordUnpaidBillThenOpenPendingAndNavigateTabs() {
+        awaitText("生活账本")
+        compose.onNodeWithContentDescription("切换账本").performClick()
+        compose.onNodeWithText("装修账本").performClick()
         awaitText("新家的第一笔花费，从这里开始")
         compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("账单总金额").fetchSemanticsNodes().isNotEmpty() }
@@ -48,8 +51,8 @@ class LedgerFlowTest {
         compose.onNodeWithText("统计").performClick()
         awaitText("花费统计")
         capture("stats")
-        compose.onNodeWithText("我的").performClick()
-        awaitText("我的家装")
+        compose.onNodeWithContentDescription("设置").performClick()
+        awaitText("认真生活，轻松记账")
         capture("mine")
         compose.onNodeWithText("检查更新").performScrollTo().performClick()
         awaitText("当前版本 ${BuildConfig.VERSION_NAME}")

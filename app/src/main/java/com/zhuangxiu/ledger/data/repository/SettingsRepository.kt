@@ -26,6 +26,12 @@ data class ReminderSettings(
 @Singleton
 class SettingsRepository @Inject constructor(private val dataStore: DataStore<Preferences>) {
 
+    val selectedBook: Flow<Long> = dataStore.data.map { it[androidx.datastore.preferences.core.longPreferencesKey("selected_book")] ?: 1L }
+
+    suspend fun selectBook(id: Long) {
+        dataStore.edit { it[androidx.datastore.preferences.core.longPreferencesKey("selected_book")] = id }
+    }
+
     val reminderSettings: Flow<ReminderSettings> = dataStore.data.map { prefs ->
         ReminderSettings(
             paymentReminderEnabled = prefs[KEY_PAYMENT_REMINDER] ?: true,

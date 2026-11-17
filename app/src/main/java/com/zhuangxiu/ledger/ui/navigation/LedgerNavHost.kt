@@ -2,6 +2,9 @@ package com.zhuangxiu.ledger.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import com.zhuangxiu.ledger.ui.daily.*
+import com.zhuangxiu.ledger.data.db.BookKind
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.PieChartOutline
@@ -43,12 +46,11 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 
 private val TABS = listOf(
     Tab(Routes.HOME, "首页", Icons.Outlined.Home),
-    Tab(Routes.BILLS, "账单", Icons.AutoMirrored.Outlined.ReceiptLong),
     Tab(Routes.STATS, "统计", Icons.Outlined.PieChartOutline),
-    Tab(Routes.MINE, "我的", Icons.Outlined.PersonOutline),
+    Tab(Routes.BOOKS, "账本", Icons.Outlined.AccountBalanceWallet),
 )
 
-/** 底部导航栏，4 个主页面共用 */
+/** 底部导航栏：首页、统计和账本共用 */
 @Composable
 fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 0.dp) {
@@ -75,6 +77,12 @@ fun LedgerNavHost(
     onPendingHandled: () -> Unit,
     navController: NavHostController = rememberNavController(),
 ) {
+    val dailyViewModel: DailyViewModel = hiltViewModel()
+    val bookState by dailyViewModel.books.collectAsStateWithLifecycle()
+    val dailyState by dailyViewModel.daily.collectAsStateWithLifecycle()
+    val header: @Composable () -> Unit = {
+        BookHeader(bookState, dailyViewModel::select) { navController.navigate(Routes.MINE) }
+    }
     // 切换底部页面：回到起始页并保留各页面状态
     val switchTab: (String) -> Unit = { route ->
         navController.navigate(route) {
@@ -94,7 +102,8 @@ fun LedgerNavHost(
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
-            HomeScreen(
+            if (bookState.selected?.kind == BookKind.RENOVATION) HomeScreen(
+                header = header,
                 bottomBar = { LedgerBottomBar(Routes.HOME, switchTab) },
                 onAdd = { navController.navigate(Routes.edit()) },
                 onOpenExpense = { navController.navigate(Routes.detail(it)) },
@@ -104,8 +113,21 @@ fun LedgerNavHost(
                     switchTab(Routes.BILLS)
                     navController.getBackStackEntry(Routes.BILLS).savedStateHandle["showPending"] = true
                 },
-            )
+            ) else DailyHomeScreen(dailyState, header, { LedgerBottomBar(Routes.HOME, switchTab) },
+                dailyViewModel::month, dailyViewModel::currentMonth,
+                onAdd = { bookState.selected?.let { navController.navigate(Routes.dailyEdit(it.id)) } },
+                onEdit = { id -> bookState.selected?.let { navController.navigate(Routes.dailyEdit(it.id, id)) } })
         }
+        composable(Routes.BOOKS) {
+            BooksScreen(bookState, bottomBar = { LedgerBottomBar(Routes.BOOKS, switchTab) },
+                onSelect = { dailyViewModel.select(it); switchTab(Routes.HOME) },
+                onAdd = dailyViewModel::addBook, onRename = dailyViewModel::renameBook,
+                onSettings = { navController.navigate(Routes.MINE) }, onClearError = dailyViewModel::clearError)
+        }
+        composable(Routes.DAILY_EDIT, arguments = listOf(
+            navArgument("bookId") { type = NavType.LongType; defaultValue = 1L },
+            navArgument("entryId") { type = NavType.StringType; defaultValue = "" },
+        )) { DailyEditScreen(onBack = back) }
         composable(Routes.BILLS) { entry ->
             val billsViewModel: BillsViewModel = hiltViewModel()
             // 每次从首页进入都消费一次请求，支持恢复已存在的账单页状态。
@@ -126,11 +148,13 @@ fun LedgerNavHost(
             )
         }
         composable(Routes.STATS) {
-            StatsScreen(bottomBar = { LedgerBottomBar(Routes.STATS, switchTab) })
+            if (bookState.selected?.kind == BookKind.RENOVATION) StatsScreen(header = header, bottomBar = { LedgerBottomBar(Routes.STATS, switchTab) })
+            else DailyStatsScreen(dailyState, header, { LedgerBottomBar(Routes.STATS, switchTab) }, dailyViewModel::month, dailyViewModel::currentMonth)
         }
         composable(Routes.MINE) {
             MineScreen(
-                bottomBar = { LedgerBottomBar(Routes.MINE, switchTab) },
+                onBack = back,
+                bottomBar = {},
                 onNavigate = { navController.navigate(it) },
             )
         }

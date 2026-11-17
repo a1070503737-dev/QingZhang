@@ -95,6 +95,7 @@ fun SubPageScaffold(
     onBack: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable (Modifier) -> Unit,
 ) {
     Scaffold(
@@ -111,6 +112,7 @@ fun SubPageScaffold(
             )
         },
         floatingActionButton = floatingActionButton,
+        bottomBar = bottomBar,
     ) { padding -> content(Modifier.padding(padding)) }
 }
 
