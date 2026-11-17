@@ -1,10 +1,12 @@
 package com.zhuangxiu.ledger
 
 import android.graphics.Bitmap
+import android.view.WindowManager
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import org.junit.Rule
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -49,5 +51,16 @@ class LedgerFlowTest {
         compose.onNodeWithText("我的").performClick()
         awaitText("我的家装")
         capture("mine")
+        compose.onNodeWithText("检查更新").performScrollTo().performClick()
+        awaitText("当前版本 ${BuildConfig.VERSION_NAME}")
+        compose.onNodeWithText("检查新版本").assertIsDisplayed()
+        capture("update-idle")
+        compose.onNodeWithText("检查新版本").performClick()
+        awaitText("连接私有 GitHub 仓库")
+        compose.runOnIdle { assertTrue(compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0) }
+        compose.onNodeWithText("保存并检查").assertIsNotEnabled()
+        compose.onNodeWithText("取消").performScrollTo().performClick()
+        awaitText("检查新版本")
+        compose.runOnIdle { assertTrue(compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE == 0) }
     }
 }

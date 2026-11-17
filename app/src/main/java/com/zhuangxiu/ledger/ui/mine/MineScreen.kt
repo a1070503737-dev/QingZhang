@@ -25,6 +25,8 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.SettingsBackupRestore
+import androidx.compose.material.icons.outlined.SystemUpdate
+import com.zhuangxiu.ledger.BuildConfig
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +49,7 @@ private val ENTRIES = listOf(
     MineEntry(Icons.Outlined.PhotoLibrary, "凭证库", "按时间查看所有小票、合同照片", Routes.GALLERY),
     MineEntry(Icons.Outlined.NotificationsNone, "提醒设置", "待付款到期提醒、预算预警", Routes.REMINDER),
     MineEntry(Icons.Outlined.SettingsBackupRestore, "备份与恢复", "导出 zip 备份或从备份恢复", Routes.BACKUP),
+    MineEntry(Icons.Outlined.SystemUpdate, "检查更新", "当前版本 ${BuildConfig.VERSION_NAME} · 下载新版应用", Routes.UPDATE),
 )
 
 /** “我的”页面：各项设置的入口 */
