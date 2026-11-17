@@ -19,16 +19,23 @@ class AppUpdateRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val tokens: GitHubTokenStore,
 ) {
-    private val http = GitHubUpdateHttp(token = tokens::read)
+    private val anonymousHttp = GitHubUpdateHttp(token = { "" })
+    private val http = GitHubUpdateHttp(token = ::optionalToken)
     private val downloadLock = Mutex()
     private val directory get() = File(context.cacheDir, "updates").apply { mkdirs() }
 
+    private fun optionalToken(): String = runCatching { tokens.read() }.getOrDefault("")
+
     suspend fun check(): AppRelease? = withContext(Dispatchers.IO) {
-        if (tokens.read().isBlank()) throw IOException("此仓库为私有仓库，请先设置 GitHub 只读访问令牌")
-        checkWith(http)
+        val hasToken = optionalToken().isNotBlank()
+        try {
+            checkWith(http)
+        } catch (e: IOException) {
+            if (hasToken) checkWith(anonymousHttp) else throw e
+        }
     }
 
-    suspend fun accessConfigured(): Boolean = withContext(Dispatchers.IO) { tokens.read().isNotBlank() }
+    suspend fun accessConfigured(): Boolean = withContext(Dispatchers.IO) { optionalToken().isNotBlank() }
 
     suspend fun configureAccess(value: String): AppRelease? = withContext(Dispatchers.IO) {
         val token = value.trim()
@@ -58,9 +65,19 @@ class AppUpdateRepository @Inject constructor(
                     // A valid completed download can be reused after returning from system settings.
                     if (!file.exists() || file.length() != release.size || VerifiedDownload.sha256(file) != release.sha256) {
                         directory.listFiles()?.forEach { it.delete() }
-                        http.open(release.downloadUrl, "application/octet-stream").use { response ->
-                            VerifiedDownload.copy(response.input, file, release.size, release.sha256,
-                                ensureActive = { coroutine.ensureActive() }, progress = onProgress)
+                        val hasToken = optionalToken().isNotBlank()
+                        try {
+                            http.open(release.downloadUrl, "application/octet-stream").use { response ->
+                                VerifiedDownload.copy(response.input, file, release.size, release.sha256,
+                                    ensureActive = { coroutine.ensureActive() }, progress = onProgress)
+                            }
+                        } catch (e: IOException) {
+                            if (!hasToken) throw e
+                            file.delete()
+                            anonymousHttp.open(release.downloadUrl, "application/octet-stream").use { response ->
+                                VerifiedDownload.copy(response.input, file, release.size, release.sha256,
+                                    ensureActive = { coroutine.ensureActive() }, progress = onProgress)
+                            }
                         }
                     }
                     coroutine.ensureActive()
