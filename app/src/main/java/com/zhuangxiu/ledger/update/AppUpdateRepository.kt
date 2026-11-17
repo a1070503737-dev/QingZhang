@@ -25,7 +25,6 @@ class AppUpdateRepository @Inject constructor(
     private val directory get() = File(context.cacheDir, "updates").apply { mkdirs() }
 
     suspend fun check(): AppRelease? = withContext(Dispatchers.IO) {
-        if (token().isBlank()) throw IOException("此仓库为私有仓库，请先设置 GitHub 只读访问令牌")
         checkWith(http)
     }
 
@@ -34,7 +33,8 @@ class AppUpdateRepository @Inject constructor(
     suspend fun configureAccess(value: String): AppRelease? = withContext(Dispatchers.IO) {
         val token = value.trim()
         if (!token.matches(Regex("[A-Za-z0-9_]{20,512}"))) throw IOException("请粘贴完整的 GitHub 访问令牌")
-        val release = checkWith(GitHubUpdateHttp(token = { token }))
+        // Explicit manual token validation must not silently pass through anonymous access.
+        val release = checkWith(GitHubUpdateHttp(token = { token }, preferAnonymous = false))
         tokens.save(token)
         release
     }

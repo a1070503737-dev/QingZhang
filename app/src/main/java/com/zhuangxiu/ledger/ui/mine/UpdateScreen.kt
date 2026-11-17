@@ -85,7 +85,7 @@ fun UpdateScreen(onBack: () -> Unit, viewModel: UpdateViewModel = hiltViewModel(
     }
 
     if (!showAccess) UpdateContent(state, onBack,
-        onCheck = { if (state.accessConfigured) viewModel.check() else showAccess = true },
+        onCheck = viewModel::check,
         onDownload = viewModel::download, onCancel = viewModel::cancelDownload,
         onInstall = {
             try {
@@ -187,9 +187,9 @@ fun UpdateContent(
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("GitHub 访问", style = MaterialTheme.typography.titleMedium)
                     Text(when {
-                        state.bundledAccess -> "更新访问已就绪，无需单独配置。"
-                        state.accessConfigured -> "已配置私有仓库访问，可检查并下载更新。"
-                        else -> "更新仓库为私有仓库。首次使用需配置只读访问令牌，保存在本机。"
+                        state.bundledAccess -> "优先访问公开发行版，无需填写令牌。私有访问使用内置授权。"
+                        state.accessConfigured -> "优先访问公开发行版，私有访问使用本机配置。"
+                        else -> "公开发行版无需配置即可更新。仅私有仓库访问需要只读令牌。"
                     }, style = MaterialTheme.typography.bodyMedium)
                     if (!state.bundledAccess) TextButton(onClick = onConfigureAccess, enabled = !state.busy) { Text(if (state.accessConfigured) "管理访问设置" else "设置 GitHub 访问") }
                 }

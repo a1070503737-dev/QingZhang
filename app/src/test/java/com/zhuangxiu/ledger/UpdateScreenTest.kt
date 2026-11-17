@@ -26,7 +26,7 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class UpdateScreenTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
-    private val release = AppRelease(AppVersion(1, 0, 6), "改善使用体验\n修复已知问题", 123, 3_000_000, "a".repeat(64))
+    private val release = AppRelease(AppVersion(1, 0, 7), "改善使用体验\n修复已知问题", 123, 3_000_000, "a".repeat(64))
     private fun render(state: UpdateUiState, download: () -> Unit = {}, cancel: () -> Unit = {}, install: () -> Unit = {}) {
         compose.setContent {
             RenovationLedgerTheme {
@@ -63,7 +63,7 @@ class UpdateScreenTest {
 
     @Test fun sharedAccessDoesNotAskEachUserForAToken() {
         render(UpdateUiState(bundledAccess = true, accessConfigured = true))
-        compose.onNodeWithText("更新访问已就绪，无需单独配置。").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("优先访问公开发行版，无需填写令牌。私有访问使用内置授权。").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("设置 GitHub 访问").assertDoesNotExist()
         compose.onNodeWithText("管理访问设置").assertDoesNotExist()
         val file = File("build/reports/ui/update-shared-access.png")

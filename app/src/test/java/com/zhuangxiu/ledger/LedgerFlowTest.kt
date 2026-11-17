@@ -55,7 +55,7 @@ class LedgerFlowTest {
         awaitText("当前版本 ${BuildConfig.VERSION_NAME}")
         compose.onNodeWithText("检查新版本").assertIsDisplayed()
         capture("update-idle")
-        compose.onNodeWithText("检查新版本").performClick()
+        compose.onNodeWithText("设置 GitHub 访问").performScrollTo().performClick()
         awaitText("连接私有 GitHub 仓库")
         compose.runOnIdle { assertTrue(compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0) }
         compose.onNodeWithText("保存并检查").assertIsNotEnabled()

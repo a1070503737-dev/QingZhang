@@ -32,7 +32,7 @@ class GitHubAccessTest {
 
     @Test fun authHeaderIsNotForwardedOnAssetRedirect() {
         val connections = mutableListOf<FakeConnection>()
-        val client = GitHubUpdateHttp(token = { "unit_test_token" }, connect = { url ->
+        val client = GitHubUpdateHttp(token = { "unit_test_token" }, preferAnonymous = false, connect = { url ->
             FakeConnection(url, if (connections.isEmpty()) 302 else 200,
                 "https://release-assets.githubusercontent.com/example.apk?token=temporary").also { connections += it }
         })
@@ -53,10 +53,50 @@ class GitHubAccessTest {
 
     @Test fun insufficientPermissionShowsAccessAdviceWithoutRevealingToken() {
         val connection = FakeConnection(UpdateSource.LATEST_URL, 403, "")
-        val client = GitHubUpdateHttp(token = { "unit_test_token" }, connect = { connection })
+        val client = GitHubUpdateHttp(token = { "unit_test_token" }, preferAnonymous = false, connect = { connection })
         val error = assertThrows(IOException::class.java) { client.open(UpdateSource.LATEST_URL, "application/json") }
         assertTrue(error.message!!.contains("只读权限"))
         assertFalse(error.message!!.contains("unit_test_token"))
+        assertTrue(connection.disconnected)
+    }
+
+    @Test fun publicReleaseWorksWithoutReadingOrSendingAStaleToken() {
+        val connection = FakeConnection(UpdateSource.LATEST_URL, 200, "")
+        val client = GitHubUpdateHttp(token = { throw IOException("Expired or unreadable token") }, connect = { connection })
+        client.open(UpdateSource.LATEST_URL, "application/json").use { assertEquals(3, it.input.readBytes().size) }
+        assertNull(connection.getRequestProperty("Authorization"))
+        assertTrue(connection.disconnected)
+    }
+
+    @Test fun privateReleaseRetriesWithAuthorizationOnlyAfterAnonymousFailure() {
+        val connections = mutableListOf<FakeConnection>()
+        val client = GitHubUpdateHttp(token = { "unit_test_token" }, connect = { url ->
+            FakeConnection(url, if (connections.isEmpty()) 404 else 200, "").also { connections += it }
+        })
+        client.open(UpdateSource.LATEST_URL, "application/json").close()
+        assertEquals(2, connections.size)
+        assertNull(connections[0].getRequestProperty("Authorization"))
+        assertEquals("Bearer unit_test_token", connections[1].getRequestProperty("Authorization"))
+        assertTrue(connections.all { it.disconnected })
+    }
+
+    @Test fun publicAssetRedirectNeverReadsTokenOrForwardsAuthorization() {
+        val connections = mutableListOf<FakeConnection>()
+        val client = GitHubUpdateHttp(token = { throw IOException("Token must not be used") }, connect = { url ->
+            FakeConnection(url, if (connections.isEmpty()) 302 else 200,
+                "https://release-assets.githubusercontent.com/public.apk").also { connections += it }
+        })
+        client.open(UpdateSource.LATEST_URL, "application/octet-stream").close()
+        assertEquals(2, connections.size)
+        assertTrue(connections.all { it.getRequestProperty("Authorization") == null && it.disconnected })
+    }
+
+    @Test fun absentCredentialsDoNotCauseAnAnonymousRetryLoop() {
+        var calls = 0
+        val connection = FakeConnection(UpdateSource.LATEST_URL, 404, "")
+        val client = GitHubUpdateHttp(connect = { calls++; connection })
+        assertThrows(IOException::class.java) { client.open(UpdateSource.LATEST_URL, "application/json") }
+        assertEquals(1, calls)
         assertTrue(connection.disconnected)
     }
 
