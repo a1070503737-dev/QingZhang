@@ -45,6 +45,8 @@ python3 tools/create_update_manifest.py dist/renovation-ledger-1.0.9-signed.apk 
 
 87 项自动化测试通过，0 失败、0 错误、0 跳过；其中 6 项新增回归覆盖静态清单和直接 APK 下载。
 
+发布后已通过 `releases/latest/download/update.json` 实际读取 1.0.8 清单并直接下载 APK，SHA-256 一致。请求主机仅为 `github.com` 和 `release-assets.githubusercontent.com`，未请求 REST API、客户端未发送授权。此检查仍不等同于真实手机上的网络与安装测试。
+
 ## 1.0.8 交付校验
 
 正式构建与签名验证通过；包名不变、版本号递增、签名与上一版一致。APK 和静态清单的版本、大小、SHA-256 一致，公开包不含令牌。[签名记录](SIGNING-VERIFICATION-1.0.8.txt)。
