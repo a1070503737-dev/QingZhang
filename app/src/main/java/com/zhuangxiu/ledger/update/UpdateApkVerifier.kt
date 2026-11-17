@@ -21,15 +21,16 @@ internal object UpdateApkVerifier {
         val current = context.packageManager.getPackageInfo(context.packageName, flags)
         val archive = context.packageManager.getPackageArchiveInfo(file.path, flags)
             ?: throw IOException("无法读取安装包，请重新下载")
-        validateIdentity(identity(current), identity(archive), release.version.toString())
+        validateIdentity(identity(current), identity(archive), release.version.toString(), release.versionCode)
         if ((archive.applicationInfo?.minSdkVersion ?: Int.MAX_VALUE) > Build.VERSION.SDK_INT) {
             throw IOException("此版本需要更高版本的 Android，当前手机无法安装")
         }
     }
 
-    fun validateIdentity(current: ApkIdentity, update: ApkIdentity, expectedVersion: String) {
+    fun validateIdentity(current: ApkIdentity, update: ApkIdentity, expectedVersion: String, expectedCode: Long? = null) {
         if (update.packageName != current.packageName) throw IOException("安装包不属于装修记账，已停止安装")
-        if (update.versionCode <= current.versionCode || update.versionName != expectedVersion) {
+        if (update.versionCode <= current.versionCode || update.versionName != expectedVersion ||
+            (expectedCode != null && update.versionCode != expectedCode)) {
             throw IOException("安装包版本不符合更新要求，请重新检查更新")
         }
         if (current.signers.isEmpty() || update.signers != current.signers) {

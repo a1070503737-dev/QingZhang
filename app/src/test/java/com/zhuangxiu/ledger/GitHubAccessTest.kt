@@ -100,6 +100,20 @@ class GitHubAccessTest {
         assertTrue(connection.disconnected)
     }
 
+    @Test fun manifestApkDownloadsDirectlyWithoutAnyRestApiRequest() {
+        val connections = mutableListOf<FakeConnection>()
+        val release = com.zhuangxiu.ledger.update.AppRelease(
+            com.zhuangxiu.ledger.update.AppVersion(1, 0, 9), "test", 0, 3, "a".repeat(64), 10)
+        val client = GitHubUpdateHttp(token = { throw AssertionError("Must not read credentials") }, connect = { url ->
+            if (URI(url).host == "api.github.com") throw AssertionError("Must not use REST API")
+            FakeConnection(url, if (connections.isEmpty()) 302 else 200,
+                "https://release-assets.githubusercontent.com/app.apk").also { connections += it }
+        })
+        client.open(release.downloadUrl, "application/octet-stream").close()
+        assertEquals("github.com", connections.first().url.host)
+        assertTrue(connections.all { it.getRequestProperty("Authorization") == null && it.disconnected })
+    }
+
     private class FakeConnection(url: String, private val status: Int, private val location: String) : HttpURLConnection(URI(url).toURL()) {
         var disconnected = false
         override fun connect() { }

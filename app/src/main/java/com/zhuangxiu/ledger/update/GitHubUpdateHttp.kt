@@ -32,10 +32,10 @@ internal class GitHubUpdateHttp(
                 connection.setRequestProperty("Accept", accept)
                 connection.setRequestProperty("Accept-Encoding", "identity")
                 connection.setRequestProperty("User-Agent", "RenovationLedger/${BuildConfig.VERSION_NAME}")
-                connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+                if (UpdateUrlPolicy.canAuthorize(url)) connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
                 if (authenticated && UpdateUrlPolicy.canAuthorize(url)) {
                     if (authorization == null) authorization = token()
-                    authorization?.takeIf { it.isNotBlank() }?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
+                    authorization.takeIf { it.isNotBlank() }?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
                 }
                 val status = connection.responseCode
                 // A stale bundled token must not break a public release. Only load or send it

@@ -8,6 +8,7 @@ object UpdateSource {
     const val REPOSITORY = "a1070503737-dev/code"
     const val RELEASES_URL = "https://github.com/$REPOSITORY/releases"
     const val LATEST_URL = "https://api.github.com/repos/$REPOSITORY/releases/latest"
+    const val MANIFEST_URL = "$RELEASES_URL/latest/download/update.json"
     const val MAX_APK_BYTES = 150L * 1024 * 1024
 }
 
@@ -33,10 +34,38 @@ data class AppRelease(
     val assetId: Long,
     val size: Long,
     val sha256: String,
+    val versionCode: Long? = null,
 ) {
-    val downloadUrl: String get() = "https://api.github.com/repos/${UpdateSource.REPOSITORY}/releases/assets/$assetId"
+    val downloadUrl: String get() = if (versionCode != null) {
+        "${UpdateSource.RELEASES_URL}/download/v$version/renovation-ledger-$version-signed.apk"
+    } else {
+        "https://api.github.com/repos/${UpdateSource.REPOSITORY}/releases/assets/$assetId"
+    }
 
     companion object {
+        /** Public release files do not use the REST API's anonymous request quota. */
+        fun parseManifest(json: String): AppRelease {
+            val root = JSONObject(json)
+            if (root.optInt("schemaVersion") != 1 || root.optString("packageName") != "com.zhuangxiu.ledger") {
+                throw IOException("更新文件与当前应用不匹配，请联系维护者")
+            }
+            val version = AppVersion.parse(root.optString("versionName"))
+                ?: throw IOException("更新文件的版本号无效")
+            val code = root.optLong("versionCode")
+            val apk = root.optJSONObject("apk") ?: throw IOException("更新文件缺少安装包信息")
+            val size = apk.optLong("size")
+            val sha256 = apk.optString("sha256").lowercase()
+            if (code !in 1..Int.MAX_VALUE.toLong() || size !in 1..UpdateSource.MAX_APK_BYTES ||
+                !sha256.matches(Regex("[a-f0-9]{64}")) ||
+                apk.optString("fileName") != "renovation-ledger-$version-signed.apk") {
+                throw IOException("更新文件的安装包校验信息无效")
+            }
+            // The URL is derived from the trusted repository, numeric version and fixed name;
+            // no arbitrary URL from an unsigned metadata file can select another download host.
+            val notes = if (root.isNull("notes")) "" else root.optString("notes").take(12_000)
+            return AppRelease(version, notes, 0, size, sha256, code)
+        }
+
         fun parse(json: String): AppRelease? {
             val release = JSONObject(json)
             if (release.optBoolean("draft") || release.optBoolean("prerelease")) return null

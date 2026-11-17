@@ -21,11 +21,18 @@ class AppUpdateRepository @Inject constructor(
 ) {
     private fun token(): String = UpdateCredentials.resolve(tokens::read)
     private val http = GitHubUpdateHttp(token = ::token)
+    private val publicHttp = GitHubUpdateHttp()
+    private val publicFeed = PublicUpdateFeed(publicHttp)
     private val downloadLock = Mutex()
     private val directory get() = File(context.cacheDir, "updates").apply { mkdirs() }
 
     suspend fun check(): AppRelease? = withContext(Dispatchers.IO) {
-        checkWith(http)
+        val release = publicFeed.latest()
+        currentCoroutineContext().ensureActive()
+        release.takeIf {
+            it.version > requireNotNull(AppVersion.parse(BuildConfig.VERSION_NAME)) &&
+                requireNotNull(it.versionCode) > BuildConfig.VERSION_CODE
+        }
     }
 
     suspend fun accessConfigured(): Boolean = withContext(Dispatchers.IO) { token().isNotBlank() }
@@ -53,13 +60,14 @@ class AppUpdateRepository @Inject constructor(
     suspend fun download(release: AppRelease, onProgress: (Long) -> Unit, onVerifying: () -> Unit): File =
         withContext(Dispatchers.IO) {
             downloadLock.withLock {
-                val file = File(directory, "update-${release.assetId}.apk")
+                val file = File(directory, "update-${release.version}-${release.sha256.take(12)}.apk")
                 val coroutine = currentCoroutineContext()
                 try {
                     // A valid completed download can be reused after returning from system settings.
                     if (!file.exists() || file.length() != release.size || VerifiedDownload.sha256(file) != release.sha256) {
                         directory.listFiles()?.forEach { it.delete() }
-                        http.open(release.downloadUrl, "application/octet-stream").use { response ->
+                        val client = if (release.versionCode != null) publicHttp else http
+                        client.open(release.downloadUrl, "application/octet-stream").use { response ->
                             VerifiedDownload.copy(response.input, file, release.size, release.sha256,
                                 ensureActive = { coroutine.ensureActive() }, progress = onProgress)
                         }
