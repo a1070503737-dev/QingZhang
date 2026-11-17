@@ -186,8 +186,12 @@ fun UpdateContent(
             LedgerCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("GitHub 访问", style = MaterialTheme.typography.titleMedium)
-                    Text(if (state.accessConfigured) "已配置私有仓库访问，可检查并下载更新。" else "更新仓库为私有仓库。首次使用需配置只读访问令牌，保存在本机。", style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = onConfigureAccess, enabled = !state.busy) { Text(if (state.accessConfigured) "管理访问设置" else "设置 GitHub 访问") }
+                    Text(when {
+                        state.bundledAccess -> "更新访问已就绪，无需单独配置。"
+                        state.accessConfigured -> "已配置私有仓库访问，可检查并下载更新。"
+                        else -> "更新仓库为私有仓库。首次使用需配置只读访问令牌，保存在本机。"
+                    }, style = MaterialTheme.typography.bodyMedium)
+                    if (!state.bundledAccess) TextButton(onClick = onConfigureAccess, enabled = !state.busy) { Text(if (state.accessConfigured) "管理访问设置" else "设置 GitHub 访问") }
                 }
             }
             Text("仅检查更新和下载安装包时连接 GitHub，账本与凭证不会上传。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -18,6 +18,8 @@ keystore.properties
 credentials.json
 *-signing-key-backup.zip
 /signing/
+ledger-update-token*.txt
+/update-access/
 
 # 例外：放在 dist/ 下供直接下载安装的 APK
 !dist/*.apk

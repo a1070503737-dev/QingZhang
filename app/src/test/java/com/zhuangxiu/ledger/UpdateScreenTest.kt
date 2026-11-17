@@ -60,4 +60,11 @@ class UpdateScreenTest {
         compose.onNodeWithText("安装更新").performClick()
         assertTrue(installed)
     }
+
+    @Test fun sharedAccessDoesNotAskEachUserForAToken() {
+        render(UpdateUiState(bundledAccess = true, accessConfigured = true))
+        compose.onNodeWithText("更新访问已就绪，无需单独配置。").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("设置 GitHub 访问").assertDoesNotExist()
+        compose.onNodeWithText("管理访问设置").assertDoesNotExist()
+    }
 }

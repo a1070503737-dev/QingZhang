@@ -19,16 +19,17 @@ class AppUpdateRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val tokens: GitHubTokenStore,
 ) {
-    private val http = GitHubUpdateHttp(token = tokens::read)
+    private fun token(): String = UpdateCredentials.resolve(tokens::read)
+    private val http = GitHubUpdateHttp(token = ::token)
     private val downloadLock = Mutex()
     private val directory get() = File(context.cacheDir, "updates").apply { mkdirs() }
 
     suspend fun check(): AppRelease? = withContext(Dispatchers.IO) {
-        if (tokens.read().isBlank()) throw IOException("此仓库为私有仓库，请先设置 GitHub 只读访问令牌")
+        if (token().isBlank()) throw IOException("此仓库为私有仓库，请先设置 GitHub 只读访问令牌")
         checkWith(http)
     }
 
-    suspend fun accessConfigured(): Boolean = withContext(Dispatchers.IO) { tokens.read().isNotBlank() }
+    suspend fun accessConfigured(): Boolean = withContext(Dispatchers.IO) { token().isNotBlank() }
 
     suspend fun configureAccess(value: String): AppRelease? = withContext(Dispatchers.IO) {
         val token = value.trim()

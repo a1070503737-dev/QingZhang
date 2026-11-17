@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhuangxiu.ledger.update.AppRelease
 import com.zhuangxiu.ledger.update.AppUpdateRepository
+import com.zhuangxiu.ledger.update.UpdateCredentials
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -26,7 +27,8 @@ data class UpdateUiState(
     val release: AppRelease? = null,
     val downloaded: Long = 0,
     val error: String? = null,
-    val accessConfigured: Boolean = false,
+    val bundledAccess: Boolean = UpdateCredentials.bundled,
+    val accessConfigured: Boolean = bundledAccess,
 ) {
     val busy get() = stage in setOf(UpdateStage.CHECKING, UpdateStage.DOWNLOADING, UpdateStage.VERIFYING)
 }

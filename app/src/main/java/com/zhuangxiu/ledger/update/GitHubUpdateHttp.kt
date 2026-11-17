@@ -40,9 +40,12 @@ internal class GitHubUpdateHttp(
                         url = URI(url).resolve(location).toString()
                         connection.disconnect()
                     }
-                    401 -> throw IOException("GitHub 授权已失效，请检查访问设置")
+                    401 -> throw IOException(if (UpdateCredentials.bundled)
+                        "更新服务授权已失效，请联系维护者或前往发行版手动下载"
+                    else "GitHub 授权已失效，请检查访问设置")
                     403 -> throw IOException(if (connection.getHeaderField("X-RateLimit-Remaining") == "0")
                         "GitHub 暂时限制了请求，请稍后重试"
+                    else if (UpdateCredentials.bundled) "更新服务暂时无法访问，请联系维护者"
                     else "GitHub 拒绝了访问，请确认令牌对 code 仓库有 Contents 只读权限")
                     429 -> throw IOException("GitHub 暂时限制了请求，请稍后重试")
                     404 -> throw IOException("暂时无法访问发行版，请确认更新仓库已发布版本并允许访问")
