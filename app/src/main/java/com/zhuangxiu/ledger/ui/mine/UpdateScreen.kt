@@ -85,7 +85,7 @@ fun UpdateScreen(onBack: () -> Unit, viewModel: UpdateViewModel = hiltViewModel(
     }
 
     if (!showAccess) UpdateContent(state, onBack,
-        onCheck = viewModel::check,
+        onCheck = { if (state.accessConfigured) viewModel.check() else showAccess = true },
         onDownload = viewModel::download, onCancel = viewModel::cancelDownload,
         onInstall = {
             try {
@@ -186,7 +186,7 @@ fun UpdateContent(
             LedgerCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("GitHub 访问", style = MaterialTheme.typography.titleMedium)
-                    Text(if (state.accessConfigured) "已配置只读访问令牌，将优先使用令牌检查并下载更新。" else "公开仓库默认无需令牌即可直接检查并下载更新；若仓库转为私有或遇到匿名限流，可在此配置只读访问令牌。", style = MaterialTheme.typography.bodyMedium)
+                    Text(if (state.accessConfigured) "已配置私有仓库访问，可检查并下载更新。" else "更新仓库为私有仓库。首次使用需配置只读访问令牌，保存在本机。", style = MaterialTheme.typography.bodyMedium)
                     TextButton(onClick = onConfigureAccess, enabled = !state.busy) { Text(if (state.accessConfigured) "管理访问设置" else "设置 GitHub 访问") }
                 }
             }

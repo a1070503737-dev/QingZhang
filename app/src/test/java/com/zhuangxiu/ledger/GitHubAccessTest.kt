@@ -30,18 +30,6 @@ class GitHubAccessTest {
         assertThrows(GeneralSecurityException::class.java) { TokenCipher.decrypt(encrypted, different) }
     }
 
-    @Test fun publicReleaseCanBeFetchedWithoutToken() {
-        val connections = mutableListOf<FakeConnection>()
-        val client = GitHubUpdateHttp(token = { "" }, connect = { url ->
-            FakeConnection(url, if (connections.isEmpty()) 302 else 200,
-                "https://release-assets.githubusercontent.com/example.apk?token=temporary").also { connections += it }
-        })
-        client.open(UpdateSource.LATEST_URL, "application/octet-stream").use { assertEquals(3, it.input.readBytes().size) }
-        assertNull(connections[0].getRequestProperty("Authorization"))
-        assertNull(connections[1].getRequestProperty("Authorization"))
-        assertTrue(connections.all { it.disconnected })
-    }
-
     @Test fun authHeaderIsNotForwardedOnAssetRedirect() {
         val connections = mutableListOf<FakeConnection>()
         val client = GitHubUpdateHttp(token = { "unit_test_token" }, connect = { url ->
