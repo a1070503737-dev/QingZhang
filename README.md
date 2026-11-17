@@ -6,7 +6,15 @@
 
 本分支优化了首页预算总览、浅色/深色主题、账单卡片、待付筛选、记账空状态，以及付款反馈和备份校验。详见 [审查与更新说明](docs/REVIEW-1.0.3.md) 与 [界面截图](docs/UI-PREVIEW.md)。
 
-**覆盖安装必须使用原签名密钥。** 本次保留 `com.zhuangxiu.ledger` 与 Room v1，将版本递增到 1.0.3 / 4。仓库没有原调试签名密钥，`assembleRelease` 只输出未签名 APK，不能直接安装。找回原密钥签名后，使用 `tools/verify_update.py` 与 1.0.2 APK 比对；在新环境直接构建 debug 包不能保证覆盖安装。
+### 下载 1.0.3
+
+- [已签名 APK，约 3 MB](dist/renovation-ledger-1.0.3-signed.apk)：打开后点击 **Download raw file** 下载。
+- [精简源码 ZIP，约 2.6 MB](dist/renovation-ledger-1.0.3-source.zip)：含源码、构建脚本、测试和界面截图，不含 APK、构建缓存或签名私钥。
+- [安装与迁移说明](docs/INSTALL-1.0.3.md)、[签名验证记录](docs/SIGNING-VERIFICATION-1.0.3.txt)、[下载文件 SHA-256](dist/SHA256SUMS-1.0.3.txt)。
+
+**1.0.3 已使用新密钥签名，不能直接覆盖原版 1.0.2。** 原签名私钥无法找回，因此本次切换签名；包名仍为 `com.zhuangxiu.ledger`，数据库结构仍为 Room v1，版本为 1.0.3 / 4。旧用户请先将账本备份导出到下载目录并确认保存成功，再卸载旧版、安装新版、恢复备份。
+
+后续更新必须继续使用本次新密钥、相同包名和更大的 versionCode，并用 `tools/verify_update.py` 与本次已签名的 1.0.3 APK 比对。签名密钥与密码已单独交付，不存放在仓库中。
 
 ## 原版 1.0.2 下载安装
 
@@ -93,8 +101,8 @@ app/schemas/           Room 导出的数据库结构，以后升级表结构写�
 ### 正式包（体积小、速度快，需要签名）
 
 1. `Build > Generate Signed App Bundle or APK…`，选择 **APK**。
-2. 首次打包点 **Create new…** 创建签名文件（`.jks`），设置密码并填写信息。
-   **务必保管好这个文件和密码**：以后升级 App 必须用同一个签名，否则只能卸载重装（卸载会清空数据，请先在 App 里导出备份）。
+2. 为本分支的 1.0.3 提供覆盖更新时，选择单独保存的 `renovation-ledger-release.keystore`，别名为 `renovation-ledger`，按提示输入密码。不要重新创建密钥。
+   **务必保管好密钥文件和密码**：以后升级 App 必须用同一个签名，同时保持包名并递增 versionCode。
 3. 选择 `release`，点击 **Create**。产物在 `app/release/app-release.apk`（约 3 MB）。
 
 命令行 `./gradlew assembleRelease` 生成的是**未签名**的包（`app-release-unsigned.apk`），不能直接安装，需要按上面的方式签名。
