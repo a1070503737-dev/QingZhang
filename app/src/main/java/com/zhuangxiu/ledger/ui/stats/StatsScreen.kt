@@ -1,26 +1,16 @@
 package com.zhuangxiu.ledger.ui.stats
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,44 +19,37 @@ import androidx.compose.material.icons.outlined.PieChartOutline
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhuangxiu.ledger.data.db.CategoryKind
 import com.zhuangxiu.ledger.ui.components.BudgetCompareChart
 import com.zhuangxiu.ledger.ui.components.EmptyHint
-import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
+import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
+import com.zhuangxiu.ledger.ui.components.LiquidLensChip
+import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
 import com.zhuangxiu.ledger.ui.components.MonthlyBarChart
 import com.zhuangxiu.ledger.ui.components.PageHeading
 import com.zhuangxiu.ledger.ui.components.PieChart
-import com.zhuangxiu.ledger.ui.components.liquidGlass
-import com.zhuangxiu.ledger.ui.components.liquidInteractive
 import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
-import kotlin.math.roundToInt
 
-/** 装修统计页（Liquid Glass 版）：玻璃筛选胶囊、弹性透镜分段切换与发光统计图表 */
 @Composable
 fun StatsScreen(
     bottomBar: @Composable () -> Unit,
@@ -93,20 +76,15 @@ fun StatsScreen(
                     Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     RangePreset.entries.forEach { preset ->
-                        FilterChip(
+                        LiquidLensChip(
                             selected = options.preset == preset,
                             onClick = {
                                 if (preset == RangePreset.CUSTOM) showRangePicker = true else viewModel.setPreset(preset)
                             },
-                            shape = CircleShape,
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = glass.surfaceTop.copy(alpha = 0.55f),
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
-                            ),
                             label = {
                                 val custom = preset == RangePreset.CUSTOM && options.preset == RangePreset.CUSTOM &&
                                     options.customFrom != null && options.customTo != null
@@ -133,58 +111,23 @@ fun StatsScreen(
                         Text("共 ${state.count} 笔账单", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f))
                     }
                 }
-                // 液态透镜维度切换：按阶段 / 按类型
+
+                // 连续拖拽水滴放大分段器：按阶段 | 按类型
                 val kinds = CategoryKind.entries
-                val selectedIdx = kinds.indexOf(options.kind).coerceAtLeast(0)
-                val animatedIdx by animateFloatAsState(
-                    targetValue = selectedIdx.toFloat(),
-                    animationSpec = spring(dampingRatio = 0.64f, stiffness = 380f),
-                    label = "stats-kind-pill",
-                )
-                BoxWithConstraints(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .height(46.dp)
-                        .liquidGlass(CircleShape, GlassVariant.Regular, cornerRadius = 23.dp, shadowElevation = 4.dp)
-                        .padding(4.dp),
-                ) {
-                    val itemWidth = maxWidth / kinds.size
-                    val itemPx = constraints.maxWidth.toFloat() / kinds.size
-                    Box(
-                        Modifier
-                            .width(itemWidth)
-                            .fillMaxHeight()
-                            .offset { IntOffset((animatedIdx * itemPx).roundToInt(), 0) }
-                            .liquidGlass(CircleShape, GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer), cornerRadius = 20.dp, shadowElevation = 2.dp),
+                LiquidLensTrack(
+                    itemCount = kinds.size,
+                    selectedIndex = kinds.indexOf(options.kind).coerceAtLeast(0),
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    height = 48.dp,
+                    role = Role.RadioButton,
+                    onSelect = { idx -> viewModel.setKind(kinds[idx]) },
+                ) { idx, isSelected ->
+                    Text(
+                        "按${kinds[idx].label.takeLast(2)}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(Modifier.fillMaxSize()) {
-                        kinds.forEach { kind ->
-                            val isSelected = options.kind == kind
-                            val interactionSource = remember(kind) { MutableInteractionSource() }
-                            Box(
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .liquidInteractive(interactionSource, pressedScale = 1.04f)
-                                    .selectable(
-                                        selected = isSelected,
-                                        interactionSource = interactionSource,
-                                        indication = LocalIndication.current,
-                                        role = Role.RadioButton,
-                                        onClick = { viewModel.setKind(kind) },
-                                    ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    "按${kind.label.takeLast(2)}",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
                 }
 
                 ChartCard("花费占比") {
@@ -226,15 +169,24 @@ fun StatsScreen(
             confirmButton = {
                 val start = pickerState.selectedStartDateMillis
                 val end = pickerState.selectedEndDateMillis
-                TextButton(
+                LiquidGlassButton(
                     onClick = {
                         viewModel.setCustomRange(Dates.utcMillisToEpochDay(start!!), Dates.utcMillisToEpochDay(end!!))
                         showRangePicker = false
                     },
                     enabled = start != null && end != null,
+                    minHeight = 38.dp,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                 ) { Text("确定") }
             },
-            dismissButton = { TextButton(onClick = { showRangePicker = false }) { Text("取消") } },
+            dismissButton = {
+                LiquidGlassButton(
+                    onClick = { showRangePicker = false },
+                    prominent = false,
+                    minHeight = 38.dp,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                ) { Text("取消") }
+            },
         ) {
             DateRangePicker(
                 state = pickerState,

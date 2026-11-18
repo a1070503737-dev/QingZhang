@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +23,6 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,9 +49,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
+import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import java.io.File
 
-/** 图片查看页（Liquid Glass 版）：全屏沉浸查看 + 顶部悬浮深色冰晶胶囊操作栏 */
 @Composable
 fun ViewerScreen(
     onBack: () -> Unit,
@@ -79,27 +79,23 @@ fun ViewerScreen(
             }
             val current = images.getOrNull(pagerState.currentPage)
 
-            // 悬浮深色液态玻璃胶囊操作栏
             Row(
                 Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 10.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0x991E293B), Color(0x730F172A)),
-                        ),
-                    )
+                    .background(Brush.linearGradient(listOf(Color(0x991E293B), Color(0x730F172A))))
                     .border(
                         width = 1.dp,
                         brush = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.12f))),
                         shape = CircleShape,
                     )
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                IconButton(onClick = onBack) {
+                LiquidLensIconButton(onClick = onBack, size = 38.dp, tint = Color.White) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = Color.White)
                 }
                 Text(
@@ -109,11 +105,11 @@ fun ViewerScreen(
                     modifier = Modifier.weight(1f),
                 )
                 if (viewModel.expenseId <= 0 && current != null) {
-                    IconButton(onClick = { onOpenExpense(current.expenseId) }) {
+                    LiquidLensIconButton(onClick = { onOpenExpense(current.expenseId) }, size = 38.dp, tint = Color.White) {
                         Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = "查看账单", tint = Color.White)
                     }
                 }
-                IconButton(onClick = { showDelete = true }) {
+                LiquidLensIconButton(onClick = { showDelete = true }, size = 38.dp, tint = Color.White) {
                     Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除", tint = Color.White)
                 }
             }

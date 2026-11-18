@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,6 +51,7 @@ import com.zhuangxiu.ledger.ui.components.ConfirmDialog
 import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
+import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
 import com.zhuangxiu.ledger.ui.components.StatusChip
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
@@ -59,7 +59,6 @@ import com.zhuangxiu.ledger.ui.components.liquidGlass
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
-/** 账单详情页（Liquid Glass 版）：光学总价透镜卡、液态分期进度条与冰晶凭证相框 */
 @Composable
 fun DetailScreen(
     onBack: () -> Unit,
@@ -79,18 +78,12 @@ fun DetailScreen(
         title = "账单详情",
         onBack = onBack,
         actions = {
-            IconButton(
-                onClick = { onEdit(viewModel.expenseId) },
-                modifier = Modifier
-                    .size(40.dp)
-                    .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
-            ) { Icon(Icons.Outlined.Edit, contentDescription = "编辑") }
-            IconButton(
-                onClick = { showDelete = true },
-                modifier = Modifier
-                    .size(40.dp)
-                    .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
-            ) { Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除") }
+            LiquidLensIconButton(onClick = { onEdit(viewModel.expenseId) }) {
+                Icon(Icons.Outlined.Edit, contentDescription = "编辑")
+            }
+            LiquidLensIconButton(onClick = { showDelete = true }) {
+                Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除")
+            }
         },
     ) { modifier ->
         if (item == null) return@SubPageScaffold
@@ -289,8 +282,8 @@ private fun PaymentCard(
                             )
                         }
                         Text(Money.format(payment.amountCents), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                        Spacer(Modifier.width(4.dp))
-                        IconButton(onClick = { onDeletePayment(payment) }, modifier = Modifier.size(32.dp)) {
+                        Spacer(Modifier.width(6.dp))
+                        LiquidLensIconButton(onClick = { onDeletePayment(payment) }, size = 34.dp) {
                             Icon(
                                 Icons.Outlined.DeleteOutline,
                                 contentDescription = "删除付款记录",

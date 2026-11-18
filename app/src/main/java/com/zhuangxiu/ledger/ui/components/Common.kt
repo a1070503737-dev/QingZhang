@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,17 +36,16 @@ import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,8 +79,7 @@ import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
 /**
- * Liquid Glass 统一圆角折射卡片：
- * 自动根据 containerColor 识别默认透明玻璃或有色折射透镜，具备 360° 镜面亮边与弹性按压反馈。
+ * 统一圆角折射卡片：可点击卡片自带手指跟随水滴凸透镜放大交互。
  */
 @Composable
 fun LedgerCard(
@@ -103,14 +100,14 @@ fun LedgerCard(
         cornerRadius = 26.dp,
         variant = variant,
         shadowElevation = 10.dp,
-        pressedScale = 0.976f,
+        pressedScale = 0.984f,
         enableTilt = onClick != null,
         onClick = onClick,
         content = content,
     )
 }
 
-/** 子页面通用骨架：流光背景 + 悬浮液态玻璃返回顶栏 */
+/** 子页面通用骨架：返回按钮采用全局水滴凸透镜圆形按钮 */
 @Composable
 fun SubPageScaffold(
     title: String,
@@ -127,12 +124,7 @@ fun SubPageScaffold(
                 LiquidGlassTopBar(
                     title = { Text(title) },
                     navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
-                        ) {
+                        LiquidLensIconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
                         }
                     },
@@ -145,7 +137,6 @@ fun SubPageScaffold(
     }
 }
 
-/** 预算等级对应的颜色：正常用主色，预警用琥珀色，超支标红 */
 @Composable
 fun budgetLevelColor(level: BudgetLevel): Color = when (level) {
     BudgetLevel.OVER -> MaterialTheme.colorScheme.error
@@ -153,7 +144,6 @@ fun budgetLevelColor(level: BudgetLevel): Color = when (level) {
     else -> MaterialTheme.colorScheme.primary
 }
 
-/** 液态玻璃发光胶囊进度条：带弹簧平滑过渡与顶部镜面高光带 */
 @Composable
 fun BudgetProgressBar(usage: BudgetUsage, modifier: Modifier = Modifier) {
     val animatedFraction by animateFloatAsState(
@@ -176,17 +166,12 @@ fun BudgetProgressBar(usage: BudgetUsage, modifier: Modifier = Modifier) {
         if (animatedFraction > 0.005f) {
             val fillWidth = (size.width * animatedFraction).coerceAtLeast(size.height)
             drawRoundRect(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(barColor.copy(alpha = 0.82f), barColor),
-                    startX = 0f,
-                    endX = fillWidth,
-                ),
+                brush = Brush.horizontalGradient(listOf(barColor.copy(alpha = 0.82f), barColor), 0f, fillWidth),
                 size = Size(fillWidth, size.height),
                 cornerRadius = r,
             )
-            // 液态柱体顶部水光折射亮条
             drawRoundRect(
-                color = Color.White.copy(alpha = 0.42f),
+                color = Color.White.copy(alpha = 0.45f),
                 topLeft = Offset(size.height * 0.25f, size.height * 0.16f),
                 size = Size((fillWidth - size.height * 0.5f).coerceAtLeast(2f), size.height * 0.26f),
                 cornerRadius = CornerRadius(size.height / 4f),
@@ -195,7 +180,6 @@ fun BudgetProgressBar(usage: BudgetUsage, modifier: Modifier = Modifier) {
     }
 }
 
-/** 付款状态液态玻璃小胶囊 */
 @Composable
 fun StatusChip(status: PaymentStatus, modifier: Modifier = Modifier) {
     val (tint, foreground) = when (status) {
@@ -207,12 +191,7 @@ fun StatusChip(status: PaymentStatus, modifier: Modifier = Modifier) {
     Text(
         text = status.label,
         modifier = modifier
-            .liquidGlass(
-                shape = CircleShape,
-                variant = GlassVariant.Tinted(tint),
-                cornerRadius = 12.dp,
-                shadowElevation = 0.dp,
-            )
+            .liquidGlass(CircleShape, GlassVariant.Tinted(tint), cornerRadius = 12.dp, shadowElevation = 0.dp)
             .padding(horizontal = 10.dp, vertical = 3.dp),
         color = foreground,
         style = MaterialTheme.typography.labelSmall,
@@ -220,9 +199,6 @@ fun StatusChip(status: PaymentStatus, modifier: Modifier = Modifier) {
     )
 }
 
-/**
- * 账单列表的一行（具备液态微弹性点击与长按触觉反馈）。
- */
 @Composable
 fun ExpenseRow(
     item: ExpenseWithDetails,
@@ -237,7 +213,7 @@ fun ExpenseRow(
         cornerRadius = 20.dp,
         variant = GlassVariant.Clear,
         shadowElevation = 0.dp,
-        pressedScale = 0.984f,
+        pressedScale = 0.986f,
         onClick = onClick,
         onLongClick = onLongClick,
         onLongClickLabel = if (onLongClick != null) "更多操作" else null,
@@ -261,9 +237,7 @@ fun ExpenseRow(
                 Spacer(Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = buildString {
-                            append(item.stage.name).append(" · ").append(item.type.name)
-                        },
+                        text = buildString { append(item.stage.name).append(" · ").append(item.type.name) },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -328,12 +302,7 @@ fun EmptyHint(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
         Box(
             Modifier
                 .size(74.dp)
-                .liquidGlass(
-                    shape = RoundedCornerShape(24.dp),
-                    variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
-                    cornerRadius = 24.dp,
-                    shadowElevation = 6.dp,
-                ),
+                .liquidGlass(RoundedCornerShape(24.dp), GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer), cornerRadius = 24.dp, shadowElevation = 6.dp),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
@@ -348,7 +317,6 @@ fun EmptyHint(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** 区块小标题 */
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -357,7 +325,6 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: @Composa
     }
 }
 
-/** 统一液态玻璃输入框配色 */
 @Composable
 fun glassTextFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedContainerColor = LedgerTheme.glass.elevatedTop.copy(alpha = if (LedgerTheme.glass.isDark) 0.52f else 0.72f),
@@ -366,9 +333,6 @@ fun glassTextFieldColors() = OutlinedTextFieldDefaults.colors(
     unfocusedBorderColor = LedgerTheme.glass.specularBright.copy(alpha = if (LedgerTheme.glass.isDark) 0.28f else 0.65f),
 )
 
-/**
- * 输入金额的液态玻璃对话框（数字键盘）。
- */
 @Composable
 fun AmountInputDialog(
     title: String,
@@ -426,7 +390,14 @@ fun AmountInputDialog(
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
             ) { Text("确定") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = {
+            LiquidGlassButton(
+                onClick = onDismiss,
+                prominent = false,
+                minHeight = 40.dp,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            ) { Text("取消") }
+        },
     )
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 }
@@ -466,7 +437,6 @@ fun PaymentMethodPicker(
     }
 }
 
-/** 输入一行文字的液态玻璃对话框（新增 / 重命名分类） */
 @Composable
 fun TextInputDialog(
     title: String,
@@ -506,12 +476,18 @@ fun TextInputDialog(
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
             ) { Text("确定") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = {
+            LiquidGlassButton(
+                onClick = onDismiss,
+                prominent = false,
+                minHeight = 40.dp,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            ) { Text("取消") }
+        },
     )
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 }
 
-/** 液态玻璃确认对话框 */
 @Composable
 fun ConfirmDialog(
     title: String,
@@ -541,11 +517,17 @@ fun ConfirmDialog(
                 Text(confirmLabel)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = {
+            LiquidGlassButton(
+                onClick = onDismiss,
+                prominent = false,
+                minHeight = 40.dp,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            ) { Text("取消") }
+        },
     )
 }
 
-/** 选择单个日期的液态玻璃对话框，日期用 epochDay 表示 */
 @Composable
 fun LedgerDatePickerDialog(
     initialEpochDay: Long?,
@@ -562,22 +544,30 @@ fun LedgerDatePickerDialog(
     DatePickerDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(30.dp),
-        colors = androidx.compose.material3.DatePickerDefaults.colors(
+        colors = DatePickerDefaults.colors(
             containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
         ),
         confirmButton = {
-            TextButton(
+            LiquidGlassButton(
                 onClick = { state.selectedDateMillis?.let { onPick(Dates.utcMillisToEpochDay(it)) } },
                 enabled = state.selectedDateMillis != null,
+                minHeight = 38.dp,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
             ) { Text("确定") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = {
+            LiquidGlassButton(
+                onClick = onDismiss,
+                prominent = false,
+                minHeight = 38.dp,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+            ) { Text("取消") }
+        },
     ) {
         DatePicker(state = state)
     }
 }
 
-/** 页面标题、图标与加载提示共用一套视觉层级。 */
 @Composable
 fun PageHeading(title: String, subtitle: String, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {

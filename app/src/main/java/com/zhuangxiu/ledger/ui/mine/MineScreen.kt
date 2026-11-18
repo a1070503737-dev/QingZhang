@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,7 +25,6 @@ import androidx.compose.material.icons.outlined.SettingsBackupRestore
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -42,6 +40,7 @@ import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
 import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
 import com.zhuangxiu.ledger.ui.components.LiquidGlassTopBar
+import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import com.zhuangxiu.ledger.ui.components.PageHeading
 import com.zhuangxiu.ledger.ui.components.liquidGlass
 import com.zhuangxiu.ledger.ui.navigation.Routes
@@ -58,7 +57,6 @@ private val ENTRIES = listOf(
     MineEntry(Icons.Outlined.SystemUpdate, "检查更新", "当前版本 ${BuildConfig.VERSION_NAME} · 下载新版应用", Routes.UPDATE),
 )
 
-/** “设置 / 我的”页面（Liquid Glass 版） */
 @Composable
 fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit, onBack: () -> Unit = {}) {
     LiquidGlassBackdrop {
@@ -68,12 +66,9 @@ fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit, 
                 LiquidGlassTopBar(
                     title = { Text("设置") },
                     navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
-                        ) { Icon(Icons.Outlined.ChevronLeft, "返回") }
+                        LiquidLensIconButton(onClick = onBack) {
+                            Icon(Icons.Outlined.ChevronLeft, "返回")
+                        }
                     },
                 )
             },
@@ -124,7 +119,7 @@ fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit, 
                             cornerRadius = 18.dp,
                             variant = GlassVariant.Clear,
                             shadowElevation = 0.dp,
-                            pressedScale = 0.985f,
+                            pressedScale = 0.986f,
                             onClick = { onNavigate(entry.route) },
                         ) {
                             Row(

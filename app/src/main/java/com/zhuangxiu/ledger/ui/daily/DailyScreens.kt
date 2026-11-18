@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -57,16 +56,12 @@ import androidx.compose.material.icons.outlined.WorkOutline
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -81,6 +76,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -103,6 +99,8 @@ import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
 import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
 import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
 import com.zhuangxiu.ledger.ui.components.LiquidGlassTopBar
+import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
+import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
 import com.zhuangxiu.ledger.ui.components.LoadingHint
 import com.zhuangxiu.ledger.ui.components.PieChart
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
@@ -147,12 +145,12 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("轻账", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Box {
-                    TextButton(
+                    LiquidGlassButton(
                         onClick = { expanded = true },
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier
-                            .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 18.dp, shadowElevation = 0.dp)
-                            .semantics { contentDescription = "切换账本" },
+                        prominent = false,
+                        minHeight = 36.dp,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
+                        modifier = Modifier.semantics { contentDescription = "切换账本" },
                     ) {
                         Text(
                             text = if (state.all) "全部账本" else state.selected?.name ?: "请选择账本",
@@ -197,12 +195,7 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
             }
         },
         actions = {
-            IconButton(
-                onClick = onSettings,
-                modifier = Modifier
-                    .size(40.dp)
-                    .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
-            ) {
+            LiquidLensIconButton(onClick = onSettings) {
                 Icon(Icons.Outlined.Settings, "设置")
             }
         },
@@ -216,21 +209,33 @@ fun MonthSelector(month: YearMonth, onMonth: (Long) -> Unit, onToday: () -> Unit
         modifier = Modifier
             .fillMaxWidth()
             .liquidGlass(CircleShape, GlassVariant.Regular, cornerRadius = 26.dp, shadowElevation = 4.dp)
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            .padding(horizontal = 8.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        IconButton(onClick = { onMonth(-1) }) { Icon(Icons.Outlined.ChevronLeft, "上个月") }
-        TextButton({ showDatePicker = true }, Modifier.weight(1f)) {
+        LiquidLensIconButton(onClick = { onMonth(-1) }, size = 36.dp) {
+            Icon(Icons.Outlined.ChevronLeft, "上个月")
+        }
+        LiquidGlassButton(
+            onClick = { showDatePicker = true },
+            prominent = false,
+            minHeight = 36.dp,
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.weight(1f),
+        ) {
             Text("${month.year}年${month.monthValue}月", style = MaterialTheme.typography.titleMedium)
         }
-        TextButton(
+        LiquidGlassButton(
             onClick = onToday,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-            modifier = Modifier.liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 16.dp, shadowElevation = 0.dp),
+            prominent = false,
+            minHeight = 36.dp,
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
         ) {
             Text("本月")
         }
-        IconButton(onClick = { onMonth(1) }) { Icon(Icons.Outlined.ChevronRight, "下个月") }
+        LiquidLensIconButton(onClick = { onMonth(1) }, size = 36.dp) {
+            Icon(Icons.Outlined.ChevronRight, "下个月")
+        }
     }
     if (showDatePicker) {
         LedgerDatePickerDialog(
@@ -382,7 +387,9 @@ fun DailyHomeScreen(
                             leadingIcon = { Icon(Icons.Outlined.Search, null) },
                             trailingIcon = {
                                 if (query.isNotEmpty()) {
-                                    IconButton({ query = "" }) { Icon(Icons.Outlined.Close, "清空搜索") }
+                                    LiquidLensIconButton(onClick = { query = "" }, size = 32.dp) {
+                                        Icon(Icons.Outlined.Close, "清空搜索", modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             },
                         )
@@ -638,12 +645,9 @@ fun BooksScreen(
                     LiquidGlassTopBar(
                         title = { Text("我的账本") },
                         actions = {
-                            IconButton(
-                                onClick = onSettings,
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
-                            ) { Icon(Icons.Outlined.Settings, "设置") }
+                            LiquidLensIconButton(onClick = onSettings) {
+                                Icon(Icons.Outlined.Settings, "设置")
+                            }
                         },
                     )
                 },
@@ -678,7 +682,7 @@ fun BooksScreen(
                                         )
                                     }
                                     Text(book.name, Modifier.weight(1f).padding(horizontal = 12.dp), style = MaterialTheme.typography.titleLarge)
-                                    IconButton(
+                                    LiquidLensIconButton(
                                         onClick = {
                                             editingId = book.id
                                             name = book.name
@@ -688,7 +692,10 @@ fun BooksScreen(
                                             trackPhotos = book.trackPhotos
                                             showDialog = true
                                         },
-                                    ) { Icon(Icons.Outlined.Edit, "编辑${book.name}") }
+                                        size = 38.dp,
+                                    ) {
+                                        Icon(Icons.Outlined.Edit, "编辑${book.name}")
+                                    }
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Text(if (book.kind == BookKind.DAILY) "普通账本" else "装修账本", style = MaterialTheme.typography.bodyMedium)
@@ -733,7 +740,9 @@ fun BooksScreen(
                     if (state.error != null && !showDialog) {
                         item {
                             Text(state.error, color = MaterialTheme.colorScheme.error)
-                            TextButton(onClearError) { Text("知道了") }
+                            LiquidGlassButton(onClick = onClearError, prominent = false, minHeight = 36.dp) {
+                                Text("知道了")
+                            }
                         }
                     }
                 }
@@ -759,7 +768,7 @@ fun BooksScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 LedgerCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it.take(20) },
@@ -771,26 +780,20 @@ fun BooksScreen(
                             colors = glassTextFieldColors(),
                         )
                         if (editingId == 0L) {
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(
-                                    selected = kind == BookKind.DAILY,
-                                    onClick = { kind = BookKind.DAILY },
-                                    label = { Text("普通账本") },
-                                    enabled = !saving,
-                                    shape = CircleShape,
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
-                                    ),
-                                )
-                                FilterChip(
-                                    selected = kind == BookKind.RENOVATION,
-                                    onClick = { kind = BookKind.RENOVATION },
-                                    label = { Text("装修账本") },
-                                    enabled = !saving,
-                                    shape = CircleShape,
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
-                                    ),
+                            val kinds = listOf(BookKind.DAILY to "普通账本", BookKind.RENOVATION to "装修账本")
+                            LiquidLensTrack(
+                                itemCount = kinds.size,
+                                selectedIndex = if (kind == BookKind.DAILY) 0 else 1,
+                                height = 46.dp,
+                                role = Role.RadioButton,
+                                enabled = !saving,
+                                onSelect = { idx -> kind = kinds[idx].first },
+                            ) { idx, selected ->
+                                Text(
+                                    kinds[idx].second,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }

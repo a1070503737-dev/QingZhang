@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,7 +31,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -214,7 +214,12 @@ fun UpdateContent(
                                 )
                             }
                             Text("${(progress * 100).toInt()}% · ${megabytes(state.downloaded)} / ${megabytes(total)} MB", style = MaterialTheme.typography.bodyMedium)
-                            TextButton(onClick = onCancel) { Text("取消下载") }
+                            LiquidGlassButton(
+                                onClick = onCancel,
+                                prominent = false,
+                                minHeight = 38.dp,
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                            ) { Text("取消下载") }
                         }
                         UpdateStage.AVAILABLE -> {
                             Text("安装包 ${megabytes(state.release?.size ?: 0)} MB", style = MaterialTheme.typography.bodyMedium)
@@ -247,9 +252,11 @@ fun UpdateContent(
                 }
             }
             Text("首次安装需允许本应用安装更新，并在 Android 安装界面确认。更新前建议备份账本。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = onOpenReleases, modifier = Modifier.fillMaxWidth()) { Text("查看 GitHub 发行版") }
+            LiquidGlassButton(onClick = onOpenReleases, prominent = false, modifier = Modifier.fillMaxWidth()) {
+                Text("查看 GitHub 发行版", color = MaterialTheme.colorScheme.primary)
+            }
             LedgerCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("GitHub 访问", style = MaterialTheme.typography.titleMedium)
                     Text(
                         when {
@@ -260,8 +267,14 @@ fun UpdateContent(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     if (!state.bundledAccess) {
-                        TextButton(onClick = onConfigureAccess, enabled = !state.busy) {
-                            Text(if (state.accessConfigured) "管理访问设置" else "设置 GitHub 访问")
+                        LiquidGlassButton(
+                            onClick = onConfigureAccess,
+                            prominent = false,
+                            enabled = !state.busy,
+                            minHeight = 38.dp,
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        ) {
+                            Text(if (state.accessConfigured) "管理访问设置" else "设置 GitHub 访问", color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -301,7 +314,13 @@ private fun GitHubAccessScreen(
             LedgerCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("创建 Fine-grained token，只选择 a1070503737-dev/code 仓库，将 Contents 权限设为 Read-only，无需写入权限。")
-                    TextButton(onClick = onCreateToken, enabled = !state.busy) { Text("前往 GitHub 创建只读令牌") }
+                    LiquidGlassButton(
+                        onClick = onCreateToken,
+                        prominent = false,
+                        enabled = !state.busy,
+                        minHeight = 38.dp,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    ) { Text("前往 GitHub 创建只读令牌", color = MaterialTheme.colorScheme.primary) }
                     OutlinedTextField(
                         value = token,
                         onValueChange = { token = it },
@@ -321,7 +340,11 @@ private fun GitHubAccessScreen(
             if (state.busy) CircularProgressIndicator(Modifier.size(24.dp))
             LiquidGlassButton(onClick = { onSave(token) }, enabled = token.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth()) { Text("保存并检查") }
             LiquidGlassButton(onClick = onDismiss, prominent = false, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("取消") }
-            if (state.accessConfigured) TextButton(onClick = onClear, enabled = !state.busy) { Text("移除本机访问设置") }
+            if (state.accessConfigured) {
+                LiquidGlassButton(onClick = onClear, prominent = false, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                    Text("移除本机访问设置", color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
     }
 }

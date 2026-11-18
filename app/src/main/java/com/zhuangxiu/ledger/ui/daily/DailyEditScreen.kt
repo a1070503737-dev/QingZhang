@@ -2,33 +2,24 @@ package com.zhuangxiu.ledger.ui.daily
 
 import android.app.TimePickerDialog
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -41,14 +32,10 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,7 +54,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -81,14 +67,15 @@ import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.LedgerDatePickerDialog
 import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
 import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
+import com.zhuangxiu.ledger.ui.components.LiquidLensChip
+import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
+import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.applyAmountKey
 import com.zhuangxiu.ledger.ui.components.glassTextFieldColors
 import com.zhuangxiu.ledger.ui.components.liquidGlass
-import com.zhuangxiu.ledger.ui.components.liquidInteractive
 import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import java.time.LocalDate
-import kotlin.math.roundToInt
 
 @Composable
 fun DailyEditScreen(onBack: () -> Unit, viewModel: DailyEditViewModel = hiltViewModel()) {
@@ -169,13 +156,7 @@ fun DailyEditContent(
         },
         actions = {
             if (editing && !state.missing) {
-                IconButton(
-                    onClick = { deleteDialog = true },
-                    enabled = !state.busy,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
-                ) {
+                LiquidLensIconButton(onClick = { deleteDialog = true }, enabled = !state.busy) {
                     Icon(Icons.Outlined.DeleteOutline, "删除账目")
                 }
             }
@@ -194,12 +175,23 @@ fun DailyEditContent(
                     .padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // 液态滑动分段控制器（支出 / 收入）
-                LiquidKindSegmentedSelector(
-                    selected = state.kind,
+                // 连续拖拽水滴放大收支分段器（支出 | 收入）
+                val kinds = EntryKind.entries
+                LiquidLensTrack(
+                    itemCount = kinds.size,
+                    selectedIndex = kinds.indexOf(state.kind).coerceAtLeast(0),
+                    height = 48.dp,
+                    role = Role.RadioButton,
                     enabled = !state.busy,
-                    onSelect = onKind,
-                )
+                    onSelect = { idx -> onKind(kinds[idx]) },
+                ) { idx, isSelected ->
+                    Text(
+                        text = kinds[idx].label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
                 DailyAmountDisplay(
                     state.amount,
@@ -208,49 +200,61 @@ fun DailyEditContent(
                     onClick = { if (noteFocused) finishNote() },
                 )
 
+                // 分类水滴行：每一行支持直接点击或横向连续拖动水滴凸透镜选分类！
                 val categories = DailyCategory.entries.filter { it.kind == state.kind }
                 categories.chunked(3).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        row.forEach { category ->
-                            val isSelected = state.category == category && state.categoryName == null
-                            LiquidGlassSurface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(18.dp),
-                                cornerRadius = 18.dp,
-                                variant = if (isSelected) {
-                                    GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer)
-                                } else {
-                                    GlassVariant.Regular
-                                },
-                                shadowElevation = if (isSelected) 6.dp else 2.dp,
-                                pressedScale = 1.05f,
-                                enabled = !state.busy,
-                                role = Role.RadioButton,
-                                onClick = { onChange { it.copy(category = category, categoryName = null) } },
+                    val selectedInRow = row.indexOfFirst { state.category == it && state.categoryName == null }
+                    if (row.size == 3 && selectedInRow >= 0) {
+                        LiquidLensTrack(
+                            itemCount = 3,
+                            selectedIndex = selectedInRow,
+                            height = 60.dp,
+                            role = Role.RadioButton,
+                            enabled = !state.busy,
+                            onSelect = { idx -> onChange { it.copy(category = row[idx], categoryName = null) } },
+                        ) { idx, isSelected ->
+                            val category = row[idx]
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(3.dp),
                             ) {
-                                Column(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                ) {
-                                    Icon(
-                                        category.icon(),
-                                        null,
-                                        Modifier.size(22.dp),
-                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        category.label,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                                    )
-                                }
+                                Icon(
+                                    category.icon(),
+                                    null,
+                                    Modifier.size(21.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    category.label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                )
                             }
                         }
-                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                    } else {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            row.forEach { category ->
+                                val isSelected = state.category == category && state.categoryName == null
+                                LiquidLensChip(
+                                    selected = isSelected,
+                                    onClick = { onChange { it.copy(category = category, categoryName = null) } },
+                                    enabled = !state.busy,
+                                    modifier = Modifier.weight(1f),
+                                    label = {
+                                        Column(
+                                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                                        ) {
+                                            Icon(category.icon(), null, Modifier.size(21.dp))
+                                            Text(category.label, style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    },
+                                )
+                            }
+                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
                     }
                 }
 
@@ -258,7 +262,12 @@ fun DailyEditContent(
                 if (custom.isNotEmpty()) {
                     var categoriesOpen by remember { mutableStateOf(false) }
                     Box {
-                        TextButton({ categoriesOpen = true }) { Text(state.categoryName ?: "更多分类") }
+                        LiquidGlassButton(
+                            onClick = { categoriesOpen = true },
+                            prominent = false,
+                            minHeight = 38.dp,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        ) { Text(state.categoryName ?: "更多分类") }
                         DropdownMenu(
                             expanded = categoriesOpen,
                             onDismissRequest = { categoriesOpen = false },
@@ -284,17 +293,12 @@ fun DailyEditContent(
 
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PayMethod.entries.forEach { method ->
-                        FilterChip(
+                        LiquidLensChip(
                             selected = state.method == method,
                             onClick = { onChange { it.copy(method = method, sourceMethod = null) } },
                             enabled = !state.busy,
-                            shape = CircleShape,
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = glass.surfaceTop.copy(alpha = 0.52f),
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
-                            ),
-                            label = { Text(method.label) },
                             leadingIcon = { Icon(method.icon(), null, Modifier.size(18.dp)) },
+                            label = { Text(method.label) },
                         )
                     }
                 }
@@ -348,7 +352,11 @@ fun DailyEditContent(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { finishNote() }),
                     trailingIcon = {
-                        if (noteFocused) IconButton(onClick = finishNote) { Icon(Icons.Outlined.Check, "完成备注") }
+                        if (noteFocused) {
+                            LiquidLensIconButton(onClick = finishNote, size = 34.dp) {
+                                Icon(Icons.Outlined.Check, "完成备注", modifier = Modifier.size(18.dp))
+                            }
+                        }
                     },
                 )
                 state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -382,75 +390,8 @@ fun DailyEditContent(
 }
 
 @Composable
-private fun LiquidKindSegmentedSelector(
-    selected: EntryKind,
-    enabled: Boolean,
-    onSelect: (EntryKind) -> Unit,
-) {
-    val entries = EntryKind.entries
-    val selectedIndex = entries.indexOf(selected).coerceAtLeast(0)
-    val animatedIndex by animateFloatAsState(
-        targetValue = selectedIndex.toFloat(),
-        animationSpec = spring(dampingRatio = 0.64f, stiffness = 400f),
-        label = "kind-pill",
-    )
-
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(46.dp)
-            .liquidGlass(CircleShape, GlassVariant.Regular, cornerRadius = 23.dp, shadowElevation = 4.dp)
-            .padding(4.dp),
-    ) {
-        val segmentWidth = maxWidth / entries.size
-        val segmentPx = constraints.maxWidth.toFloat() / entries.size
-        Box(
-            modifier = Modifier
-                .width(segmentWidth)
-                .fillMaxHeight()
-                .offset { IntOffset((animatedIndex * segmentPx).roundToInt(), 0) }
-                .liquidGlass(
-                    shape = CircleShape,
-                    variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
-                    cornerRadius = 20.dp,
-                    shadowElevation = 2.dp,
-                ),
-        )
-        Row(Modifier.fillMaxSize()) {
-            entries.forEach { kind ->
-                val isSelected = selected == kind
-                val interactionSource = remember(kind) { MutableInteractionSource() }
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .liquidInteractive(interactionSource, enabled = enabled, pressedScale = 1.04f)
-                        .selectable(
-                            selected = isSelected,
-                            interactionSource = interactionSource,
-                            indication = LocalIndication.current,
-                            enabled = enabled,
-                            role = Role.RadioButton,
-                            onClick = { onSelect(kind) },
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = kind.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun DailyAmountDisplay(amount: String, isError: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    // 保持纯展示点击面板（无文本输入会话，点击不会弹出系统软键盘，100% 兼容 DailyScreenTest）
     LiquidGlassSurface(
         onClick = onClick,
         modifier = Modifier

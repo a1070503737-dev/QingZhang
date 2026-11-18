@@ -1,7 +1,6 @@
 package com.zhuangxiu.ledger.ui.navigation
 
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,27 +9,19 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.border
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,26 +32,19 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PieChartOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -76,10 +60,10 @@ import com.zhuangxiu.ledger.ui.bills.BillsScreen
 import com.zhuangxiu.ledger.ui.bills.BillsViewModel
 import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
+import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
 import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
 import com.zhuangxiu.ledger.ui.components.LiquidGlassTopBar
-import com.zhuangxiu.ledger.ui.components.liquidGlass
-import com.zhuangxiu.ledger.ui.components.liquidInteractive
+import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
 import com.zhuangxiu.ledger.ui.daily.BookHeader
 import com.zhuangxiu.ledger.ui.daily.BooksScreen
 import com.zhuangxiu.ledger.ui.daily.DailyEditScreen
@@ -99,8 +83,6 @@ import com.zhuangxiu.ledger.ui.mine.ReminderScreen
 import com.zhuangxiu.ledger.ui.mine.UpdateScreen
 import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
@@ -111,127 +93,51 @@ private val TABS = listOf(
 )
 
 /**
- * 悬浮液态玻璃胶囊底栏（Liquid Glass Morphing Pill Dock）：
- * 选中滑块使用弹性低阻尼弹簧滑动，并在高速跨越时产生真实的水平拉伸与垂直微缩液滴形变。
+ * 底部悬浮液态水滴透镜导航栏（iOS 26 Apple Music 同款连续拖拽放大水滴交互）：
+ * 支持按住并左右滑动拇指实时拖动透明凸透镜水滴穿过“首页 / 统计 / 账本”，松手丝滑切换！
  */
 @Composable
 fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit) {
-    val haptic = LocalHapticFeedback.current
     val selectedIndex = TABS.indexOfFirst { it.route == current }.let { if (it < 0) 0 else it }
-    val animatedIndex by animateFloatAsState(
-        targetValue = selectedIndex.toFloat(),
-        animationSpec = spring(
-            dampingRatio = 0.62f,
-            stiffness = 380f,
-        ),
-        label = "liquid-lens-index",
-    )
-    // 运动中基于位移差产生水滴拉长与回弹形变
-    val travelDelta = abs(animatedIndex - selectedIndex.toFloat()).coerceIn(0f, 1f)
-    val lensScaleX = 1f + 0.16f * sinApprox(travelDelta)
-    val lensScaleY = 1f - 0.08f * sinApprox(travelDelta)
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 10.dp),
+            .padding(horizontal = 22.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(66.dp)
-                .liquidGlass(
-                    shape = CircleShape,
-                    variant = GlassVariant.Elevated,
-                    cornerRadius = 33.dp,
-                    shadowElevation = 16.dp,
+        LiquidLensTrack(
+            itemCount = TABS.size,
+            selectedIndex = selectedIndex,
+            height = 64.dp,
+            role = Role.Tab,
+            onSelect = { idx ->
+                val target = TABS[idx].route
+                if (target != current) onNavigate(target)
+            },
+        ) { idx, isSelected ->
+            val tab = TABS[idx]
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    imageVector = tab.icon,
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
                 )
-                .padding(horizontal = 6.dp, vertical = 5.dp),
-        ) {
-            val tabWidth = maxWidth / TABS.size
-            val tabWidthPx = constraints.maxWidth.toFloat() / TABS.size
-
-            // 液态玻璃滑动透镜滑块
-            Box(
-                modifier = Modifier
-                    .width(tabWidth)
-                    .fillMaxHeight()
-                    .offset { IntOffset((animatedIndex * tabWidthPx).roundToInt(), 0) }
-                    .graphicsLayer {
-                        scaleX = lensScaleX
-                        scaleY = lensScaleY
-                    }
-                    .liquidGlass(
-                        shape = CircleShape,
-                        variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
-                        cornerRadius = 28.dp,
-                        shadowElevation = 4.dp,
-                    ),
-            )
-
-            Row(Modifier.fillMaxWidth().fillMaxHeight()) {
-                TABS.forEach { tab ->
-                    val selected = tab.route == current
-                    val interactionSource = remember(tab.route) { MutableInteractionSource() }
-                    val iconLift by animateFloatAsState(
-                        targetValue = if (selected) 1.08f else 1f,
-                        animationSpec = spring(dampingRatio = 0.56f, stiffness = Spring.StiffnessMedium),
-                        label = "tab-lift-${tab.route}",
-                    )
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .liquidInteractive(
-                                interactionSource = interactionSource,
-                                pressedScale = 1.08f,
-                            )
-                            .selectable(
-                                selected = selected,
-                                interactionSource = interactionSource,
-                                indication = LocalIndication.current,
-                                role = Role.Tab,
-                                onClick = {
-                                    if (!selected) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        onNavigate(tab.route)
-                                    }
-                                },
-                            ),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = null,
-                            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .graphicsLayer {
-                                    scaleX = iconLift
-                                    scaleY = iconLift
-                                },
-                        )
-                        Text(
-                            text = tab.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                Text(
+                    text = tab.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
 }
 
-private fun sinApprox(x: Float): Float = kotlin.math.sin(x * Math.PI).toFloat()
-
-/**
- * 应用的导航图：挂载全局极光玻璃背景与弹性空间转场动画。
- */
 @Composable
 fun LedgerNavHost(
     pendingExpenseId: Long?,
@@ -302,7 +208,14 @@ fun LedgerNavHost(
                     }
                 }
             },
-            confirmButton = { TextButton({ pickQuickBook = false }) { Text("取消") } },
+            confirmButton = {
+                LiquidGlassButton(
+                    onClick = { pickQuickBook = false },
+                    prominent = false,
+                    minHeight = 38.dp,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                ) { Text("取消") }
+            },
         )
     }
 
@@ -363,10 +276,11 @@ fun LedgerNavHost(
                         LiquidGlassTopBar(
                             title = { Text("装修项目") },
                             navigationIcon = {
-                                TextButton(
+                                LiquidGlassButton(
                                     onClick = back,
+                                    prominent = false,
+                                    minHeight = 36.dp,
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                    modifier = Modifier.liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
                                 ) {
                                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(4.dp))

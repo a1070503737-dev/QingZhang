@@ -34,17 +34,13 @@ import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,6 +73,8 @@ import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
 import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
 import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
 import com.zhuangxiu.ledger.ui.components.LiquidGlassTopBar
+import com.zhuangxiu.ledger.ui.components.LiquidLensChip
+import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
 import com.zhuangxiu.ledger.ui.components.applyAmountKey
 import com.zhuangxiu.ledger.ui.components.glassTextFieldColors
@@ -87,7 +85,6 @@ import com.zhuangxiu.ledger.util.Money
 
 private enum class AmountField { TOTAL, PAID }
 
-/** 装修记账 / 编辑页（Liquid Glass 版） */
 @Composable
 fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -126,12 +123,9 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                 LiquidGlassTopBar(
                     title = { Text(if (state.isNew) "记装修账" else "编辑装修账单") },
                     navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
-                        ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回") }
+                        LiquidLensIconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        }
                     },
                     actions = {
                         LiquidGlassButton(
@@ -156,7 +150,6 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                // ---------- 金额透镜卡 ----------
                 LedgerCard(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -171,11 +164,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "¥",
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
+                            Text("¥", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 state.amountText.ifEmpty { "0.00" },
@@ -187,19 +176,13 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                     }
                 }
 
-                // ---------- 付款状态 ----------
                 if (state.trackPayments) {
                     FormSection("付款状态") {
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             PaymentStatus.entries.forEach { status ->
-                                FilterChip(
+                                LiquidLensChip(
                                     selected = state.status == status,
                                     onClick = { viewModel.setStatus(status) },
-                                    shape = CircleShape,
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        containerColor = glass.surfaceTop.copy(alpha = 0.55f),
-                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
-                                    ),
                                     label = { Text(status.label) },
                                 )
                             }
@@ -416,17 +399,11 @@ private fun FormSection(title: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun CategoryChips(categories: List<CategoryEntity>, selectedId: Long?, onSelect: (Long) -> Unit) {
-    val glass = LedgerTheme.glass
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         categories.forEach { category ->
-            FilterChip(
+            LiquidLensChip(
                 selected = category.id == selectedId,
                 onClick = { onSelect(category.id) },
-                shape = CircleShape,
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = glass.surfaceTop.copy(alpha = 0.55f),
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
-                ),
                 label = { Text(category.name) },
             )
         }
@@ -447,7 +424,7 @@ private fun PickerRow(
         cornerRadius = 18.dp,
         variant = GlassVariant.Regular,
         shadowElevation = 3.dp,
-        pressedScale = 0.982f,
+        pressedScale = 0.984f,
         onClick = onClick,
     ) {
         Row(
@@ -462,14 +439,9 @@ private fun PickerRow(
             Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (onClear != null) {
                 Spacer(Modifier.width(8.dp))
-                Icon(
-                    Icons.Outlined.Close,
-                    contentDescription = "清除",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clickable(onClick = onClear),
-                )
+                LiquidLensIconButton(onClick = onClear, size = 28.dp) {
+                    Icon(Icons.Outlined.Close, contentDescription = "清除", modifier = Modifier.size(16.dp))
+                }
             }
         }
     }
@@ -477,17 +449,16 @@ private fun PickerRow(
 
 @Composable
 private fun AddImageTile(icon: ImageVector, label: String, onClick: () -> Unit) {
-    LiquidGlassSurface(
-        modifier = Modifier.size(84.dp),
-        shape = RoundedCornerShape(16.dp),
-        cornerRadius = 16.dp,
-        variant = GlassVariant.Regular,
-        shadowElevation = 3.dp,
-        pressedScale = 1.05f,
+    LiquidGlassButton(
         onClick = onClick,
+        prominent = false,
+        shape = RoundedCornerShape(18.dp),
+        cornerRadius = 18.dp,
+        minHeight = 84.dp,
+        contentPadding = PaddingValues(12.dp),
+        modifier = Modifier.size(84.dp),
     ) {
         Column(
-            Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {

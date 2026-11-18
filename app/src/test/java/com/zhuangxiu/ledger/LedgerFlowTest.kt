@@ -112,7 +112,7 @@ class LedgerFlowTest {
         compose.onNodeWithText("剩余待付").performClick()
         awaitText("仅看待付")
         awaitText("共 1 笔，合计 ¥12,800.00")
-        compose.onNodeWithText("仅看待付").assertIsSelected()
+        compose.onNodeWithText("仅看待付").assertIsOn()
         capture("bills")
         compose.onNodeWithText("统计").performClick()
         awaitText("本月支出")

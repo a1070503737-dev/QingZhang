@@ -26,10 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -50,11 +47,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
+import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import java.io.File
 
-/**
- * 全屏液态玻璃取景拍照对话框 (CameraX)。
- */
 @Composable
 fun CameraCaptureDialog(
     createFile: () -> File,
@@ -94,15 +89,16 @@ fun CameraCaptureDialog(
                     LiquidGlassButton(onClick = onDismiss) { Text("知道了") }
                 }
             }
-            IconButton(
+            LiquidLensIconButton(
                 onClick = onDismiss,
+                size = 44.dp,
+                tint = Color.White,
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(12.dp)
-                    .size(42.dp)
-                    .background(Color.White.copy(alpha = 0.18f), CircleShape)
-                    .border(1.dp, Color.White.copy(alpha = 0.45f), CircleShape),
-            ) { Icon(Icons.Outlined.Close, contentDescription = "关闭", tint = Color.White) }
+                    .padding(12.dp),
+            ) {
+                Icon(Icons.Outlined.Close, contentDescription = "关闭", tint = Color.White)
+            }
         }
     }
 }
@@ -133,24 +129,23 @@ private fun CameraContent(createFile: () -> File, onCaptured: (File) -> Unit) {
             },
             modifier = Modifier.fillMaxSize(),
         )
-        // 同心双环液态玻璃快门按钮
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(bottom = 32.dp)
-                .size(86.dp)
-                .background(Color.White.copy(alpha = 0.18f), CircleShape)
+                .size(88.dp)
+                .background(Color.White.copy(alpha = 0.16f), CircleShape)
                 .border(
                     width = 2.dp,
-                    brush = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.9f), Color.White.copy(alpha = 0.3f))),
+                    brush = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.92f), Color.White.copy(alpha = 0.32f))),
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            FilledIconButton(
+            LiquidLensIconButton(
                 onClick = {
-                    if (capturing) return@FilledIconButton
+                    if (capturing) return@LiquidLensIconButton
                     capturing = true
                     val file = createFile()
                     controller.takePicture(
@@ -169,15 +164,11 @@ private fun CameraContent(createFile: () -> File, onCaptured: (File) -> Unit) {
                         },
                     )
                 },
-                modifier = Modifier.size(68.dp),
-                shape = CircleShape,
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = Color.White.copy(alpha = 0.92f),
-                    contentColor = Color(0xFF0F172A),
-                ),
+                size = 70.dp,
+                tint = Color.White,
             ) {
                 if (capturing) {
-                    CircularProgressIndicator(Modifier.size(28.dp), color = Color(0xFF0F172A), strokeWidth = 3.dp)
+                    CircularProgressIndicator(Modifier.size(28.dp), color = Color.White, strokeWidth = 3.dp)
                 } else {
                     Icon(Icons.Outlined.PhotoCamera, contentDescription = "拍照", modifier = Modifier.size(30.dp))
                 }

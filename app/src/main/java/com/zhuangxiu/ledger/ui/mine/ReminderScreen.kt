@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -21,7 +20,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -47,6 +45,7 @@ import com.zhuangxiu.ledger.notification.ReminderChecker
 import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
+import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.liquidGlass
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -86,7 +85,6 @@ class ReminderViewModel @Inject constructor(
     }
 }
 
-/** 提醒设置页（Liquid Glass 版） */
 @Composable
 fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -159,17 +157,18 @@ fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewMo
                             .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp)
                             .padding(horizontal = 4.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        IconButton(
+                        LiquidLensIconButton(
                             onClick = { viewModel.setDaysBefore(settings.remindDaysBefore - 1) },
                             enabled = settings.paymentReminderEnabled && settings.remindDaysBefore > 0,
-                            modifier = Modifier.size(36.dp),
+                            size = 36.dp,
                         ) { Icon(Icons.Outlined.Remove, contentDescription = "减少") }
-                        Text("${settings.remindDaysBefore} 天", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 6.dp))
-                        IconButton(
+                        Text("${settings.remindDaysBefore} 天", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 4.dp))
+                        LiquidLensIconButton(
                             onClick = { viewModel.setDaysBefore(settings.remindDaysBefore + 1) },
                             enabled = settings.paymentReminderEnabled && settings.remindDaysBefore < 30,
-                            modifier = Modifier.size(36.dp),
+                            size = 36.dp,
                         ) { Icon(Icons.Outlined.Add, contentDescription = "增加") }
                     }
                 }

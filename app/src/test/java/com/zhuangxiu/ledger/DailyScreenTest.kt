@@ -76,5 +76,11 @@ class DailyScreenTest {
         compose.onNodeWithContentDescription("完成备注").performClick()
         compose.onNodeWithContentDescription("数字键1", useUnmergedTree = true).assertIsDisplayed()
         amount.assertTextContains("1.2")
+
+        val four = compose.onNodeWithContentDescription("数字键4", useUnmergedTree = true)
+        val six = compose.onNodeWithContentDescription("数字键6", useUnmergedTree = true)
+        val distance = six.fetchSemanticsNode().boundsInRoot.center - four.fetchSemanticsNode().boundsInRoot.center
+        four.performTouchInput { swipe(center, center + distance) }
+        amount.assertTextContains("1.26")
     }
 }

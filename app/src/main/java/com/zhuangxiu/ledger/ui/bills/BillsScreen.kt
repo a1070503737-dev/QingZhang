@@ -34,11 +34,8 @@ import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +47,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -80,6 +76,8 @@ import com.zhuangxiu.ledger.ui.components.ExpenseRow
 import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
 import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
+import com.zhuangxiu.ledger.ui.components.LiquidLensChip
+import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import com.zhuangxiu.ledger.ui.components.LoadingHint
 import com.zhuangxiu.ledger.ui.components.PageHeading
 import com.zhuangxiu.ledger.ui.components.StatusChip
@@ -89,7 +87,6 @@ import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
-/** 账单页：按日期分组的液态玻璃列表，支持吸顶毛玻璃分组头、左滑删除与底部玻璃菜单 */
 @Composable
 fun BillsScreen(
     bottomBar: @Composable () -> Unit,
@@ -105,7 +102,6 @@ fun BillsScreen(
     var paymentTarget by remember { mutableStateOf<ExpenseWithDetails?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val glass = LedgerTheme.glass
     LaunchedEffect(viewModel, lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.events.collect { snackbar.showSnackbar(it) }
@@ -140,8 +136,8 @@ fun BillsScreen(
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                     trailingIcon = {
                         if (state.filter.query.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.setQuery("") }) {
-                                Icon(Icons.Outlined.Close, contentDescription = "清空")
+                            LiquidLensIconButton(onClick = { viewModel.setQuery("") }, size = 32.dp) {
+                                Icon(Icons.Outlined.Close, contentDescription = "清空", modifier = Modifier.size(16.dp))
                             }
                         }
                     },
@@ -153,18 +149,13 @@ fun BillsScreen(
                     Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FilterChip(
+                    LiquidLensChip(
                         selected = state.filter.pendingOnly,
                         onClick = { viewModel.setPendingOnly(!state.filter.pendingOnly) },
-                        shape = CircleShape,
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = glass.surfaceTop.copy(alpha = 0.55f),
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
-                        ),
                         label = { Text("仅看待付") },
                     )
                     FilterDropdown(
@@ -186,7 +177,12 @@ fun BillsScreen(
                         onSelect = viewModel::setStatus,
                     )
                     if (state.filter.isActive) {
-                        TextButton(onClick = viewModel::clearFilter) { Text("清除") }
+                        LiquidGlassButton(
+                            onClick = viewModel::clearFilter,
+                            prominent = false,
+                            minHeight = 36.dp,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        ) { Text("清除", color = MaterialTheme.colorScheme.primary) }
                     }
                 }
                 Text(
@@ -445,14 +441,9 @@ private fun <T> FilterDropdown(
     var expanded by remember { mutableStateOf(false) }
     val glass = LedgerTheme.glass
     Box {
-        FilterChip(
+        LiquidLensChip(
             selected = selectedLabel != null,
             onClick = { expanded = true },
-            shape = CircleShape,
-            colors = FilterChipDefaults.filterChipColors(
-                containerColor = glass.surfaceTop.copy(alpha = 0.55f),
-                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
-            ),
             label = { Text(selectedLabel ?: label) },
             trailingIcon = { Icon(Icons.Outlined.ArrowDropDown, contentDescription = null, modifier = Modifier.size(18.dp)) },
         )

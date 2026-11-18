@@ -29,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -79,7 +78,6 @@ fun HomeScreen(
     HomeContent(state, bottomBar, onAdd, onOpenExpense, onOpenBills, onOpenBudget, onOpenPending, header, showBudget)
 }
 
-/** 无数据库依赖的装修项目首页内容，同时用于界面预览与测试。 */
 @Composable
 fun HomeContent(
     state: HomeUiState,
@@ -160,8 +158,15 @@ fun HomeContent(
                         LedgerCard(Modifier.fillMaxWidth()) {
                             SectionTitle(
                                 "最近账单",
-                                Modifier.padding(start = 18.dp, end = 6.dp, top = 8.dp),
-                                trailing = { TextButton(onClick = onOpenBills) { Text("查看全部 ›") } },
+                                Modifier.padding(start = 18.dp, end = 12.dp, top = 12.dp, bottom = 4.dp),
+                                trailing = {
+                                    LiquidGlassButton(
+                                        onClick = onOpenBills,
+                                        prominent = false,
+                                        minHeight = 34.dp,
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
+                                    ) { Text("查看全部 ›", color = MaterialTheme.colorScheme.primary) }
+                                },
                             )
                             if (state.recent.isEmpty()) {
                                 EmptyHint(Icons.AutoMirrored.Outlined.ReceiptLong, "新家的第一笔花费，从这里开始")
