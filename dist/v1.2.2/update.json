@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.2.2",
+  "versionCode": 14,
+  "notes": "「记一笔」会打开当前账本对应的表单。生活账本显示日常收支分类，装修账本显示装修阶段、费用类型和付款信息。从「全部账本」选择目标账本后也会进入对应表单。\n\n生活金额、装修总价和定金均使用应用内数字键盘。沿用 1.2.1 签名，可在「设置 → 检查更新」下载安装。",
+  "apk": {
+    "fileName": "renovation-ledger-1.2.2-signed.apk",
+    "size": 3069544,
+    "sha256": "394c476268efba4e593088ee8e683519b2b9f8742b921cc3ef990fbc47bcc750"
+  }
+}
