@@ -1,0 +1,71 @@
+name: Upload verified 1.2.2 release assets
+
+on:
+  push:
+    branches: [codex/qingzhang-import]
+    paths: [.github/workflows/publish-release-1.2.2.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: upload-release-1.2.2
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: c2b4c588a5545cabe150a3b3213aed5dacdb8075
+          persist-credentials: false
+
+      - name: Verify and upload release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp dist/qingzhang-1.2.2-signed-test.apk dist/v1.2.2/renovation-ledger-1.2.2-signed.apk
+          cd dist/v1.2.2
+          sha256sum --check SHA256SUMS-1.2.2.txt
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+
+          apk = Path('renovation-ledger-1.2.2-signed.apk')
+          expected_apk = '394c476268efba4e593088ee8e683519b2b9f8742b921cc3ef990fbc47bcc750'
+          expected_manifest = '0dbb81bad8c25f1e6bd93d9567cfd1f210593e30b5c61192fbdce144129b7245'
+
+          def digest(file):
+              return hashlib.sha256(file.read_bytes()).hexdigest()
+
+          update = Path('update.json')
+          if digest(apk) != expected_apk or digest(update) != expected_manifest:
+              raise SystemExit('Release file checksum mismatch')
+          manifest = json.loads(update.read_text())
+          expected_metadata = (1, 'com.zhuangxiu.ledger', '1.2.2', 14)
+          if tuple(manifest[key] for key in ('schemaVersion', 'packageName', 'versionName', 'versionCode')) != expected_metadata:
+              raise SystemExit('Unexpected update metadata')
+          if manifest['apk'] != {'fileName': str(apk), 'size': apk.stat().st_size, 'sha256': expected_apk}:
+              raise SystemExit('Update manifest does not match the signed APK')
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          release = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/releases/449486263']))
+          if release['tag_name'] != 'v1.2.2' or release['target_commitish'] != 'c2b4c588a5545cabe150a3b3213aed5dacdb8075':
+              raise SystemExit('Unexpected release tag or source commit')
+          existing = {asset['name']: asset for asset in release['assets']}
+          for file in (apk, update, Path('SHA256SUMS-1.2.2.txt')):
+              asset = existing.get(file.name)
+              if asset:
+                  if asset['state'] != 'uploaded' or asset.get('digest') != 'sha256:' + digest(file) or asset['size'] != file.stat().st_size:
+                      raise SystemExit(f'Existing asset does not match: {file.name}')
+                  print(f'Already verified: {file.name}', flush=True)
+                  continue
+              if not release['draft']:
+                  raise SystemExit('Expected a draft release')
+              subprocess.run(['gh', 'release', 'upload', 'v1.2.2', str(file), '--repo', repo], check=True)
+          PY
