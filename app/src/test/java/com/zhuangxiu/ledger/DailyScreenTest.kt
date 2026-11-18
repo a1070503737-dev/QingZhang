@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -58,15 +59,22 @@ class DailyScreenTest {
         assertTrue(saved)
         capture("qingzhang-quick-small-large-text")
     }
-    @Test fun customNumberPadChangesExactInput() {
+    @Test fun amountUsesOnlyCustomNumberPadAndNotesCanStillBeTyped() {
         compose.setContent { RenovationLedgerTheme {
             var state by remember { mutableStateOf(DailyEditState(loading = false)) }
             DailyEditContent(state, false, {}, { state = it(state) }, {}, {}, {})
         } }
-        compose.onNodeWithContentDescription("数字键1", useUnmergedTree = true).performClick()
+        val amount = compose.onNodeWithContentDescription("日常记账金额")
+        amount.assert(SemanticsMatcher.keyNotDefined(SemanticsActions.SetText)).performClick()
+        compose.onNodeWithContentDescription("数字键1", useUnmergedTree = true).assertIsDisplayed().performClick()
         compose.onNodeWithContentDescription("数字键.", useUnmergedTree = true).performClick()
         compose.onNodeWithContentDescription("数字键2", useUnmergedTree = true).performClick()
-        compose.onNodeWithContentDescription("日常记账金额").assertTextContains("1.2")
+        amount.assertTextContains("1.2")
         compose.onNodeWithContentDescription("保存日常账目").assertIsEnabled()
+        compose.onNodeWithText("备注（可选）").performScrollTo().performClick().performTextInput("午餐")
+        compose.onNodeWithContentDescription("数字键1", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithContentDescription("完成备注").performClick()
+        compose.onNodeWithContentDescription("数字键1", useUnmergedTree = true).assertIsDisplayed()
+        amount.assertTextContains("1.2")
     }
 }

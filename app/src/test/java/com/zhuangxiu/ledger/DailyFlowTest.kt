@@ -20,6 +20,9 @@ class DailyFlowTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private fun awaitText(text: String) { compose.waitUntil(20000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
     private fun awaitDescription(text: String) { compose.waitUntil(20000) { compose.onAllNodesWithContentDescription(text).fetchSemanticsNodes().isNotEmpty() } }
+    private fun enterAmount(amount: String) {
+        amount.forEach { compose.onNodeWithContentDescription("数字键$it", useUnmergedTree = true).performClick() }
+    }
     private fun capture(name: String) {
         val file = File("build/reports/ui/$name.png"); file.parentFile!!.mkdirs()
         file.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -31,14 +34,14 @@ class DailyFlowTest {
         compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
         awaitDescription("日常记账金额")
         compose.onNodeWithContentDescription("保存日常账目").assertIsNotEnabled()
-        compose.onNodeWithContentDescription("日常记账金额").performTextInput("25.50")
+        enterAmount("25.50")
         capture("qingzhang-quick-entry")
         compose.onNodeWithContentDescription("保存日常账目").performClick()
         awaitDescription("本月支出 ¥25.50")
         compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
         awaitDescription("日常记账金额")
         compose.onNodeWithText("收入", useUnmergedTree = true).performClick()
-        compose.onNodeWithContentDescription("日常记账金额").performTextInput("100")
+        enterAmount("100")
         compose.onNodeWithContentDescription("保存日常账目").performClick()
         awaitDescription("本月结余 ¥74.50")
         capture("qingzhang-home")
@@ -48,7 +51,9 @@ class DailyFlowTest {
         compose.onNodeWithText("首页").performClick()
         compose.onNodeWithText("餐饮").performScrollTo().performClick()
         awaitText("编辑账目")
-        compose.onNodeWithContentDescription("日常记账金额").performTextReplacement("20")
+        awaitDescription("日常记账金额")
+        repeat(4) { compose.onNodeWithContentDescription("退格", useUnmergedTree = true).performClick() }
+        enterAmount("20")
         compose.onNodeWithContentDescription("保存日常账目").performClick()
         awaitDescription("本月结余 ¥80.00")
         compose.activityRule.scenario.recreate()
