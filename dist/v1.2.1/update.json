@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.2.1",
+  "versionCode": 13,
+  "notes": "修复「记一笔」同时显示应用内数字键盘和系统键盘的问题。输入或修改金额只使用应用内数字键盘，点备注时仍可用系统键盘输入文字。\n\n沿用 1.2.0 签名，可在「设置 → 检查更新」下载安装。",
+  "apk": {
+    "fileName": "renovation-ledger-1.2.1-signed.apk",
+    "size": 3069544,
+    "sha256": "31d8e38078ba5d8f4ef5af7e225ea32ff862dea723bbb41b62d888e24aef053a"
+  }
+}
