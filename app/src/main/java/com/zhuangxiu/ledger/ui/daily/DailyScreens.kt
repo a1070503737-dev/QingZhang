@@ -104,6 +104,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -127,7 +128,6 @@ import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.domain.CategorySlice
 import com.zhuangxiu.ledger.domain.DailyMonth
 import com.zhuangxiu.ledger.domain.DailyTotals
-import com.zhuangxiu.ledger.ui.components.EmptyHint
 import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.IsRobolectricRuntime
 import com.zhuangxiu.ledger.ui.components.LedgerCard
@@ -374,7 +374,9 @@ fun DailyHomeScreen(
     readOnly: Boolean = false,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    val showAdd = canAdd && WindowInsets.ime.getBottom(LocalDensity.current) == 0
+    val density = LocalDensity.current
+    var addButtonHeight by remember { mutableIntStateOf(0) }
+    val showAdd = canAdd && WindowInsets.ime.getBottom(density) == 0
     LiquidGlassBackdrop {
         Scaffold(
             containerColor = Color.Transparent,
@@ -384,6 +386,7 @@ fun DailyHomeScreen(
                 if (showAdd) {
                     LiquidGlassButton(
                         onClick = onAdd,
+                        modifier = Modifier.onSizeChanged { addButtonHeight = it.height },
                         minHeight = 54.dp,
                         contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
                     ) {
@@ -394,18 +397,20 @@ fun DailyHomeScreen(
                 }
             },
         ) { padding ->
+            val bottomClearance = if (showAdd) {
+                with(density) { addButtonHeight.toDp() }.coerceAtLeast(54.dp) + 32.dp
+            } else {
+                24.dp
+            }
             LazyColumn(
                 Modifier
                     .fillMaxSize()
-                    .padding(
-                        top = padding.calculateTopPadding(),
-                        bottom = if (showAdd) padding.calculateBottomPadding() + 76.dp else 0.dp,
-                    ),
+                    .padding(top = padding.calculateTopPadding()),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
                     top = 14.dp,
-                    bottom = if (showAdd) 16.dp else padding.calculateBottomPadding() + 24.dp,
+                    bottom = padding.calculateBottomPadding() + bottomClearance,
                 ),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -460,11 +465,27 @@ fun DailyHomeScreen(
                     }
                     if (entries.isEmpty()) {
                         item {
-                            LedgerCard(Modifier.fillMaxWidth()) {
-                                EmptyHint(
-                                    Icons.AutoMirrored.Outlined.ReceiptLong,
-                                    if (query.isBlank()) "这个月还没有账目，记下生活的第一笔吧" else "没有找到匹配的账目",
-                                )
+                            LiquidGlassSurface(
+                                modifier = Modifier.fillMaxWidth(),
+                                variant = GlassVariant.Clear,
+                                shadowElevation = 0.dp,
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Outlined.ReceiptLong,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        if (query.isBlank()) "本月还没有账目" else "没有找到匹配的账目",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         }
                     }
@@ -642,7 +663,7 @@ private fun IncomeExpenseCalendarSection(
     val negText = if (isDark) Color(0xFF6EE7B7) else Color(0xFF178058)
     val negSelectedBg = Color(0xFF357A5B)
 
-    val zeroBg = if (isDark) Color(0xFF1A2538) else Color(0xFFF3F5F8)
+    val zeroBg = if (isDark) MaterialTheme.colorScheme.surfaceContainer else Color(0xFFF3F5F8)
     val zeroText = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -955,7 +976,7 @@ private fun IncomeExpenseCalendarSection(
                                     .then(if (!IsRobolectricRuntime) Modifier.shadow(12.dp, loupeShape) else Modifier)
                                     .clip(loupeShape),
                             ) {
-                                drawRect(if (isDark) Color(0xFF101B30).copy(alpha = 0.92f) else Color.White.copy(alpha = 0.94f))
+                                drawRect(if (isDark) glass.surfaceBottom.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.94f))
                                 withTransform({
                                     scale(1.22f, 1.22f, pivot = Offset(size.width / 2f, size.height / 2f))
                                     translate(-left, -top)

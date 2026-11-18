@@ -298,7 +298,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                             }
                             drawRect(
                                 color = if (glass.isDark) {
-                                    Color(0xFF101C32).copy(alpha = 0.32f * liftProgress)
+                                    glass.surfaceBottom.copy(alpha = 0.32f * liftProgress)
                                 } else {
                                     Color.White.copy(alpha = 0.28f * liftProgress)
                                 },

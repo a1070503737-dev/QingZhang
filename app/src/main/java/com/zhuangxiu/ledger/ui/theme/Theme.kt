@@ -18,10 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * Liquid Glass 主题系统：通透冰晶浅色 + 深海极光深色。
- * 保留全部原有 MaterialTheme 与 LedgerTheme.extra 接口，确保全工程与测试 100% 兼容。
- */
+/** 浅色冰晶与纯黑深色 Liquid Glass 主题。 */
 private val LightColors = lightColorScheme(
     primary = Color(0xFF2563EB),            // 光学冰晶蓝
     onPrimary = Color(0xFFFFFFFF),
@@ -55,14 +52,15 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF9ECAFF),
-    onPrimary = Color(0xFF003166),
-    primaryContainer = Color(0xFF1B4484),
-    onPrimaryContainer = Color(0xFFDCE8FF),
-    secondary = Color(0xFFB3C7E6),
-    onSecondary = Color(0xFF1C304A),
-    secondaryContainer = Color(0xFF2E4361),
-    onSecondaryContainer = Color(0xFFD9E6FC),
+    primary = Color(0xFFF2F2F2),
+    onPrimary = Color.Black,
+    primaryContainer = Color(0xFF262626),
+    onPrimaryContainer = Color(0xFFF5F5F5),
+    inversePrimary = Color(0xFF555555),
+    secondary = Color(0xFFCCCCCC),
+    onSecondary = Color(0xFF252525),
+    secondaryContainer = Color(0xFF292929),
+    onSecondaryContainer = Color(0xFFE6E6E6),
     tertiary = Color(0xFF7CE0BD),
     onTertiary = Color(0xFF003828),
     tertiaryContainer = Color(0xFF0E513D),
@@ -71,19 +69,24 @@ private val DarkColors = darkColorScheme(
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF0B111E),
-    onBackground = Color(0xFFE5EEFC),
-    surface = Color(0xFF0E1626),
-    onSurface = Color(0xFFE5EEFC),
-    surfaceVariant = Color(0xFF28354C),
-    onSurfaceVariant = Color(0xFFB7C5DD),
-    outline = Color(0xFF7F90AC),
-    outlineVariant = Color(0xFF2D3C56),
-    surfaceContainerLowest = Color(0xFF080D18),
-    surfaceContainerLow = Color(0xFF131D31),
-    surfaceContainer = Color(0xFF19263E),
-    surfaceContainerHigh = Color(0xFF21304C),
-    surfaceContainerHighest = Color(0xFF2A3B5B),
+    background = Color.Black,
+    onBackground = Color(0xFFF2F2F2),
+    surface = Color(0xFF101010),
+    onSurface = Color(0xFFF2F2F2),
+    surfaceVariant = Color(0xFF272727),
+    onSurfaceVariant = Color(0xFFBDBDBD),
+    surfaceTint = Color(0xFFBDBDBD),
+    inverseSurface = Color(0xFFE6E6E6),
+    inverseOnSurface = Color(0xFF252525),
+    outline = Color(0xFF818181),
+    outlineVariant = Color(0xFF343434),
+    surfaceBright = Color(0xFF353535),
+    surfaceDim = Color(0xFF101010),
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = Color(0xFF141414),
+    surfaceContainer = Color(0xFF1A1A1A),
+    surfaceContainerHigh = Color(0xFF222222),
+    surfaceContainerHighest = Color(0xFF2C2C2C),
 )
 
 /** Liquid Glass 同心大曲率圆角几何规范 */
@@ -176,21 +179,21 @@ private val LightGlassPalette = LiquidGlassPalette(
 
 private val DarkGlassPalette = LiquidGlassPalette(
     isDark = true,
-    surfaceTop = Color(0xB31B2842),        // 70% 深海蓝晶顶层
-    surfaceBottom = Color(0x85111B2E),     // 52% 深海透射底层
-    elevatedTop = Color(0xCC223252),
-    elevatedBottom = Color(0xA6162238),
-    dockTop = Color(0xCC1E2D4A),
-    dockBottom = Color(0xA3121C30),
-    specularBright = Color(0x85E2EEFF),
-    specularMid = Color(0x3360A5FA),
-    specularCounter = Color(0x4793C5FD),
-    innerGlow = Color(0x339ECAFF),
-    ambientShadow = Color(0x66020617),
-    auraPrimary = Color(0x422563EB),
-    auraSecondary = Color(0x3310B981),
-    auraTertiary = Color(0x337C3AED),
-    auraWarm = Color(0x24F59E0B),
+    surfaceTop = Color(0xC2262626),
+    surfaceBottom = Color(0xC2101010),
+    elevatedTop = Color(0xED303030),
+    elevatedBottom = Color(0xDD161616),
+    dockTop = Color(0xDC282828),
+    dockBottom = Color(0xDA111111),
+    specularBright = Color(0x70FFFFFF),
+    specularMid = Color(0x30C2C2C2),
+    specularCounter = Color(0x3CFFFFFF),
+    innerGlow = Color(0x1CFFFFFF),
+    ambientShadow = Color(0x66000000),
+    auraPrimary = Color.Transparent,
+    auraSecondary = Color.Transparent,
+    auraTertiary = Color.Transparent,
+    auraWarm = Color.Transparent,
 )
 
 private val LocalExtraColors = staticCompositionLocalOf { LightExtra }

@@ -48,6 +48,28 @@ class DailyScreenTest {
         compose.onNodeWithContentDescription("本月支出 ¥199.00").assertIsDisplayed()
         capture("qingzhang-home-dark")
     }
+
+    @Test fun darkEmptyHomeHasBlackBackgroundAndRoomAboveRecordButton() {
+        val month = YearMonth.now()
+        val book = BookEntity(1, "生活账本", BookKind.DAILY)
+        compose.setContent {
+            RenovationLedgerTheme(darkTheme = true) {
+                DailyHomeScreen(
+                    DailyState(month, DailyStatistics.calculate(emptyList(), book.id, month)),
+                    { BookHeader(BookState(listOf(book), book), {}, {}) },
+                    { LedgerBottomBar(Routes.HOME, {}) },
+                    {}, {}, {}, {},
+                )
+            }
+        }
+        val empty = compose.onNodeWithText("本月还没有账目").assertIsDisplayed()
+        val add = compose.onNodeWithText("记一笔", useUnmergedTree = true).assertIsDisplayed()
+        assertTrue(empty.fetchSemanticsNode().boundsInRoot.bottom < add.fetchSemanticsNode().boundsInRoot.top)
+        val image = compose.onRoot().captureToImage().asAndroidBitmap()
+        assertEquals(android.graphics.Color.BLACK, image.getPixel(0, image.height / 2))
+        capture("qingzhang-home-pure-black-empty")
+    }
+
     @Test @Config(qualifiers = "w320dp-h740dp-xhdpi")
     fun monthlyActionsAndDockFitSmallScreenWithLargeText() {
         val current = YearMonth.now()
@@ -79,6 +101,10 @@ class DailyScreenTest {
         val add = compose.onNodeWithText("记一笔", useUnmergedTree = true)
         val home = compose.onNodeWithText("首页")
         assertTrue(add.fetchSemanticsNode().boundsInRoot.bottom < home.fetchSemanticsNode().boundsInRoot.top)
+        val list = compose.onNode(hasScrollToIndexAction())
+        list.performScrollToIndex(4)
+        val empty = compose.onNodeWithText("本月还没有账目").assertIsDisplayed()
+        assertTrue(empty.fetchSemanticsNode().boundsInRoot.bottom < add.fetchSemanticsNode().boundsInRoot.top)
         add.performClick()
         assertTrue(added)
         capture("ux-home-light-320")

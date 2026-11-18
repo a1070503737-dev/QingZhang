@@ -200,7 +200,8 @@ half4 main(float2 fragCoord) {
         0.52 + 0.42 * normal.y,
         0.88 - 0.30 * normal.x
     );
-    col.rgb = mix(col.rgb, rainbow, half(prismBand * 0.16));
+    half3 rimLight = uDark > 0.5 ? half3(0.68) : rainbow;
+    col.rgb = mix(col.rgb, rimLight, half(prismBand * (uDark > 0.5 ? 0.10 : 0.16)));
     return col;
 }
 """
@@ -239,7 +240,7 @@ half4 main(float2 fragCoord) {
 
     half3 specularTint = mix(uTintColor.rgb, half3(1.0, 1.0, 1.0), half(uDark > 0.5 ? 0.58 : 0.78));
     float sheen = fresnel * (0.14 + 0.24 * catchlight + 0.10 * counterGlow) + 0.20 * caustic;
-    base.rgb = mix(base.rgb, specularTint, half(clamp(sheen, 0.0, 0.50)));
+    base.rgb = mix(base.rgb, specularTint, half(clamp(sheen * (uDark > 0.5 ? 0.66 : 1.0), 0.0, 0.50)));
     base.a = clamp(base.a + half(fresnel * (uDark > 0.5 ? 0.06 : 0.10) + caustic * 0.06), half(0.0), half(0.97));
     return base;
 }
@@ -277,7 +278,7 @@ fun LiquidGlassBackdrop(
     val auraHolder = remember(auraLayer) { LiquidBackdropHolder(auraLayer) }
     val pageHolder = remember(pageLayer) { LiquidBackdropHolder(pageLayer) }
 
-    val phase = if (!fullGlassEffects()) {
+    val phase = if (glass.isDark || !fullGlassEffects()) {
         0.22f
     } else {
         val transition = rememberInfiniteTransition(label = "liquid-aurora")
@@ -321,34 +322,36 @@ fun LiquidGlassBackdrop(
                     },
                 ) {
                     drawRect(baseBg)
-                    val w = size.width
-                    val h = size.height
-                    val rMax = maxOf(w, h)
+                    if (!glass.isDark) {
+                        val w = size.width
+                        val h = size.height
+                        val rMax = maxOf(w, h)
 
-                    val c1 = Offset(w * (0.18f + 0.10f * cos(phase)), h * (0.12f + 0.07f * sin(phase)))
-                    drawCircle(
-                        brush = Brush.radialGradient(listOf(glass.auraPrimary, Color.Transparent), c1, rMax * 0.58f),
-                        radius = rMax * 0.58f,
-                        center = c1,
-                    )
-                    val c2 = Offset(w * (0.85f - 0.11f * sin(phase * 0.8f)), h * (0.34f + 0.09f * cos(phase * 0.8f)))
-                    drawCircle(
-                        brush = Brush.radialGradient(listOf(glass.auraSecondary, Color.Transparent), c2, rMax * 0.52f),
-                        radius = rMax * 0.52f,
-                        center = c2,
-                    )
-                    val c3 = Offset(w * (0.28f + 0.12f * sin(phase * 0.65f + 1.1f)), h * (0.78f - 0.08f * cos(phase * 0.65f + 1.1f)))
-                    drawCircle(
-                        brush = Brush.radialGradient(listOf(glass.auraTertiary, Color.Transparent), c3, rMax * 0.56f),
-                        radius = rMax * 0.56f,
-                        center = c3,
-                    )
-                    val c4 = Offset(w * (0.76f + 0.07f * cos(phase + 2.2f)), h * (0.86f + 0.05f * sin(phase + 2.2f)))
-                    drawCircle(
-                        brush = Brush.radialGradient(listOf(glass.auraWarm, Color.Transparent), c4, rMax * 0.44f),
-                        radius = rMax * 0.44f,
-                        center = c4,
-                    )
+                        val c1 = Offset(w * (0.18f + 0.10f * cos(phase)), h * (0.12f + 0.07f * sin(phase)))
+                        drawCircle(
+                            brush = Brush.radialGradient(listOf(glass.auraPrimary, Color.Transparent), c1, rMax * 0.58f),
+                            radius = rMax * 0.58f,
+                            center = c1,
+                        )
+                        val c2 = Offset(w * (0.85f - 0.11f * sin(phase * 0.8f)), h * (0.34f + 0.09f * cos(phase * 0.8f)))
+                        drawCircle(
+                            brush = Brush.radialGradient(listOf(glass.auraSecondary, Color.Transparent), c2, rMax * 0.52f),
+                            radius = rMax * 0.52f,
+                            center = c2,
+                        )
+                        val c3 = Offset(w * (0.28f + 0.12f * sin(phase * 0.65f + 1.1f)), h * (0.78f - 0.08f * cos(phase * 0.65f + 1.1f)))
+                        drawCircle(
+                            brush = Brush.radialGradient(listOf(glass.auraTertiary, Color.Transparent), c3, rMax * 0.56f),
+                            radius = rMax * 0.56f,
+                            center = c3,
+                        )
+                        val c4 = Offset(w * (0.76f + 0.07f * cos(phase + 2.2f)), h * (0.86f + 0.05f * sin(phase + 2.2f)))
+                        drawCircle(
+                            brush = Brush.radialGradient(listOf(glass.auraWarm, Color.Transparent), c4, rMax * 0.44f),
+                            radius = rMax * 0.44f,
+                            center = c4,
+                        )
+                    }
                 }
                 CompositionLocalProvider(LocalLiquidBackdropHolder provides auraHolder) {
                     content()
@@ -442,8 +445,8 @@ fun Modifier.liquidGlass(
     }
 
     val melt = clearMeltProgress.coerceIn(0f, 1f)
-    val crystalTop = if (glass.isDark) Color(0xFF132038).copy(alpha = 0.30f) else Color.White.copy(alpha = 0.26f)
-    val crystalBottom = if (glass.isDark) Color(0xFF0C1526).copy(alpha = 0.18f) else Color(0xFFEAF3FF).copy(alpha = 0.16f)
+    val crystalTop = if (glass.isDark) glass.surfaceTop.copy(alpha = 0.30f) else Color.White.copy(alpha = 0.26f)
+    val crystalBottom = if (glass.isDark) glass.surfaceBottom.copy(alpha = 0.18f) else Color(0xFFEAF3FF).copy(alpha = 0.16f)
     val topColor = if (melt > 0.001f) lerp(rawTop, crystalTop, melt) else rawTop
     val bottomColor = if (melt > 0.001f) lerp(rawBottom, crystalBottom, melt) else rawBottom
 
@@ -632,13 +635,17 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawWaterDropletRi
     val h = size.height
     if (w <= 1f || h <= 1f || intensity <= 0.01f) return
     val r = CornerRadius(cornerRadiusPx, cornerRadiusPx)
+    val prismBlue = if (isDark) Color(0xFFD9D9D9) else Color(0xFF60A5FA)
+    val prismGold = if (isDark) Color(0xFF999999) else Color(0xFFFBBF24)
+    val prismGreen = if (isDark) Color(0xFFBFBFBF) else Color(0xFF34D399)
+    val prismViolet = if (isDark) Color(0xFFE6E6E6) else Color(0xFFA78BFA)
     // 顶部微湿反光弧（中心完全透明，绝不遮挡透底画面）
     drawRoundRect(
         brush = Brush.verticalGradient(
             0.0f to Color.White.copy(alpha = (if (isDark) 0.16f else 0.30f) * intensity),
             0.28f to Color.Transparent,
             0.82f to Color.Transparent,
-            1.0f to Color(0xFF60A5FA).copy(alpha = 0.10f * intensity),
+            1.0f to prismBlue.copy(alpha = 0.10f * intensity),
         ),
         cornerRadius = r,
     )
@@ -646,11 +653,11 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawWaterDropletRi
     val prismStroke = 1.8.dp.toPx()
     drawRoundRect(
         brush = Brush.sweepGradient(
-            0.00f to Color(0xFF60A5FA).copy(alpha = 0.44f * intensity),
-            0.24f to Color(0xFFFBBF24).copy(alpha = 0.30f * intensity),
-            0.50f to Color(0xFF34D399).copy(alpha = 0.32f * intensity),
-            0.76f to Color(0xFFA78BFA).copy(alpha = 0.38f * intensity),
-            1.00f to Color(0xFF60A5FA).copy(alpha = 0.44f * intensity),
+            0.00f to prismBlue.copy(alpha = 0.44f * intensity),
+            0.24f to prismGold.copy(alpha = 0.30f * intensity),
+            0.50f to prismGreen.copy(alpha = 0.32f * intensity),
+            0.76f to prismViolet.copy(alpha = 0.38f * intensity),
+            1.00f to prismBlue.copy(alpha = 0.44f * intensity),
         ),
         topLeft = Offset(prismStroke * 0.75f, prismStroke * 0.75f),
         size = Size((w - prismStroke * 1.5f).coerceAtLeast(1f), (h - prismStroke * 1.5f).coerceAtLeast(1f)),
@@ -1013,7 +1020,7 @@ fun LiquidLensTrack(
                             // 极清透水晶光泽，绝不发灰发雾
                             drawRect(
                                 color = if (glass.isDark) {
-                                    Color(0xFF101C32).copy(alpha = 0.28f * liftProgress)
+                                    glass.surfaceBottom.copy(alpha = 0.28f * liftProgress)
                                 } else {
                                     Color.White.copy(alpha = 0.22f * liftProgress)
                                 },
@@ -1192,7 +1199,7 @@ fun LiquidGlassSurface(
                     }
                     clipPath(dropPath) {
                         drawRect(
-                            color = if (glass.isDark) Color(0xFF16243C).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.55f),
+                            color = if (glass.isDark) glass.surfaceTop.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.55f),
                         )
                         withTransform({
                             scale(1f + 0.20f * loupeProgress, 1f + 0.20f * loupeProgress, pivot = Offset(cx, cy))
@@ -1207,10 +1214,10 @@ fun LiquidGlassSurface(
                         val r = CornerRadius(curH / 2f, curH / 2f)
                         drawRoundRect(
                             brush = Brush.sweepGradient(
-                                0f to Color(0xFF60A5FA).copy(alpha = 0.45f * loupeProgress),
-                                0.3f to Color(0xFFFBBF24).copy(alpha = 0.32f * loupeProgress),
-                                0.65f to Color(0xFF34D399).copy(alpha = 0.36f * loupeProgress),
-                                1f to Color(0xFF60A5FA).copy(alpha = 0.45f * loupeProgress),
+                                0f to (if (glass.isDark) Color.LightGray else Color(0xFF60A5FA)).copy(alpha = 0.45f * loupeProgress),
+                                0.3f to (if (glass.isDark) Color.Gray else Color(0xFFFBBF24)).copy(alpha = 0.32f * loupeProgress),
+                                0.65f to (if (glass.isDark) Color.White else Color(0xFF34D399)).copy(alpha = 0.36f * loupeProgress),
+                                1f to (if (glass.isDark) Color.LightGray else Color(0xFF60A5FA)).copy(alpha = 0.45f * loupeProgress),
                                 center = Offset(curW / 2f, curH / 2f),
                             ),
                             size = subSize,
@@ -1518,7 +1525,7 @@ fun LiquidGlassTopBar(
         ) {
             ProvideTextStyle(
                 MaterialTheme.typography.titleLarge.copy(
-                    color = if (glass.isDark) Color(0xFFEAF2FF) else Color(0xFF0F1A2C),
+                    color = if (glass.isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF0F1A2C),
                 ),
             ) {
                 title()
