@@ -45,15 +45,19 @@ class DailyDatabaseTest {
         assertEquals("午饭", repo.get("test")!!.note)
         repo.delete("test"); assertNull(repo.get("test"))
     }
-    @Test fun booksAreIndependentAndRenovationRejectsDailyWrites() = runTest {
+    @Test fun entriesAndCustomCategorySuggestionsStayInTheirBook() = runTest {
         assertEquals(listOf(BookKind.DAILY), db.dailyDao().books().map { it.kind })
         val book = repo.addBook("旅行")
-        repo.save(entry("one"), false); repo.save(entry("two", book = book), false)
+        repo.save(entry("one").copy(categoryName = "午餐"), false)
+        repo.save(entry("two", book = book).copy(categoryName = "旅费"), false)
         assertEquals(listOf("one"), repo.observeRange(1, 0, 30000).first().map { it.id })
         assertEquals(listOf("two"), repo.observeRange(book, 0, 30000).first().map { it.id })
         val projectBook = repo.addBook("翻新", BookKind.RENOVATION)
-        repo.save(entry("project", book = projectBook), false)
+        repo.save(entry("project", book = projectBook).copy(categoryName = "装修搬运费"), false)
         assertEquals(listOf("project"), repo.observeRange(projectBook, 0, 30000).first().map { it.id })
+        assertEquals(listOf("午餐"), repo.categoriesForBook(1).map { it.name })
+        assertEquals(listOf("旅费"), repo.categoriesForBook(book).map { it.name })
+        assertEquals(listOf("装修搬运费"), repo.categoriesForBook(projectBook).map { it.name })
         repo.renameBook(book, "出游"); assertEquals("出游", db.dailyDao().book(book)!!.name)
     }
     @Test fun rejectsInvalidAndStaleUpdates() = runTest {

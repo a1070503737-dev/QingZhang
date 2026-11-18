@@ -2,6 +2,7 @@ package com.zhuangxiu.ledger.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import com.zhuangxiu.ledger.ui.daily.*
+import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.data.db.BookKind
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Home
@@ -99,12 +100,19 @@ fun LedgerNavHost(
         }
     }
     val back: () -> Unit = { navController.popBackStack() }
+    val addToBook: (BookEntity) -> Unit = { book ->
+        val route = when (book.kind) {
+            BookKind.DAILY -> Routes.dailyEdit(book.id)
+            BookKind.RENOVATION -> Routes.edit(bookId = book.id)
+        }
+        navController.navigate(route)
+    }
     var pickQuickBook by rememberSaveable { mutableStateOf(false) }
     if (pickQuickBook) AlertDialog(
         onDismissRequest = { pickQuickBook = false }, title = { Text("记到哪个账本？") },
         text = { Column(Modifier.verticalScroll(rememberScrollState())) {
             bookState.books.filterNot { it.archived }.forEach { book ->
-                TextButton({ pickQuickBook = false; navController.navigate(Routes.dailyEdit(book.id)) }) { Text(book.name) }
+                TextButton({ pickQuickBook = false; addToBook(book) }) { Text(book.name) }
             }
         } },
         confirmButton = { TextButton({ pickQuickBook = false }) { Text("取消") } },
@@ -124,7 +132,7 @@ fun LedgerNavHost(
                 dailyViewModel::month, dailyViewModel::currentMonth,
                 onAdd = {
                     if (bookState.all) pickQuickBook = true
-                    else bookState.selected?.let { navController.navigate(Routes.dailyEdit(it.id)) }
+                    else bookState.selected?.let(addToBook)
                 },
                 onEdit = { id ->
                     val projectId = id.takeIf { it.startsWith("payment:") }?.split(':')?.getOrNull(1)?.toLongOrNull()

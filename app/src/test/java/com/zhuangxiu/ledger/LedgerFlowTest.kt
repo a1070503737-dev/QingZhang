@@ -70,7 +70,7 @@ class LedgerFlowTest {
         }
     }
 
-    @Test fun recordUnpaidBillThenOpenPendingAndNavigateTabs() {
+    @Test fun recordRenovationDepositFromHomeThenOpenPendingAndNavigateTabs() {
         awaitText("生活账本")
         compose.onNodeWithText("账本").performClick()
         awaitText("新建账本")
@@ -82,14 +82,32 @@ class LedgerFlowTest {
         awaitText("装修测试")
         compose.onNodeWithText("首页").performClick()
         awaitText("装修项目")
-        compose.onNodeWithText("装修项目").performClick()
-        awaitText("新家的第一笔花费，从这里开始")
         compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
+        awaitText("记装修账")
+        awaitText("装修阶段")
+        compose.onNodeWithText("餐饮").assertDoesNotExist()
+        compose.onNodeWithContentDescription("返回").performClick()
+        awaitText("装修项目")
+        compose.onNodeWithContentDescription("切换账本").performClick()
+        compose.onNodeWithText("全部账本").performClick()
+        awaitText("全部账本")
+        compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
+        awaitText("记到哪个账本？")
+        compose.onNodeWithText("装修测试").performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("账单总金额").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithContentDescription("账单总金额").performTextInput("12800")
-        compose.onNodeWithText("未付").performClick()
+        compose.onNodeWithContentDescription("账单总金额").performClick()
+        enterRenovationAmount("12800")
+        compose.onNodeWithText("定金").performScrollTo().performClick()
+        compose.onNodeWithText("已付定金").performScrollTo().performClick()
+        enterRenovationAmount("800")
+        compose.onNodeWithText("剩余待付 ¥12,000.00").assertExists()
         capture("edit")
         compose.onNodeWithContentDescription("保存账单").performClick()
+        compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("本月支出 ¥800.00").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("切换账本").performClick()
+        compose.onNodeWithText("装修测试").performClick()
+        awaitText("装修项目")
+        compose.onNodeWithText("装修项目").performClick()
         awaitText("剩余待付")
         compose.onNodeWithText("剩余待付").performClick()
         awaitText("仅看待付")
@@ -113,5 +131,12 @@ class LedgerFlowTest {
         compose.onNodeWithText("取消").performScrollTo().performClick()
         awaitText("检查新版本")
         compose.runOnIdle { assertTrue(compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE == 0) }
+    }
+
+    private fun enterRenovationAmount(amount: String) {
+        amount.forEach { digit ->
+            compose.onNodeWithContentDescription("数字键$digit", useUnmergedTree = true).performClick()
+        }
+        compose.onNodeWithText("完成").performClick()
     }
 }

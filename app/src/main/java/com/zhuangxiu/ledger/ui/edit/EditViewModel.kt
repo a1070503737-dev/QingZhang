@@ -137,8 +137,11 @@ class EditViewModel @Inject constructor(
         }
     }
 
-    fun setAmount(text: String) = _uiState.update { it.copy(amountText = Money.sanitizeInput(text)) }
-    fun setPaid(text: String) = _uiState.update { it.copy(paidText = Money.sanitizeInput(text)) }
+    fun updateAmount(change: (String) -> String) =
+        _uiState.update { it.copy(amountText = Money.sanitizeInput(change(it.amountText))) }
+
+    fun updatePaid(change: (String) -> String) =
+        _uiState.update { it.copy(paidText = Money.sanitizeInput(change(it.paidText))) }
     fun setDate(date: Long) = _uiState.update { it.copy(date = date) }
     fun setStage(id: Long) = _uiState.update { it.copy(stageId = id) }
     fun setType(id: Long) = _uiState.update { it.copy(typeId = id) }

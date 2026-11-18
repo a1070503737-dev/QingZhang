@@ -19,6 +19,7 @@ class DailyRepository @Inject constructor(private val db: AppDatabase) {
     suspend fun get(id: String) = dao.get(id)
     suspend fun book(id: Long) = dao.book(id)
     suspend fun categories() = dao.dailyCategories()
+    suspend fun categoriesForBook(bookId: Long) = dao.usedCategories(bookId)
 
     suspend fun save(entry: DailyEntryEntity, editing: Boolean) = db.withTransaction {
         require(entry.amountCents in 1..99_999_999_999L) { "请输入大于 0 且不超过 999,999,999.99 的金额" }

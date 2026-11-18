@@ -59,13 +59,8 @@ fun DailyEditContent(state: DailyEditState, editing: Boolean, onBack: () -> Unit
             if (!state.loading && !state.missing) Surface {
                 Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (!noteFocused) {
-                        DailyNumberPad(enabled = !state.busy) { key ->
-                            onChange { old -> old.copy(amount = when {
-                                key == "⌫" -> old.amount.dropLast(1)
-                                key == "." && old.amount.contains('.') -> old.amount
-                                key == "." && old.amount.isBlank() -> "0."
-                                else -> old.amount + key
-                            }) }
+                        AmountKeypad(enabled = !state.busy) { key ->
+                            onChange { old -> old.copy(amount = applyAmountKey(old.amount, key)) }
                         }
                     }
                     Button(onSave, Modifier.fillMaxWidth().heightIn(min = 54.dp).semantics { contentDescription = "保存日常账目" }, enabled = state.valid && !state.busy) {
@@ -161,20 +156,4 @@ private fun DailyAmountDisplay(amount: String, isError: Boolean, enabled: Boolea
     }
     if (isError) Text("金额须大于 0，最多两位小数，最高 999,999,999.99",
         color = colors.error, style = MaterialTheme.typography.bodySmall)
-}
-
-@Composable
-private fun DailyNumberPad(enabled: Boolean, onKey: (String) -> Unit) {
-    listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf(".", "0", "⌫")).forEach { keys ->
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            keys.forEach { key ->
-                FilledTonalButton(onClick = { onKey(key) }, enabled = enabled,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                    Text(key, fontSize = 21.sp, modifier = Modifier.semantics {
-                        contentDescription = if (key == "⌫") "退格" else "数字键$key"
-                    })
-                }
-            }
-        }
-    }
 }

@@ -89,6 +89,8 @@ interface DailyDao {
     @Query("SELECT * FROM daily_entries WHERE bookId = :bookId AND day BETWEEN :from AND :until")
     suspend fun existing(bookId: Long, from: Long, until: Long): List<DailyEntryEntity>
     @Query("SELECT * FROM daily_categories ORDER BY name") suspend fun dailyCategories(): List<DailyCategoryEntity>
+    @Query("SELECT DISTINCT kind, categoryName AS name FROM daily_entries WHERE bookId = :bookId AND categoryName IS NOT NULL AND categoryName <> '未指定' ORDER BY name")
+    suspend fun usedCategories(bookId: Long): List<DailyCategoryEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertCategories(categories: List<DailyCategoryEntity>)
 }
 

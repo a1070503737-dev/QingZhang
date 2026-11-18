@@ -1,6 +1,8 @@
 package com.zhuangxiu.ledger.ui.edit
 
 import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
+import com.zhuangxiu.ledger.ui.components.AmountKeypad
+import com.zhuangxiu.ledger.ui.components.applyAmountKey
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -24,16 +26,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,13 +57,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -76,12 +76,23 @@ import com.zhuangxiu.ledger.ui.components.LedgerDatePickerDialog
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
+private enum class AmountField { TOTAL, PAID }
+
 /** 记账 / 编辑页 */
 @Composable
 fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
-    val amountFocus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    var amountField by rememberSaveable { mutableStateOf<AmountField?>(null) }
+    val openAmount: (AmountField) -> Unit = { field ->
+        if (!state.saving) {
+            keyboard?.hide()
+            focusManager.clearFocus()
+            amountField = field
+        }
+    }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var showDuePicker by rememberSaveable { mutableStateOf(false) }
     var showCamera by rememberSaveable { mutableStateOf(false) }
@@ -98,15 +109,10 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
             viewModel.clearError()
         }
     }
-    // 新建时自动聚焦金额输入框并弹出数字键盘，记一笔更快
-    LaunchedEffect(state.loading) {
-        if (!state.loading && state.isNew) runCatching { amountFocus.requestFocus() }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (state.isNew) "记一笔" else "编辑账单") },
+                title = { Text(if (state.isNew) "记装修账" else "编辑装修账单") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回") }
                 },
@@ -128,7 +134,11 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // ---------- 金额 ----------
-            LedgerCard(containerColor = MaterialTheme.colorScheme.primaryContainer) {
+            LedgerCard(
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "账单总金额" },
+                onClick = { openAmount(AmountField.TOTAL) },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+            ) {
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                     Text(
                         "总价",
@@ -142,32 +152,11 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         Spacer(Modifier.width(6.dp))
-                        BasicTextField(
-                            value = state.amountText,
-                            onValueChange = viewModel::setAmount,
-                            textStyle = MaterialTheme.typography.displaySmall.copy(
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(amountFocus)
-                                .semantics { contentDescription = "账单总金额" },
-                            decorationBox = { inner ->
-                                Box {
-                                    if (state.amountText.isEmpty()) {
-                                        Text(
-                                            "0.00",
-                                            style = MaterialTheme.typography.displaySmall,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f),
-                                        )
-                                    }
-                                    inner()
-                                }
-                            },
+                        Text(
+                            state.amountText.ifEmpty { "0.00" },
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = if (state.amountText.isEmpty()) 0.5f else 1f),
                         )
                     }
                 }
@@ -187,22 +176,17 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                 val partial = state.status == PaymentStatus.DEPOSIT || state.status == PaymentStatus.BALANCE_DUE
                 if (state.isNew && partial) {
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = state.paidText,
-                        onValueChange = viewModel::setPaid,
-                        label = { Text(if (state.status == PaymentStatus.DEPOSIT) "已付定金" else "已付金额") },
-                        prefix = { Text("¥") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        supportingText = {
-                            val total = Money.parseToCents(state.amountText)
-                            val paid = Money.parseToCents(state.paidText)
-                            if (total != null && paid != null && paid < total) {
-                                Text("剩余待付 ${Money.format(total - paid)}")
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
+                    PickerRow(
+                        icon = Icons.Outlined.Payments,
+                        label = paidAmountLabel(state.status),
+                        value = "¥${state.paidText.ifEmpty { "0.00" }}",
+                        onClick = { openAmount(AmountField.PAID) },
                     )
+                    val total = Money.parseToCents(state.amountText)
+                    val paid = Money.parseToCents(state.paidText)
+                    if (total != null && paid != null && paid < total) {
+                        Text("剩余待付 ${Money.format(total - paid)}", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
                 if (!state.isNew) {
                     Spacer(Modifier.height(4.dp))
@@ -318,6 +302,26 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
         }
     }
 
+    amountField?.let { field ->
+        val isTotal = field == AmountField.TOTAL
+        val amount = if (isTotal) state.amountText else state.paidText
+        val close = { amountField = null }
+        AlertDialog(
+            onDismissRequest = close,
+            title = { Text(if (isTotal) "输入装修总价" else paidAmountLabel(state.status)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("¥${amount.ifEmpty { "0.00" }}", style = MaterialTheme.typography.headlineMedium)
+                    AmountKeypad { key ->
+                        val change: (String) -> String = { applyAmountKey(it, key) }
+                        if (isTotal) viewModel.updateAmount(change) else viewModel.updatePaid(change)
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = close) { Text("完成") } },
+        )
+    }
+
     if (showDatePicker) {
         LedgerDatePickerDialog(
             initialEpochDay = state.date,
@@ -349,6 +353,9 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
         )
     }
 }
+
+private fun paidAmountLabel(status: PaymentStatus): String =
+    if (status == PaymentStatus.DEPOSIT) "已付定金" else "已付金额"
 
 @Composable
 private fun FormSection(title: String, content: @Composable () -> Unit) {

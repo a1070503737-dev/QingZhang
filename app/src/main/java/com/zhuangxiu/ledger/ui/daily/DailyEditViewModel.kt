@@ -55,7 +55,7 @@ class DailyEditViewModel @Inject constructor(private val repository: DailyReposi
                 note = saved["note"] ?: base.note, loading = false, complete = saved["complete"] ?: false,
                 categoryName = if (saved.contains("categoryName")) saved["categoryName"] else base.categoryName,
                 sourceMethod = if (saved.contains("sourceMethod")) saved["sourceMethod"] else base.sourceMethod,
-                customCategories = repository.categories())
+                customCategories = repository.categoriesForBook(bookId))
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { _state.value = DailyEditState(loading = false, missing = true, error = "无法读取记录，请返回重试") }
     } }
