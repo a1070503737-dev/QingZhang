@@ -1,13 +1,17 @@
 package com.zhuangxiu.ledger.ui.components
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -21,25 +25,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Architecture
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Carpenter
+import androidx.compose.material.icons.outlined.Chair
+import androidx.compose.material.icons.outlined.FormatPaint
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Handyman
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,16 +60,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhuangxiu.ledger.data.db.ExpenseWithDetails
+import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.data.db.PaymentStatus
 import com.zhuangxiu.ledger.domain.BudgetLevel
 import com.zhuangxiu.ledger.domain.BudgetUsage
@@ -69,7 +80,10 @@ import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
-/** 圆角卡片 + 柔和阴影，全应用统一的卡片样式 */
+/**
+ * Liquid Glass 统一圆角折射卡片：
+ * 自动根据 containerColor 识别默认透明玻璃或有色折射透镜，具备 360° 镜面亮边与弹性按压反馈。
+ */
 @Composable
 fun LedgerCard(
     modifier: Modifier = Modifier,
@@ -77,18 +91,26 @@ fun LedgerCard(
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val colors = CardDefaults.cardColors(containerColor = containerColor)
-    val elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    val shape = RoundedCornerShape(24.dp)
-    val border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-    if (onClick != null) {
-        Card(onClick = onClick, modifier = modifier, shape = shape, border = border, colors = colors, elevation = elevation, content = content)
+    val defaultLow = MaterialTheme.colorScheme.surfaceContainerLow
+    val variant = if (containerColor == defaultLow || containerColor == MaterialTheme.colorScheme.surface) {
+        GlassVariant.Regular
     } else {
-        Card(modifier = modifier, shape = shape, border = border, colors = colors, elevation = elevation, content = content)
+        GlassVariant.Tinted(tint = containerColor, vivid = false)
     }
+    LiquidGlassSurface(
+        modifier = modifier,
+        shape = RoundedCornerShape(26.dp),
+        cornerRadius = 26.dp,
+        variant = variant,
+        shadowElevation = 10.dp,
+        pressedScale = 0.976f,
+        enableTilt = onClick != null,
+        onClick = onClick,
+        content = content,
+    )
 }
 
-/** 子页面通用骨架：带返回按钮的标题栏 */
+/** 子页面通用骨架：流光背景 + 悬浮液态玻璃返回顶栏 */
 @Composable
 fun SubPageScaffold(
     title: String,
@@ -98,22 +120,29 @@ fun SubPageScaffold(
     bottomBar: @Composable () -> Unit = {},
     content: @Composable (Modifier) -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = actions,
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
-        },
-        floatingActionButton = floatingActionButton,
-        bottomBar = bottomBar,
-    ) { padding -> content(Modifier.padding(padding)) }
+    LiquidGlassBackdrop {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                LiquidGlassTopBar(
+                    title = { Text(title) },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
+                        ) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        }
+                    },
+                    actions = actions,
+                )
+            },
+            floatingActionButton = floatingActionButton,
+            bottomBar = bottomBar,
+        ) { padding -> content(Modifier.padding(padding)) }
+    }
 }
 
 /** 预算等级对应的颜色：正常用主色，预警用琥珀色，超支标红 */
@@ -124,27 +153,52 @@ fun budgetLevelColor(level: BudgetLevel): Color = when (level) {
     else -> MaterialTheme.colorScheme.primary
 }
 
-/** 预算进度条 */
+/** 液态玻璃发光胶囊进度条：带弹簧平滑过渡与顶部镜面高光带 */
 @Composable
 fun BudgetProgressBar(usage: BudgetUsage, modifier: Modifier = Modifier) {
-    LinearProgressIndicator(
-        progress = { usage.fraction },
+    val animatedFraction by animateFloatAsState(
+        targetValue = usage.fraction.coerceIn(0f, 1f),
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessLow),
+        label = "budget-progress",
+    )
+    val barColor = budgetLevelColor(usage.level)
+    val glass = LedgerTheme.glass
+    val trackColor = if (glass.isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.07f)
+
+    Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(10.dp)
+            .height(11.dp)
             .clip(CircleShape),
-        color = budgetLevelColor(usage.level),
-        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        strokeCap = StrokeCap.Round,
-        gapSize = 0.dp,
-        drawStopIndicator = {},
-    )
+    ) {
+        val r = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(color = trackColor, cornerRadius = r)
+        if (animatedFraction > 0.005f) {
+            val fillWidth = (size.width * animatedFraction).coerceAtLeast(size.height)
+            drawRoundRect(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(barColor.copy(alpha = 0.82f), barColor),
+                    startX = 0f,
+                    endX = fillWidth,
+                ),
+                size = Size(fillWidth, size.height),
+                cornerRadius = r,
+            )
+            // 液态柱体顶部水光折射亮条
+            drawRoundRect(
+                color = Color.White.copy(alpha = 0.42f),
+                topLeft = Offset(size.height * 0.25f, size.height * 0.16f),
+                size = Size((fillWidth - size.height * 0.5f).coerceAtLeast(2f), size.height * 0.26f),
+                cornerRadius = CornerRadius(size.height / 4f),
+            )
+        }
+    }
 }
 
-/** 付款状态小标签 */
+/** 付款状态液态玻璃小胶囊 */
 @Composable
 fun StatusChip(status: PaymentStatus, modifier: Modifier = Modifier) {
-    val (background, foreground) = when (status) {
+    val (tint, foreground) = when (status) {
         PaymentStatus.PAID -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
         PaymentStatus.DEPOSIT -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
         PaymentStatus.BALANCE_DUE -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
@@ -153,16 +207,21 @@ fun StatusChip(status: PaymentStatus, modifier: Modifier = Modifier) {
     Text(
         text = status.label,
         modifier = modifier
-            .background(background, RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+            .liquidGlass(
+                shape = CircleShape,
+                variant = GlassVariant.Tinted(tint),
+                cornerRadius = 12.dp,
+                shadowElevation = 0.dp,
+            )
+            .padding(horizontal = 10.dp, vertical = 3.dp),
         color = foreground,
         style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Medium,
     )
 }
 
 /**
- * 账单列表的一行。
- * @param onLongClick 长按回调（例如弹出操作菜单）；为 null 时不响应长按
+ * 账单列表的一行（具备液态微弹性点击与长按触觉反馈）。
  */
 @Composable
 fun ExpenseRow(
@@ -172,86 +231,91 @@ fun ExpenseRow(
     showDate: Boolean = false,
     onLongClick: (() -> Unit)? = null,
 ) {
-    val haptic = LocalHapticFeedback.current
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick?.let { action ->
-                    {
-                        // 长按时轻微震动，提示已触发
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        action()
-                    }
-                },
-                onLongClickLabel = if (onLongClick != null) "更多操作" else null,
-            )
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    LiquidGlassSurface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        cornerRadius = 20.dp,
+        variant = GlassVariant.Clear,
+        shadowElevation = 0.dp,
+        pressedScale = 0.984f,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        onLongClickLabel = if (onLongClick != null) "更多操作" else null,
     ) {
-        StageBadge(item.stage.name)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = item.expense.payee.ifBlank { item.type.name },
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StageBadge(item.stage.name)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
                 Text(
-                    text = buildString {
-                        append(item.stage.name).append(" · ").append(item.type.name)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = item.expense.payee.ifBlank { item.type.name },
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
                 )
-                if (item.attachments.isNotEmpty()) {
-                    Spacer(Modifier.width(6.dp))
-                    Icon(
-                        Icons.Outlined.Image,
-                        contentDescription = "有凭证",
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = buildString {
+                            append(item.stage.name).append(" · ").append(item.type.name)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (item.attachments.isNotEmpty()) {
+                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            Icons.Outlined.Image,
+                            contentDescription = "有凭证",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                if (showDate) {
+                    Text(
+                        Dates.formatShort(item.expense.date),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
-            if (showDate) Text(
-                Dates.formatShort(item.expense.date), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-            Text(
-                text = Money.format(item.expense.totalCents),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(2.dp))
-            if (item.expense.status == PaymentStatus.PAID) {
-                StatusChip(item.expense.status)
-            } else {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "待付 ${Money.format(item.remainingCents)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                Text(
+                    text = Money.format(item.expense.totalCents),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(3.dp))
+                if (item.expense.status == PaymentStatus.PAID) {
                     StatusChip(item.expense.status)
+                } else {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "待付 ${Money.format(item.remainingCents)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        StatusChip(item.expense.status)
+                    }
                 }
             }
         }
     }
 }
 
-/** 空状态提示 */
 @Composable
 fun EmptyHint(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
     Column(
@@ -259,13 +323,28 @@ fun EmptyHint(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .padding(vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Box(Modifier.size(72.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(74.dp)
+                .liquidGlass(
+                    shape = RoundedCornerShape(24.dp),
+                    variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
+                    cornerRadius = 24.dp,
+                    shadowElevation = 6.dp,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
         }
-        Text(text, modifier = Modifier.padding(horizontal = 24.dp), textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 24.dp),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -278,9 +357,17 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: @Composa
     }
 }
 
+/** 统一液态玻璃输入框配色 */
+@Composable
+fun glassTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = LedgerTheme.glass.elevatedTop.copy(alpha = if (LedgerTheme.glass.isDark) 0.52f else 0.72f),
+    unfocusedContainerColor = LedgerTheme.glass.surfaceTop.copy(alpha = if (LedgerTheme.glass.isDark) 0.36f else 0.56f),
+    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+    unfocusedBorderColor = LedgerTheme.glass.specularBright.copy(alpha = if (LedgerTheme.glass.isDark) 0.28f else 0.65f),
+)
+
 /**
- * 输入金额的对话框（数字键盘）。
- * @param allowEmpty 为 true 时允许留空确认，回调 0（例如“清除预算”）
+ * 输入金额的液态玻璃对话框（数字键盘）。
  */
 @Composable
 fun AmountInputDialog(
@@ -297,8 +384,13 @@ fun AmountInputDialog(
     val focusRequester = remember { FocusRequester() }
     val cents = Money.parseToCents(text)
     val valid = (cents != null && cents > 0) || (allowEmpty && (text.isBlank() || cents == 0L))
+    val glass = LedgerTheme.glass
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(30.dp),
+        containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.92f),
+        tonalElevation = 0.dp,
+        modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
         title = { Text(title) },
         text = {
             Column {
@@ -312,6 +404,8 @@ fun AmountInputDialog(
                     },
                     prefix = { Text("¥") },
                     singleLine = true,
+                    shape = RoundedCornerShape(18.dp),
+                    colors = glassTextFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -325,7 +419,12 @@ fun AmountInputDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(cents ?: 0) }, enabled = valid) { Text("确定") }
+            LiquidGlassButton(
+                onClick = { onConfirm(cents ?: 0) },
+                enabled = valid,
+                minHeight = 40.dp,
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+            ) { Text("确定") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )
@@ -334,24 +433,40 @@ fun AmountInputDialog(
 
 @Composable
 fun PaymentMethodPicker(
-    method: com.zhuangxiu.ledger.data.db.PayMethod,
-    onChange: (com.zhuangxiu.ledger.data.db.PayMethod) -> Unit,
+    method: PayMethod,
+    onChange: (PayMethod) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val glass = LedgerTheme.glass
     Box {
-        TextButton({ expanded = true }) { Text("支付方式 · ${method.label} ▾") }
-        androidx.compose.material3.DropdownMenu(expanded, { expanded = false }) {
-            com.zhuangxiu.ledger.data.db.PayMethod.entries.forEach { item ->
-                androidx.compose.material3.DropdownMenuItem(
+        LiquidGlassButton(
+            onClick = { expanded = true },
+            prominent = false,
+            minHeight = 40.dp,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            Text("支付方式 · ${method.label} ▾", color = MaterialTheme.colorScheme.primary)
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(22.dp),
+            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
+        ) {
+            PayMethod.entries.forEach { item ->
+                DropdownMenuItem(
                     text = { Text(item.label) },
-                    onClick = { onChange(item); expanded = false },
+                    onClick = {
+                        onChange(item)
+                        expanded = false
+                    },
                 )
             }
         }
     }
 }
 
-/** 输入一行文字的对话框（新增 / 重命名分类） */
+/** 输入一行文字的液态玻璃对话框（新增 / 重命名分类） */
 @Composable
 fun TextInputDialog(
     title: String,
@@ -362,8 +477,13 @@ fun TextInputDialog(
 ) {
     var text by remember { mutableStateOf(initial) }
     val focusRequester = remember { FocusRequester() }
+    val glass = LedgerTheme.glass
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(30.dp),
+        containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.92f),
+        tonalElevation = 0.dp,
+        modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
         title = { Text(title) },
         text = {
             OutlinedTextField(
@@ -371,20 +491,27 @@ fun TextInputDialog(
                 onValueChange = { text = it.take(12) },
                 label = { Text(label) },
                 singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+                colors = glassTextFieldColors(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester),
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(text.trim()) }, enabled = text.isNotBlank()) { Text("确定") }
+            LiquidGlassButton(
+                onClick = { onConfirm(text.trim()) },
+                enabled = text.isNotBlank(),
+                minHeight = 40.dp,
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+            ) { Text("确定") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 }
 
-/** 确认对话框 */
+/** 液态玻璃确认对话框 */
 @Composable
 fun ConfirmDialog(
     title: String,
@@ -394,20 +521,31 @@ fun ConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val glass = LedgerTheme.glass
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(30.dp),
+        containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.92f),
+        tonalElevation = 0.dp,
+        modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
         title = { Text(title) },
         text = { Text(text) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(confirmLabel, color = if (destructive) MaterialTheme.colorScheme.error else Color.Unspecified)
+            LiquidGlassButton(
+                onClick = onConfirm,
+                tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                contentColor = if (destructive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
+                minHeight = 40.dp,
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+            ) {
+                Text(confirmLabel)
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )
 }
 
-/** 选择单个日期的对话框，日期用 epochDay 表示 */
+/** 选择单个日期的液态玻璃对话框，日期用 epochDay 表示 */
 @Composable
 fun LedgerDatePickerDialog(
     initialEpochDay: Long?,
@@ -420,8 +558,13 @@ fun LedgerDatePickerDialog(
         initialSelectedDateMillis = Dates.epochDayToUtcMillis(date),
         yearRange = minOf(year, 1900)..maxOf(year, 2100),
     )
+    val glass = LedgerTheme.glass
     DatePickerDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(30.dp),
+        colors = androidx.compose.material3.DatePickerDefaults.colors(
+            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
+        ),
         confirmButton = {
             TextButton(
                 onClick = { state.selectedDateMillis?.let { onPick(Dates.utcMillisToEpochDay(it)) } },
@@ -445,8 +588,13 @@ fun PageHeading(title: String, subtitle: String, modifier: Modifier = Modifier) 
 
 @Composable
 fun LoadingHint(modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
         Spacer(Modifier.width(12.dp))
         Text("正在读取账本…", style = MaterialTheme.typography.bodyMedium)
@@ -466,8 +614,21 @@ fun StageBadge(name: String) {
         "软装" -> Icons.Outlined.Chair
         else -> null
     }
-    Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-        if (icon == null) Text(name.take(1), color = MaterialTheme.colorScheme.onPrimaryContainer)
-        else Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+    Box(
+        Modifier
+            .size(44.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(15.dp),
+                variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
+                cornerRadius = 15.dp,
+                shadowElevation = 2.dp,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (icon == null) {
+            Text(name.take(1), color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
+        } else {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+        }
     }
 }

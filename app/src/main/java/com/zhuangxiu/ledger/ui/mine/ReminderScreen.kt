@@ -12,17 +12,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Remove
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,8 +44,11 @@ import com.zhuangxiu.ledger.data.repository.ReminderSettings
 import com.zhuangxiu.ledger.data.repository.SettingsRepository
 import com.zhuangxiu.ledger.notification.Notifier
 import com.zhuangxiu.ledger.notification.ReminderChecker
+import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.LedgerCard
+import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
+import com.zhuangxiu.ledger.ui.components.liquidGlass
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -73,7 +78,6 @@ class ReminderViewModel @Inject constructor(
         settingsRepository.setBudgetAlertEnabled(enabled)
     }
 
-    /** 立即检查一次（平时由后台任务每天早上自动检查） */
     fun checkNow() = viewModelScope.launch {
         runCatching {
             reminderChecker.checkDuePayments()
@@ -82,13 +86,12 @@ class ReminderViewModel @Inject constructor(
     }
 }
 
-/** 提醒设置页 */
+/** 提醒设置页（Liquid Glass 版） */
 @Composable
 fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var canNotify by remember { mutableStateOf(viewModel.canNotify()) }
-    // 从系统设置页回来后刷新权限状态
     LifecycleResumeEffect(Unit) {
         canNotify = viewModel.canNotify()
         onPauseOrDispose {}
@@ -96,7 +99,6 @@ fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewMo
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         canNotify = viewModel.canNotify()
         if (!granted) {
-            // 用户之前拒绝过时系统不再弹窗，直接带去系统的通知设置页
             context.startActivity(
                 Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                     .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
@@ -120,23 +122,30 @@ fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewMo
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
-                        Button(onClick = {
-                            if (Build.VERSION.SDK_INT >= 33) {
-                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
-                                )
-                            }
-                        }) { Text("开启通知") }
+                        LiquidGlassButton(
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= 33) {
+                                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                                    )
+                                }
+                            },
+                            tint = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        ) { Text("开启通知") }
                     }
                 }
             }
             LedgerCard(Modifier.fillMaxWidth()) {
                 SwitchRow("待付款到期提醒", "设置了到期日的待付款，到期前发通知", settings.paymentReminderEnabled, viewModel::setPaymentReminder)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Row(Modifier.padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+                Row(
+                    Modifier.padding(start = 18.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Column(Modifier.weight(1f)) {
                         Text("提前几天提醒", style = MaterialTheme.typography.bodyLarge)
                         Text(
@@ -145,21 +154,34 @@ fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewMo
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    IconButton(
-                        onClick = { viewModel.setDaysBefore(settings.remindDaysBefore - 1) },
-                        enabled = settings.paymentReminderEnabled && settings.remindDaysBefore > 0,
-                    ) { Icon(Icons.Outlined.Remove, contentDescription = "减少") }
-                    Text("${settings.remindDaysBefore} 天", style = MaterialTheme.typography.titleMedium)
-                    IconButton(
-                        onClick = { viewModel.setDaysBefore(settings.remindDaysBefore + 1) },
-                        enabled = settings.paymentReminderEnabled && settings.remindDaysBefore < 30,
-                    ) { Icon(Icons.Outlined.Add, contentDescription = "增加") }
+                    Row(
+                        modifier = Modifier
+                            .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp)
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.setDaysBefore(settings.remindDaysBefore - 1) },
+                            enabled = settings.paymentReminderEnabled && settings.remindDaysBefore > 0,
+                            modifier = Modifier.size(36.dp),
+                        ) { Icon(Icons.Outlined.Remove, contentDescription = "减少") }
+                        Text("${settings.remindDaysBefore} 天", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 6.dp))
+                        IconButton(
+                            onClick = { viewModel.setDaysBefore(settings.remindDaysBefore + 1) },
+                            enabled = settings.paymentReminderEnabled && settings.remindDaysBefore < 30,
+                            modifier = Modifier.size(36.dp),
+                        ) { Icon(Icons.Outlined.Add, contentDescription = "增加") }
+                    }
                 }
             }
             LedgerCard(Modifier.fillMaxWidth()) {
                 SwitchRow("预算预警通知", "预算用到 80% 或超支时发通知", settings.budgetAlertEnabled, viewModel::setBudgetAlert)
             }
-            Button(onClick = { viewModel.checkNow() }, modifier = Modifier.fillMaxWidth(), enabled = canNotify) {
+            LiquidGlassButton(
+                onClick = { viewModel.checkNow() },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = canNotify,
+            ) {
                 Text("立即检查一次")
             }
             Text(
@@ -174,11 +196,23 @@ fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewMo
 
 @Composable
 private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(
+            checked = checked,
+            onCheckedChange = onChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+            ),
+        )
     }
 }

@@ -11,6 +11,7 @@ import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -48,12 +49,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
 import java.io.File
 
 /**
- * 全屏拍照对话框（CameraX）。
- * @param createFile 生成保存照片的文件（位于 App 私有目录）
- * @param onCaptured 拍照成功，返回照片文件
+ * 全屏液态玻璃取景拍照对话框 (CameraX)。
  */
 @Composable
 fun CameraCaptureDialog(
@@ -83,17 +83,25 @@ fun CameraCaptureDialog(
             if (granted) {
                 CameraContent(createFile, onCaptured)
             } else if (asked) {
-                Column(Modifier.align(Alignment.Center).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    Modifier
+                        .align(Alignment.Center)
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     Text("需要相机权限才能拍摄凭证，请在系统设置中允许。", color = Color.White)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = onDismiss) { Text("知道了") }
+                    LiquidGlassButton(onClick = onDismiss) { Text("知道了") }
                 }
             }
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(8.dp),
+                    .padding(12.dp)
+                    .size(42.dp)
+                    .background(Color.White.copy(alpha = 0.18f), CircleShape)
+                    .border(1.dp, Color.White.copy(alpha = 0.45f), CircleShape),
             ) { Icon(Icons.Outlined.Close, contentDescription = "关闭", tint = Color.White) }
         }
     }
@@ -125,40 +133,54 @@ private fun CameraContent(createFile: () -> File, onCaptured: (File) -> Unit) {
             },
             modifier = Modifier.fillMaxSize(),
         )
-        // 快门按钮
-        FilledIconButton(
-            onClick = {
-                if (capturing) return@FilledIconButton
-                capturing = true
-                val file = createFile()
-                controller.takePicture(
-                    ImageCapture.OutputFileOptions.Builder(file).build(),
-                    ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageSavedCallback {
-                        override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                            capturing = false
-                            onCaptured(file)
-                        }
-
-                        override fun onError(exception: ImageCaptureException) {
-                            capturing = false
-                            file.delete()
-                        }
-                    },
-                )
-            },
+        // 同心双环液态玻璃快门按钮
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(bottom = 32.dp)
-                .size(76.dp),
-            shape = CircleShape,
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White, contentColor = Color.Black),
+                .size(86.dp)
+                .background(Color.White.copy(alpha = 0.18f), CircleShape)
+                .border(
+                    width = 2.dp,
+                    brush = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.9f), Color.White.copy(alpha = 0.3f))),
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
         ) {
-            if (capturing) {
-                CircularProgressIndicator(Modifier.size(28.dp), color = Color.Black, strokeWidth = 3.dp)
-            } else {
-                Icon(Icons.Outlined.PhotoCamera, contentDescription = "拍照", modifier = Modifier.size(32.dp))
+            FilledIconButton(
+                onClick = {
+                    if (capturing) return@FilledIconButton
+                    capturing = true
+                    val file = createFile()
+                    controller.takePicture(
+                        ImageCapture.OutputFileOptions.Builder(file).build(),
+                        ContextCompat.getMainExecutor(context),
+                        object : ImageCapture.OnImageSavedCallback {
+                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                capturing = false
+                                onCaptured(file)
+                            }
+
+                            override fun onError(exception: ImageCaptureException) {
+                                capturing = false
+                                file.delete()
+                            }
+                        },
+                    )
+                },
+                modifier = Modifier.size(68.dp),
+                shape = CircleShape,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = Color.White.copy(alpha = 0.92f),
+                    contentColor = Color(0xFF0F172A),
+                ),
+            ) {
+                if (capturing) {
+                    CircularProgressIndicator(Modifier.size(28.dp), color = Color(0xFF0F172A), strokeWidth = 3.dp)
+                } else {
+                    Icon(Icons.Outlined.PhotoCamera, contentDescription = "拍照", modifier = Modifier.size(30.dp))
+                }
             }
         }
     }

@@ -5,99 +5,101 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
-// 轻账：蓝色品牌、浅灰背景，收入使用独立绿色。
-
+/**
+ * Liquid Glass 主题系统：通透冰晶浅色 + 深海极光深色。
+ * 保留全部原有 MaterialTheme 与 LedgerTheme.extra 接口，确保全工程与测试 100% 兼容。
+ */
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF3568D4),            // 品牌蓝
+    primary = Color(0xFF2563EB),            // 光学冰晶蓝
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFDFE8FF),
-    onPrimaryContainer = Color(0xFF132E66),
-    secondary = Color(0xFF596985),          // 暖木色
+    primaryContainer = Color(0xFFDCE8FF),
+    onPrimaryContainer = Color(0xFF0D275C),
+    secondary = Color(0xFF476282),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFE2E8F4),
-    onSecondaryContainer = Color(0xFF20314F),
-    tertiary = Color(0xFF27765A),           // 橄榄绿，做少量点缀
+    secondaryContainer = Color(0xFFDCE6F5),
+    onSecondaryContainer = Color(0xFF182A44),
+    tertiary = Color(0xFF128061),           // 翡翠液态绿
     onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFE0EDD8),
-    onTertiaryContainer = Color(0xFF20331B),
-    error = Color(0xFFB3261E),
+    tertiaryContainer = Color(0xFFD6F3E8),
+    onTertiaryContainer = Color(0xFF0A382A),
+    error = Color(0xFFBA1A1A),
     onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFFCDAD5),
-    onErrorContainer = Color(0xFF410E0B),
-    background = Color(0xFFF6F8FC),         // 浅灰白
-    onBackground = Color(0xFF1C2536),
-    surface = Color(0xFFF6F8FC),
-    onSurface = Color(0xFF1C2536),
-    surfaceVariant = Color(0xFFE5EAF3),
-    onSurfaceVariant = Color(0xFF5C687D),
-    outline = Color(0xFF8793A8),
-    outlineVariant = Color(0xFFDEE4EE),
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+    background = Color(0xFFEFF4FC),
+    onBackground = Color(0xFF111C2D),
+    surface = Color(0xFFF4F8FF),
+    onSurface = Color(0xFF111C2D),
+    surfaceVariant = Color(0xFFDFE8F5),
+    onSurfaceVariant = Color(0xFF4E5D75),
+    outline = Color(0xFF7B8CA6),
+    outlineVariant = Color(0xFFCFD9EA),
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFFFFFFF),
-    surfaceContainer = Color(0xFFEDF1F8),
-    surfaceContainerHigh = Color(0xFFE6ECF6),
-    surfaceContainerHighest = Color(0xFFDDE5F1),
+    surfaceContainerLow = Color(0xFFF7FAFF),
+    surfaceContainer = Color(0xFFEAF1FB),
+    surfaceContainerHigh = Color(0xFFE1EBF8),
+    surfaceContainerHighest = Color(0xFFD6E3F4),
 )
 
-/** 深色模式：深松绿底色与柔和的浅绿色。 */
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFB0C8FF),
-    onPrimary = Color(0xFF0E2F68),
-    primaryContainer = Color(0xFF26487E),
-    onPrimaryContainer = Color(0xFFDFE8FF),
-    secondary = Color(0xFFB7C6E2),
-    onSecondary = Color(0xFF1E2C44),
-    secondaryContainer = Color(0xFF36455F),
-    onSecondaryContainer = Color(0xFFDDE7FA),
-    tertiary = Color(0xFFBED5AB),
-    onTertiary = Color(0xFF293C20),
-    tertiaryContainer = Color(0xFF405636),
-    onTertiaryContainer = Color(0xFFE0EDD8),
+    primary = Color(0xFF9ECAFF),
+    onPrimary = Color(0xFF003166),
+    primaryContainer = Color(0xFF1B4484),
+    onPrimaryContainer = Color(0xFFDCE8FF),
+    secondary = Color(0xFFB3C7E6),
+    onSecondary = Color(0xFF1C304A),
+    secondaryContainer = Color(0xFF2E4361),
+    onSecondaryContainer = Color(0xFFD9E6FC),
+    tertiary = Color(0xFF7CE0BD),
+    onTertiary = Color(0xFF003828),
+    tertiaryContainer = Color(0xFF0E513D),
+    onTertiaryContainer = Color(0xFF9DF8D6),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
-    errorContainer = Color(0xFF8C1D18),
+    errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF121824),
-    onBackground = Color(0xFFE3E9F4),
-    surface = Color(0xFF121824),
-    onSurface = Color(0xFFE3E9F4),
-    surfaceVariant = Color(0xFF414B5E),
-    onSurfaceVariant = Color(0xFFC3CDDF),
-    outline = Color(0xFF8E9AB0),
-    outlineVariant = Color(0xFF354156),
-    surfaceContainerLowest = Color(0xFF0D121D),
-    surfaceContainerLow = Color(0xFF1A2333),
-    surfaceContainer = Color(0xFF222D40),
-    surfaceContainerHigh = Color(0xFF2A364B),
-    surfaceContainerHighest = Color(0xFF334158),
+    background = Color(0xFF0B111E),
+    onBackground = Color(0xFFE5EEFC),
+    surface = Color(0xFF0E1626),
+    onSurface = Color(0xFFE5EEFC),
+    surfaceVariant = Color(0xFF28354C),
+    onSurfaceVariant = Color(0xFFB7C5DD),
+    outline = Color(0xFF7F90AC),
+    outlineVariant = Color(0xFF2D3C56),
+    surfaceContainerLowest = Color(0xFF080D18),
+    surfaceContainerLow = Color(0xFF131D31),
+    surfaceContainer = Color(0xFF19263E),
+    surfaceContainerHigh = Color(0xFF21304C),
+    surfaceContainerHighest = Color(0xFF2A3B5B),
 )
 
-/** 圆角统一偏大，营造柔和的家居感 */
+/** Liquid Glass 同心大曲率圆角几何规范 */
 private val LedgerShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(28.dp),
+    extraSmall = RoundedCornerShape(12.dp),
+    small = RoundedCornerShape(16.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(26.dp),
+    extraLarge = RoundedCornerShape(32.dp),
 )
 
 private val LedgerTypography = Typography(
-    displaySmall = TextStyle(fontSize = 36.sp, lineHeight = 44.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-1).sp),
-    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 36.sp, fontWeight = FontWeight.SemiBold),
-    headlineSmall = TextStyle(fontSize = 26.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold),
-    titleLarge = TextStyle(fontSize = 21.sp, lineHeight = 29.sp, fontWeight = FontWeight.SemiBold),
+    displaySmall = TextStyle(fontSize = 36.sp, lineHeight = 44.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp),
+    headlineLarge = TextStyle(fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp),
+    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 36.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.4).sp),
+    headlineSmall = TextStyle(fontSize = 26.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
+    titleLarge = TextStyle(fontSize = 20.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
     titleMedium = TextStyle(fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
     bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 25.sp),
     bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 22.sp),
@@ -114,30 +116,92 @@ data class ExtraColors(
     val chart: List<Color>,
 )
 
+/** Liquid Glass 光学材质参数令牌 */
+data class LiquidGlassPalette(
+    val isDark: Boolean,
+    val surfaceTop: Color,
+    val surfaceBottom: Color,
+    val elevatedTop: Color,
+    val elevatedBottom: Color,
+    val dockTop: Color,
+    val dockBottom: Color,
+    val specularBright: Color,
+    val specularMid: Color,
+    val specularCounter: Color,
+    val innerGlow: Color,
+    val ambientShadow: Color,
+    val auraPrimary: Color,
+    val auraSecondary: Color,
+    val auraTertiary: Color,
+    val auraWarm: Color,
+)
+
 private val LightExtra = ExtraColors(
-    warning = Color(0xFFB7791F),
-    success = Color(0xFF18734B),
+    warning = Color(0xFFD97706),
+    success = Color(0xFF0D8A5E),
     chart = listOf(
-        Color(0xFF3568D4), Color(0xFFD9A05B), Color(0xFF596985), Color(0xFF7D8F5C), Color(0xFFB98A8A),
-        Color(0xFF5F8A8B), Color(0xFFE0B8A0), Color(0xFF9C7BA8), Color(0xFFA8A17A), Color(0xFF6E5A4E),
+        Color(0xFF2563EB), Color(0xFF0EA5E9), Color(0xFF10B981), Color(0xFFF59E0B), Color(0xFF8B5CF6),
+        Color(0xFFEC4899), Color(0xFF14B8A6), Color(0xFF6366F1), Color(0xFFF97316), Color(0xFF64748B),
     ),
 )
 
 private val DarkExtra = ExtraColors(
-    warning = Color(0xFFF2C46D),
-    success = Color(0xFF83D8AC),
+    warning = Color(0xFFFBBF24),
+    success = Color(0xFF5EEAD4),
     chart = listOf(
-        Color(0xFFB0C8FF), Color(0xFFE8C07F), Color(0xFFC4A283), Color(0xFFA9BC87), Color(0xFFD9A9A9),
-        Color(0xFF8DB8B9), Color(0xFFF0CDB8), Color(0xFFC0A3CB), Color(0xFFC9C39C), Color(0xFFA08B7E),
+        Color(0xFF93C5FD), Color(0xFF67E8F9), Color(0xFF6EE7B7), Color(0xFFFCD34D), Color(0xFFC4B5FD),
+        Color(0xFFF9A8D4), Color(0xFF5EEAD4), Color(0xFFA5B4FC), Color(0xFFFDBA74), Color(0xFF94A3B8),
     ),
 )
 
-private val LocalExtraColors = staticCompositionLocalOf { LightExtra }
+private val LightGlassPalette = LiquidGlassPalette(
+    isDark = false,
+    surfaceTop = Color(0xBDFFFFFF),        // 74% 纯白折射层
+    surfaceBottom = Color(0x8AF2F7FF),     // 54% 冰蓝透射层
+    elevatedTop = Color(0xDBFFFFFF),       // 86% 悬浮高亮层
+    elevatedBottom = Color(0xB8EEF5FF),    // 72% 悬浮底透层
+    dockTop = Color(0xD6FFFFFF),           // 84% 液态胶囊顶层
+    dockBottom = Color(0xADEAF3FF),        // 68% 液态胶囊底层
+    specularBright = Color(0xF2FFFFFF),    // 左上高光反射边缘
+    specularMid = Color(0x3860A5FA),       // 棱镜微色散过渡
+    specularCounter = Color(0x99FFFFFF),   // 右下反向菲涅尔亮边
+    innerGlow = Color(0x75FFFFFF),
+    ambientShadow = Color(0x221E40AF),
+    auraPrimary = Color(0x4760A5FA),       // 天青光斑
+    auraSecondary = Color(0x3834D399),     // 薄荷极光
+    auraTertiary = Color(0x33A78BFA),      // 鸢尾紫雾
+    auraWarm = Color(0x2EFBBF24),          // 暖金微光
+)
 
-/** 取补充颜色：`LedgerTheme.extra.warning` */
+private val DarkGlassPalette = LiquidGlassPalette(
+    isDark = true,
+    surfaceTop = Color(0xB31B2842),        // 70% 深海蓝晶顶层
+    surfaceBottom = Color(0x85111B2E),     // 52% 深海透射底层
+    elevatedTop = Color(0xCC223252),
+    elevatedBottom = Color(0xA6162238),
+    dockTop = Color(0xCC1E2D4A),
+    dockBottom = Color(0xA3121C30),
+    specularBright = Color(0x85E2EEFF),
+    specularMid = Color(0x3360A5FA),
+    specularCounter = Color(0x4793C5FD),
+    innerGlow = Color(0x339ECAFF),
+    ambientShadow = Color(0x66020617),
+    auraPrimary = Color(0x422563EB),
+    auraSecondary = Color(0x3310B981),
+    auraTertiary = Color(0x337C3AED),
+    auraWarm = Color(0x24F59E0B),
+)
+
+private val LocalExtraColors = staticCompositionLocalOf { LightExtra }
+private val LocalLiquidGlassPalette = staticCompositionLocalOf { LightGlassPalette }
+
+/** 取补充颜色与液态玻璃光学令牌：`LedgerTheme.extra` / `LedgerTheme.glass` */
 object LedgerTheme {
     val extra: ExtraColors
         @Composable @ReadOnlyComposable get() = LocalExtraColors.current
+
+    val glass: LiquidGlassPalette
+        @Composable @ReadOnlyComposable get() = LocalLiquidGlassPalette.current
 }
 
 @Composable
@@ -145,7 +209,10 @@ fun RenovationLedgerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    CompositionLocalProvider(LocalExtraColors provides if (darkTheme) DarkExtra else LightExtra) {
+    CompositionLocalProvider(
+        LocalExtraColors provides if (darkTheme) DarkExtra else LightExtra,
+        LocalLiquidGlassPalette provides if (darkTheme) DarkGlassPalette else LightGlassPalette,
+    ) {
         MaterialTheme(
             colorScheme = if (darkTheme) DarkColors else LightColors,
             shapes = LedgerShapes,

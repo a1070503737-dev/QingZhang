@@ -1,6 +1,5 @@
 package com.zhuangxiu.ledger.ui.mine
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -51,7 +50,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class BudgetUiState(
-    /** 总预算（没设置时 budgetCents 为 0） */
     val total: BudgetItem? = null,
     val stages: List<BudgetItem> = emptyList(),
     val types: List<BudgetItem> = emptyList(),
@@ -73,7 +71,6 @@ class BudgetViewModel @Inject constructor(
         val expenses = allExpenses.filter { it.expense.bookId == 2L }
         val budgetMap = budgets.associate { it.categoryId to it.amountCents }
         val spent = BudgetCalculator.spentByCategory(expenses)
-        // 这里要把没设置预算的分类也列出来，方便用户点进去设置
         fun item(id: Long, name: String, spentCents: Long) =
             BudgetItem(id, name, BudgetCalculator.usage(budgetMap[id] ?: 0, spentCents))
         BudgetUiState(
@@ -86,13 +83,12 @@ class BudgetViewModel @Inject constructor(
     fun setBudget(categoryId: Long, cents: Long) {
         viewModelScope.launch {
             budgetRepository.setBudget(categoryId, cents)
-            // 预算调整后可能立刻触发预警
             runCatching { reminderChecker.checkBudgets() }
         }
     }
 }
 
-/** 预算设置页：总预算 + 各阶段 / 各类型的单独预算 */
+/** 预算设置页（Liquid Glass 版） */
 @Composable
 fun BudgetScreen(onBack: () -> Unit, viewModel: BudgetViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -143,12 +139,11 @@ private fun GroupTitle(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.secondary,
+        color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 10.dp, start = 4.dp),
     )
 }
 
-/** 一项预算：名称、已花 / 预算、进度条、剩余或超支 */
 @Composable
 private fun BudgetRow(item: BudgetItem, highlighted: Boolean = false, onClick: () -> Unit) {
     val usage = item.usage

@@ -25,9 +25,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zhuangxiu.ledger.ui.components.EmptyHint
+import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
+import com.zhuangxiu.ledger.ui.components.liquidGlass
 
-/** 凭证库：按添加时间（月份分组）查看所有凭证图片 */
+/** 凭证库（Liquid Glass 版）：冰晶相框网格 */
 @Composable
 fun GalleryScreen(
     onBack: () -> Unit,
@@ -35,7 +37,7 @@ fun GalleryScreen(
     viewModel: GalleryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    SubPageScaffold(title = if (state.count > 0) "凭证库（${state.count}）" else "凭证库", onBack = onBack) { modifier ->
+    SubPageScaffold(title = if (state.count > 0) "凭证库 (${state.count})" else "凭证库", onBack = onBack) { modifier ->
         if (state.months.isEmpty() && !state.loading) {
             EmptyHint(Icons.Outlined.PhotoLibrary, "还没有凭证，记账时可以拍照或从相册添加", modifier)
             return@SubPageScaffold
@@ -44,16 +46,15 @@ fun GalleryScreen(
             columns = GridCells.Fixed(3),
             modifier = modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             state.months.forEach { group ->
-                // 月份标题占满整行
                 item(key = "month-${group.month}", span = { GridItemSpan(maxLineSpan) }) {
                     Text(
                         "${group.month.year}年${group.month.monthValue}月",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.secondary,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
                     )
                 }
@@ -64,7 +65,8 @@ fun GalleryScreen(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .liquidGlass(RoundedCornerShape(16.dp), GlassVariant.Clear, cornerRadius = 16.dp, shadowElevation = 4.dp)
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { onViewImage(image.index) },
                     )
                 }

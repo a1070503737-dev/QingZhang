@@ -1,26 +1,37 @@
 package com.zhuangxiu.ledger.ui.mine
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +41,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -39,8 +53,13 @@ import com.zhuangxiu.ledger.data.db.CategoryEntity
 import com.zhuangxiu.ledger.data.db.CategoryKind
 import com.zhuangxiu.ledger.data.repository.CategoryRepository
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
+import com.zhuangxiu.ledger.ui.components.GlassVariant
+import com.zhuangxiu.ledger.ui.components.LedgerCard
+import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.TextInputDialog
+import com.zhuangxiu.ledger.ui.components.liquidGlass
+import com.zhuangxiu.ledger.ui.components.liquidInteractive
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,6 +68,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 @HiltViewModel
 class CategoriesViewModel @Inject constructor(
@@ -58,7 +78,6 @@ class CategoriesViewModel @Inject constructor(
     val categories: StateFlow<List<CategoryEntity>> = categoryRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** 操作失败时给用户的提示 */
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
@@ -85,7 +104,7 @@ class CategoriesViewModel @Inject constructor(
     }
 }
 
-/** 分类管理页：装修阶段 / 费用类型的新增、重命名、删除、上下移动排序 */
+/** 分类管理页（Liquid Glass 版）：液态透镜滑动切换栏与弹性重排玻璃条目 */
 @Composable
 fun CategoriesScreen(onBack: () -> Unit, viewModel: CategoriesViewModel = hiltViewModel()) {
     val all by viewModel.categories.collectAsStateWithLifecycle()
@@ -100,46 +119,101 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CategoriesViewModel = hiltVi
         title = "分类管理",
         onBack = onBack,
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            LiquidGlassButton(
                 onClick = { showAdd = true },
-                icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
-                text = { Text("新增${kind.label.takeLast(2)}") },
-            )
+                minHeight = 52.dp,
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("新增${kind.label.takeLast(2)}")
+            }
         },
     ) { modifier ->
         Column(modifier.fillMaxSize()) {
-            PrimaryTabRow(
-                selectedTabIndex = kind.ordinal,
-                containerColor = MaterialTheme.colorScheme.background,
+            val entries = CategoryKind.entries
+            val animatedIdx by animateFloatAsState(
+                targetValue = kind.ordinal.toFloat(),
+                animationSpec = spring(dampingRatio = 0.64f, stiffness = 380f),
+                label = "cat-tab-pill",
+            )
+            BoxWithConstraints(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .height(46.dp)
+                    .liquidGlass(CircleShape, GlassVariant.Regular, cornerRadius = 23.dp, shadowElevation = 4.dp)
+                    .padding(4.dp),
             ) {
-                CategoryKind.entries.forEach { item ->
-                    Tab(selected = kind == item, onClick = { kind = item }, text = { Text(item.label) })
-                }
-            }
-            LazyColumn(contentPadding = PaddingValues(bottom = 96.dp)) {
-                itemsIndexed(list, key = { _, item -> item.id }) { index, category ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .animateItem()
-                            .padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(category.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { viewModel.move(category, -1) }, enabled = index > 0) {
-                            Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = "上移")
-                        }
-                        IconButton(onClick = { viewModel.move(category, 1) }, enabled = index < list.lastIndex) {
-                            Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "下移")
-                        }
-                        IconButton(onClick = { renaming = category }) {
-                            Icon(Icons.Outlined.Edit, contentDescription = "重命名")
-                        }
-                        IconButton(onClick = { deleting = category }) {
-                            Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除")
+                val tabW = maxWidth / entries.size
+                val tabPx = constraints.maxWidth.toFloat() / entries.size
+                Box(
+                    Modifier
+                        .width(tabW)
+                        .fillMaxHeight()
+                        .offset { IntOffset((animatedIdx * tabPx).roundToInt(), 0) }
+                        .liquidGlass(CircleShape, GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer), cornerRadius = 20.dp, shadowElevation = 2.dp),
+                )
+                Row(Modifier.fillMaxSize()) {
+                    entries.forEach { item ->
+                        val selected = kind == item
+                        val interactionSource = remember(item) { MutableInteractionSource() }
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .liquidInteractive(interactionSource, pressedScale = 1.04f)
+                                .selectable(
+                                    selected = selected,
+                                    interactionSource = interactionSource,
+                                    indication = LocalIndication.current,
+                                    role = Role.Tab,
+                                    onClick = { kind = item },
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                item.label,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
-                    HorizontalDivider(Modifier.padding(start = 20.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                }
+            }
+
+            LazyColumn(
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                itemsIndexed(list, key = { _, item -> item.id }) { index, category ->
+                    LedgerCard(
+                        Modifier
+                            .fillMaxWidth()
+                            .animateItem(),
+                    ) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 18.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(category.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { viewModel.move(category, -1) }, enabled = index > 0) {
+                                Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = "上移")
+                            }
+                            IconButton(onClick = { viewModel.move(category, 1) }, enabled = index < list.lastIndex) {
+                                Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "下移")
+                            }
+                            IconButton(onClick = { renaming = category }) {
+                                Icon(Icons.Outlined.Edit, contentDescription = "重命名")
+                            }
+                            IconButton(onClick = { deleting = category }) {
+                                Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除")
+                            }
+                        }
+                    }
                 }
             }
         }

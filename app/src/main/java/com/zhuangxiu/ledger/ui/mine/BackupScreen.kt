@@ -3,18 +3,24 @@ package com.zhuangxiu.ledger.ui.mine
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.IosShare
@@ -25,7 +31,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,9 +48,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.zhuangxiu.ledger.data.repository.BackupManager
+import com.zhuangxiu.ledger.data.repository.RestoreRestartRequired
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
+import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.LedgerCard
+import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
+import com.zhuangxiu.ledger.ui.components.liquidGlass
+import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -58,11 +68,8 @@ import kotlin.system.exitProcess
 
 data class BackupUiState(
     val busy: Boolean = false,
-    /** 操作结果提示 */
     val message: String? = null,
-    /** 已生成、等待调起系统分享的备份文件 */
     val shareFile: File? = null,
-    /** 恢复成功，需要重启应用 */
     val restored: Boolean = false,
 )
 
@@ -75,15 +82,16 @@ class BackupViewModel @Inject constructor(
     val uiState: StateFlow<BackupUiState> = _uiState.asStateFlow()
 
     fun defaultFileName(): String = backupManager.defaultFileName()
-    fun exportRecoveryTo(uri: Uri) = runBusy { backupManager.exportRecoveryTo(uri); _uiState.update { it.copy(message = "恢复前安全副本已保存") } }
+    fun exportRecoveryTo(uri: Uri) = runBusy {
+        backupManager.exportRecoveryTo(uri)
+        _uiState.update { it.copy(message = "恢复前安全副本已保存") }
+    }
 
-    /** 导出到用户选择的位置 */
     fun exportTo(uri: Uri) = runBusy {
         backupManager.exportTo(uri)
         _uiState.update { it.copy(message = "备份已保存") }
     }
 
-    /** 生成备份文件并交给系统分享 */
     fun prepareShare() = runBusy {
         val file = backupManager.createBackupFile()
         _uiState.update { it.copy(shareFile = file) }
@@ -103,7 +111,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 block()
-            } catch (e: com.zhuangxiu.ledger.data.repository.RestoreRestartRequired) {
+            } catch (e: RestoreRestartRequired) {
                 _uiState.update { it.copy(restored = true, message = e.message) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "操作失败：${e.message ?: "未知错误"}") }
@@ -114,17 +122,17 @@ class BackupViewModel @Inject constructor(
     }
 }
 
-/** 备份与恢复页 */
+/** 备份与恢复页（Liquid Glass 版） */
 @Composable
 fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val glass = LedgerTheme.glass
     var pendingRestore by remember { mutableStateOf<Uri?>(null) }
 
     val recoveryDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) viewModel.exportRecoveryTo(uri)
     }
-    // 系统文件选择器：选择保存位置 / 选择备份文件
     val createDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) viewModel.exportTo(uri)
     }
@@ -132,7 +140,6 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
         if (uri != null) pendingRestore = uri
     }
 
-    // 备份文件生成好后调起系统分享
     LaunchedEffect(state.shareFile) {
         state.shareFile?.let { file ->
             shareBackup(context, file)
@@ -140,7 +147,7 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
         }
     }
 
-    androidx.activity.compose.BackHandler(state.busy || state.restored) { }
+    BackHandler(state.busy || state.restored) { }
     SubPageScaffold(title = "备份与恢复", onBack = { if (!state.busy && !state.restored) onBack() }) { modifier ->
         Box(modifier.fillMaxSize()) {
             Column(
@@ -189,12 +196,21 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
         ConfirmDialog(title = "提示", text = it, confirmLabel = "知道了", onConfirm = viewModel::clearMessage, onDismiss = viewModel::clearMessage)
     }
     if (state.restored) {
-        // 数据库文件已被替换，必须重启进程才能重新打开
         AlertDialog(
             onDismissRequest = {},
+            shape = RoundedCornerShape(30.dp),
+            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.94f),
+            tonalElevation = 0.dp,
+            modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
             title = { Text("需要重启") },
             text = { Text("点击“重启”重新打开数据库。若恢复中断，启动时会自动恢复原数据。") },
-            confirmButton = { TextButton(onClick = { restartApp(context) }) { Text("重启") } },
+            confirmButton = {
+                LiquidGlassButton(
+                    onClick = { restartApp(context) },
+                    minHeight = 40.dp,
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+                ) { Text("重启") }
+            },
         )
     }
 }
@@ -203,7 +219,19 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
 private fun ActionCard(icon: ImageVector, title: String, subtitle: String, enabled: Boolean, onClick: () -> Unit) {
     LedgerCard(Modifier.fillMaxWidth(), onClick = { if (enabled) onClick() }) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .liquidGlass(
+                        shape = RoundedCornerShape(14.dp),
+                        variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
+                        cornerRadius = 14.dp,
+                        shadowElevation = 2.dp,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(title, style = MaterialTheme.typography.bodyLarge)
@@ -213,7 +241,6 @@ private fun ActionCard(icon: ImageVector, title: String, subtitle: String, enabl
     }
 }
 
-/** 通过 FileProvider 把备份文件交给系统分享面板 */
 private fun shareBackup(context: Context, file: File) {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     val intent = Intent(Intent.ACTION_SEND).apply {
@@ -224,7 +251,6 @@ private fun shareBackup(context: Context, file: File) {
     context.startActivity(Intent.createChooser(intent, "分享备份文件"))
 }
 
-/** 重新启动应用进程 */
 private fun restartApp(context: Context) {
     val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
