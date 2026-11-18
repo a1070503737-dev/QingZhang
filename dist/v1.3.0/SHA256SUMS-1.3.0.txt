@@ -1,0 +1,2 @@
+bd9db28517a21ce703a27e0d930b5d8a0c5d4bb591e29abdebfe7bc8eca424f1  renovation-ledger-1.3.0-signed.apk
+d57a7fc3a2f2c30a3b4f0c6882a38fba4a175223c22be965c64ec3debb8d6b9f  update.json
