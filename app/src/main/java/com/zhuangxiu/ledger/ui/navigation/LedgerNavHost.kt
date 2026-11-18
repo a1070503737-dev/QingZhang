@@ -1,13 +1,14 @@
 package com.zhuangxiu.ledger.ui.navigation
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -52,6 +54,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.zhuangxiu.ledger.data.db.BookEntity
@@ -92,15 +95,18 @@ private val TABS = listOf(
     Tab(Routes.BOOKS, "账本", Icons.Outlined.AccountBalanceWallet),
 )
 
+private fun tabIndexOf(route: String?): Int = TABS.indexOfFirst { it.route == route }
+
 /**
- * 底部悬浮液态水滴透镜导航栏（iOS 26 Apple Music 同款连续拖拽放大水滴交互）：
- * 支持按住并左右滑动拇指实时拖动透明凸透镜水滴穿过“首页 / 统计 / 账本”，松手丝滑切换！
+ * 全局唯一持久化悬浮液态水滴导航栏：
+ * 独立于 NavHost 之外，切换“首页 / 统计 / 账本”时底栏实例永不销毁重建，
+ * 水滴透镜全程丝滑跟手穿过三个 Tab 并实时穿透折射底部滚动页面内容，彻底消除双底栏重影与断层！
  */
 @Composable
-fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit) {
-    val selectedIndex = TABS.indexOfFirst { it.route == current }.let { if (it < 0) 0 else it }
+fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit, modifier: Modifier = Modifier) {
+    val selectedIndex = tabIndexOf(current).let { if (it < 0) 0 else it }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 22.dp, vertical = 10.dp),
@@ -111,6 +117,7 @@ fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit) {
             selectedIndex = selectedIndex,
             height = 64.dp,
             role = Role.Tab,
+            liveSelectOnScrub = true,
             onSelect = { idx ->
                 val target = TABS[idx].route
                 if (target != current) onNavigate(target)
@@ -147,14 +154,19 @@ fun LedgerNavHost(
     val dailyViewModel: DailyViewModel = hiltViewModel()
     val bookState by dailyViewModel.books.collectAsStateWithLifecycle()
     val dailyState by dailyViewModel.daily.collectAsStateWithLifecycle()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+
     val header: @Composable () -> Unit = {
         BookHeader(bookState, dailyViewModel::select) { navController.navigate(Routes.MINE) }
     }
     val switchTab: (String) -> Unit = { route ->
-        navController.navigate(route) {
-            popUpTo(Routes.HOME) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
+        if (currentRoute != route) {
+            navController.navigate(route) {
+                popUpTo(Routes.HOME) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
         }
     }
     val back: () -> Unit = { navController.popBackStack() }
@@ -165,6 +177,22 @@ fun LedgerNavHost(
         }
         navController.navigate(route)
     }
+    val openEntryEdit: (String) -> Unit = { id ->
+        val projectId = id.takeIf { it.startsWith("payment:") }?.split(':')?.getOrNull(1)?.toLongOrNull()
+        if (projectId != null) navController.navigate(Routes.detail(projectId))
+        else navController.navigate(Routes.dailyEdit(1, id))
+    }
+
+    // 透明占位高度，确保各主页 FAB 精准悬停在持久化底栏上方，同时页面内容可滚入底栏下方供水滴实时折射
+    val dockSpacer: @Composable () -> Unit = {
+        Spacer(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .height(84.dp),
+        )
+    }
+
     var pickQuickBook by rememberSaveable { mutableStateOf(false) }
     val glass = LedgerTheme.glass
     if (pickQuickBook) {
@@ -226,25 +254,56 @@ fun LedgerNavHost(
         }
     }
 
-    LiquidGlassBackdrop {
+    val showBottomBar = tabIndexOf(currentRoute) >= 0 || currentRoute == Routes.BILLS || currentRoute == null
+
+    LiquidGlassBackdrop(
+        overlay = {
+            AnimatedVisibility(
+                visible = showBottomBar,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = fadeIn(tween(180)) + slideInVertically(tween(220, easing = FastOutSlowInEasing)) { it / 2 },
+                exit = fadeOut(tween(140)) + slideOutVertically(tween(180, easing = FastOutSlowInEasing)) { it / 2 },
+            ) {
+                LedgerBottomBar(
+                    current = currentRoute ?: Routes.HOME,
+                    onNavigate = switchTab,
+                )
+            }
+        },
+    ) {
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
             enterTransition = {
-                fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
-                    scaleIn(initialScale = 0.96f, animationSpec = spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMediumLow))
+                val fromTab = tabIndexOf(initialState.destination.route)
+                val toTab = tabIndexOf(targetState.destination.route)
+                if (fromTab >= 0 && toTab >= 0) {
+                    val dir = if (toTab >= fromTab) 1 else -1
+                    fadeIn(tween(180, easing = FastOutSlowInEasing)) +
+                        slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { fullWidth -> dir * (fullWidth / 14) }
+                } else {
+                    fadeIn(tween(200, easing = FastOutSlowInEasing)) +
+                        slideInHorizontally(tween(240, easing = FastOutSlowInEasing)) { it / 6 }
+                }
             },
             exitTransition = {
-                fadeOut(spring(stiffness = Spring.StiffnessMedium)) +
-                    scaleOut(targetScale = 0.97f, animationSpec = spring(stiffness = Spring.StiffnessMedium))
+                val fromTab = tabIndexOf(initialState.destination.route)
+                val toTab = tabIndexOf(targetState.destination.route)
+                if (fromTab >= 0 && toTab >= 0) {
+                    val dir = if (toTab >= fromTab) 1 else -1
+                    fadeOut(tween(130, easing = FastOutSlowInEasing)) +
+                        slideOutHorizontally(tween(220, easing = FastOutSlowInEasing)) { fullWidth -> -dir * (fullWidth / 14) }
+                } else {
+                    fadeOut(tween(160, easing = FastOutSlowInEasing))
+                }
             },
             popEnterTransition = {
-                fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
-                    slideInHorizontally(initialOffsetX = { -it / 6 }, animationSpec = spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMediumLow))
+                fadeIn(tween(180, easing = FastOutSlowInEasing)) +
+                    slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { -it / 7 }
             },
             popExitTransition = {
-                fadeOut(spring(stiffness = Spring.StiffnessMedium)) +
-                    slideOutHorizontally(targetOffsetX = { it / 6 }, animationSpec = spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMediumLow))
+                fadeOut(tween(150, easing = FastOutSlowInEasing)) +
+                    slideOutHorizontally(tween(220, easing = FastOutSlowInEasing)) { it / 6 }
             },
         ) {
             composable(Routes.HOME) {
@@ -252,18 +311,14 @@ fun LedgerNavHost(
                 DailyHomeScreen(
                     dailyState,
                     header,
-                    { LedgerBottomBar(Routes.HOME, switchTab) },
+                    dockSpacer,
                     dailyViewModel::month,
                     dailyViewModel::currentMonth,
                     onAdd = {
                         if (bookState.all) pickQuickBook = true
                         else bookState.selected?.let(addToBook)
                     },
-                    onEdit = { id ->
-                        val projectId = id.takeIf { it.startsWith("payment:") }?.split(':')?.getOrNull(1)?.toLongOrNull()
-                        if (projectId != null) navController.navigate(Routes.detail(projectId))
-                        else navController.navigate(Routes.dailyEdit(1, id))
-                    },
+                    onEdit = openEntryEdit,
                     onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
                     bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
                     canAdd = bookState.selected != null,
@@ -304,7 +359,7 @@ fun LedgerNavHost(
             composable(Routes.BOOKS) {
                 BooksScreen(
                     bookState,
-                    bottomBar = { LedgerBottomBar(Routes.BOOKS, switchTab) },
+                    bottomBar = dockSpacer,
                     onSelect = {
                         dailyViewModel.select(it)
                         switchTab(Routes.HOME)
@@ -333,7 +388,7 @@ fun LedgerNavHost(
                 }
                 BillsScreen(
                     viewModel = billsViewModel,
-                    bottomBar = { LedgerBottomBar(Routes.BILLS, switchTab) },
+                    bottomBar = dockSpacer,
                     onAdd = { navController.navigate(Routes.edit(bookId = bookId)) },
                     onOpenExpense = { navController.navigate(Routes.detail(it)) },
                     onEditExpense = { navController.navigate(Routes.edit(id = it)) },
@@ -341,7 +396,15 @@ fun LedgerNavHost(
                 )
             }
             composable(Routes.STATS) {
-                DailyStatsScreen(dailyState, header, { LedgerBottomBar(Routes.STATS, switchTab) }, dailyViewModel::month, dailyViewModel::currentMonth)
+                DailyStatsScreen(
+                    state = dailyState,
+                    header = header,
+                    bottomBar = dockSpacer,
+                    onMonth = dailyViewModel::month,
+                    onToday = dailyViewModel::currentMonth,
+                    onEdit = openEntryEdit,
+                    bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
+                )
             }
             composable(Routes.MINE) {
                 MineScreen(

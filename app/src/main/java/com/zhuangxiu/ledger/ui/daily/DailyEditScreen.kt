@@ -200,60 +200,35 @@ fun DailyEditContent(
                     onClick = { if (noteFocused) finishNote() },
                 )
 
-                // 分类水滴行：每一行支持直接点击或横向连续拖动水滴凸透镜选分类！
+                // 所有分类行统一保持 LiquidLensTrack 组件树（selectedIndex 支持 -1），彻底消除跨行选分类时的组件树切换抖动！
                 val categories = DailyCategory.entries.filter { it.kind == state.kind }
                 categories.chunked(3).forEach { row ->
                     val selectedInRow = row.indexOfFirst { state.category == it && state.categoryName == null }
-                    if (row.size == 3 && selectedInRow >= 0) {
-                        LiquidLensTrack(
-                            itemCount = 3,
-                            selectedIndex = selectedInRow,
-                            height = 60.dp,
-                            role = Role.RadioButton,
-                            enabled = !state.busy,
-                            onSelect = { idx -> onChange { it.copy(category = row[idx], categoryName = null) } },
-                        ) { idx, isSelected ->
-                            val category = row[idx]
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(3.dp),
-                            ) {
-                                Icon(
-                                    category.icon(),
-                                    null,
-                                    Modifier.size(21.dp),
-                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    category.label,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                )
-                            }
-                        }
-                    } else {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                            row.forEach { category ->
-                                val isSelected = state.category == category && state.categoryName == null
-                                LiquidLensChip(
-                                    selected = isSelected,
-                                    onClick = { onChange { it.copy(category = category, categoryName = null) } },
-                                    enabled = !state.busy,
-                                    modifier = Modifier.weight(1f),
-                                    label = {
-                                        Column(
-                                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(3.dp),
-                                        ) {
-                                            Icon(category.icon(), null, Modifier.size(21.dp))
-                                            Text(category.label, style = MaterialTheme.typography.labelMedium)
-                                        }
-                                    },
-                                )
-                            }
-                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                    LiquidLensTrack(
+                        itemCount = row.size,
+                        selectedIndex = selectedInRow,
+                        height = 60.dp,
+                        role = Role.RadioButton,
+                        enabled = !state.busy,
+                        onSelect = { idx -> onChange { it.copy(category = row[idx], categoryName = null) } },
+                    ) { idx, isSelected ->
+                        val category = row[idx]
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Icon(
+                                category.icon(),
+                                null,
+                                Modifier.size(21.dp),
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                category.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            )
                         }
                     }
                 }
@@ -400,30 +375,34 @@ private fun DailyAmountDisplay(amount: String, isError: Boolean, enabled: Boolea
         enabled = enabled,
         shape = RoundedCornerShape(22.dp),
         cornerRadius = 22.dp,
-        variant = if (isError) GlassVariant.Tinted(colors.errorContainer) else GlassVariant.Elevated,
+        variant = GlassVariant.Tinted(
+            if (isError) colors.errorContainer else colors.primaryContainer,
+        ),
         shadowElevation = 6.dp,
-        pressedScale = 0.985f,
     ) {
-        Row(
-            Modifier
-                .heightIn(min = 76.dp)
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("¥", fontSize = 28.sp, color = if (isError) colors.error else colors.primary, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(8.dp))
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
             Text(
-                amount.ifEmpty { "0.00" },
-                style = MaterialTheme.typography.headlineLarge,
-                color = if (amount.isEmpty()) colors.onSurfaceVariant else colors.onSurface,
+                "金额",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isError) colors.onErrorContainer else colors.onPrimaryContainer.copy(alpha = 0.78f),
             )
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    "¥",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = if (isError) colors.onErrorContainer else colors.onPrimaryContainer,
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = amount.ifEmpty { "0.00" },
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isError) colors.onErrorContainer else if (amount.isEmpty()) colors.onPrimaryContainer.copy(alpha = 0.45f) else colors.onPrimaryContainer,
+                )
+            }
+            if (isError) {
+                Text("请输入大于 0 且不超过 2 位小数的有效金额", style = MaterialTheme.typography.bodySmall, color = colors.onErrorContainer)
+            }
         }
-    }
-    if (isError) {
-        Text(
-            "金额须大于 0，最多两位小数，最高 999,999,999.99",
-            color = colors.error,
-            style = MaterialTheme.typography.bodySmall,
-        )
     }
 }

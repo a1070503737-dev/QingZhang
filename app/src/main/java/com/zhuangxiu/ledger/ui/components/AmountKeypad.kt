@@ -1,8 +1,9 @@
 package com.zhuangxiu.ledger.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
@@ -29,9 +31,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -72,10 +83,9 @@ private val KEYPAD_ROWS = listOf(
 )
 
 /**
- * 2D 全键盘水滴凸透镜数字键盘：
- * - 单点任意键：按键立即升起为 1.24x 透明水滴凸透镜并输入；
- * - 按住并在键盘上连续滑动手指：水滴凸透镜实时跟随手指在 12 个按键间丝滑漫游放大（1.28x 蓝色折射 + 边缘棱镜色散），
- *   松手时精准输入当前水滴聚焦的数字键！
+ * 2D 连续滑动水滴凸透镜数字键盘：
+ * - 单点或按住在 12 键间连续漫游时，高透凸透镜水滴以高阻尼弹簧平滑跟随拇指；
+ * - 水滴下方自动挖空原按键以消除重影，内部穿透毛玻璃折射底层画面，并将字符以 1.26x 纯净品牌蓝锋利放大，松手精准输入目标键。
  */
 @Composable
 internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
@@ -83,7 +93,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
     val glass = LedgerTheme.glass
     val primaryColor = MaterialTheme.colorScheme.primary
     val backdropHolder = LocalLiquidBackdropHolder.current
-    val keysLayer = rememberGraphicsLayer()
+    val keysForegroundLayer = rememberGraphicsLayer()
     val viewConfig = LocalViewConfiguration.current
     val density = LocalDensity.current
 
@@ -95,8 +105,13 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
 
     val liftProgress by animateFloatAsState(
         targetValue = if (enabled && activePointer) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.54f, stiffness = 460f),
+        animationSpec = spring(dampingRatio = 0.76f, stiffness = 540f),
         label = "keypad-droplet",
+    )
+    val animatedOffset by animateOffsetAsState(
+        targetValue = pointerOffset,
+        animationSpec = spring(dampingRatio = 0.92f, stiffness = 2400f),
+        label = "keypad-droplet-pos",
     )
 
     fun keyIndexAt(pos: Offset, size: IntSize): Int {
@@ -105,6 +120,20 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
         val row = (pos.y / (size.height / 4f)).toInt().coerceIn(0, 3)
         return row * 3 + col
     }
+
+    val lensW = if (gridSize.width > 0) (gridSize.width / 3f) * (1.02f + 0.14f * liftProgress) else 0f
+    val lensH = with(density) { 60.dp.toPx() } * (0.88f + 0.12f * liftProgress)
+    val lensLeft = if (gridSize.width > 0) {
+        (animatedOffset.x - lensW / 2f).coerceIn(-lensW * 0.12f, gridSize.width - lensW * 0.88f)
+    } else {
+        0f
+    }
+    val lensTop = if (gridSize.height > 0) {
+        (animatedOffset.y - lensH / 2f).coerceIn(-lensH * 0.22f, gridSize.height - lensH * 0.78f)
+    } else {
+        0f
+    }
+    val cornerPx = with(density) { 24.dp.toPx() }
 
     Box(
         modifier = Modifier
@@ -131,7 +160,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                             if (ch != null && ch.pressed) {
                                 pointerOffset = ch.position
                                 val dist = hypot(ch.position.x - down.position.x, ch.position.y - down.position.y)
-                                if (!scrubbing && dist > viewConfig.touchSlop * 0.6f) {
+                                if (!scrubbing && dist > viewConfig.touchSlop * 0.55f) {
                                     scrubbing = true
                                 }
                                 val idx = keyIndexAt(ch.position, size)
@@ -161,19 +190,31 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .drawWithContent {
-                    keysLayer.record {
+                    keysForegroundLayer.record {
                         this@drawWithContent.drawContent()
                     }
-                    drawLayer(keysLayer)
+                    if (liftProgress > 0.02f && gridSize.width > 0) {
+                        val dropPath = Path().apply {
+                            addRoundRect(
+                                RoundRect(
+                                    rect = Rect(lensLeft, lensTop, lensLeft + lensW, lensTop + lensH),
+                                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                                ),
+                            )
+                        }
+                        clipPath(dropPath, clipOp = ClipOp.Difference) {
+                            drawLayer(keysForegroundLayer)
+                        }
+                    } else {
+                        drawLayer(keysForegroundLayer)
+                    }
                 },
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            KEYPAD_ROWS.forEachIndexed { rIdx, keys ->
+            KEYPAD_ROWS.forEach { keys ->
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    keys.forEachIndexed { cIdx, key ->
-                        val flatIdx = rIdx * 3 + cIdx
+                    keys.forEach { key ->
                         val isBackspace = key == "⌫"
-                        val isHovered = activePointer && hoveredFlatIdx == flatIdx
                         val interactionSource = remember(key) { MutableInteractionSource() }
                         Box(
                             modifier = Modifier
@@ -192,7 +233,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                                 )
                                 .clickable(
                                     interactionSource = interactionSource,
-                                    indication = LocalIndication.current,
+                                    indication = null,
                                     enabled = enabled,
                                     role = Role.Button,
                                     onClick = {
@@ -206,7 +247,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                                 text = key,
                                 fontSize = 21.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isHovered) primaryColor else MaterialTheme.colorScheme.onSurface,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.semantics {
                                     contentDescription = if (isBackspace) "退格" else "数字键$key"
                                 },
@@ -217,63 +258,77 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
             }
         }
 
-        // 升起跟随拇指漫游的 3D 凸透镜水滴放大镜
+        // 升起跟随拇指漫游的清澈 3D 凸透镜水滴放大镜
         if (liftProgress > 0.02f && gridSize.width > 0) {
-            val lensW = (gridSize.width / 3f) * (1.02f + 0.16f * liftProgress)
-            val lensH = with(density) { 62.dp.toPx() } * (0.85f + 0.15f * liftProgress)
-            val left = (pointerOffset.x - lensW / 2f).coerceIn(-lensW * 0.12f, gridSize.width - lensW * 0.88f)
-            val top = (pointerOffset.y - lensH / 2f).coerceIn(-lensH * 0.25f, gridSize.height - lensH * 0.75f)
-            val lensShape = RoundedCornerShape(26.dp)
+            val lensShape = RoundedCornerShape(24.dp)
             val lensWDp = with(density) { lensW.toDp() }
             val lensHDp = with(density) { lensH.toDp() }
 
             Box(
                 modifier = Modifier
-                    .offset { IntOffset(left.roundToInt(), top.roundToInt()) }
+                    .offset { IntOffset(lensLeft.roundToInt(), lensTop.roundToInt()) }
                     .size(lensWDp, lensHDp)
                     .then(
                         if (!IsRobolectricRuntime) {
-                            Modifier.shadow(16.dp, lensShape)
+                            Modifier.shadow((14f * liftProgress).dp, lensShape)
                         } else {
                             Modifier
                         },
                     )
-                    .clip(lensShape)
-                    .liquidDropletShaderEffect(
-                        cornerRadius = 26.dp,
-                        activeProgress = liftProgress,
-                        magnification = 1.24f,
-                        dispersionPx = 5.8f,
-                    )
-                    .drawWithContent {
-                        val mag = 1f + 0.28f * liftProgress
-                        val cx = size.width / 2f
-                        val cy = size.height / 2f
-                        drawRect(if (glass.isDark) Color(0xFF101B2E).copy(alpha = 0.88f) else Color(0xFFF8FBFF).copy(alpha = 0.90f))
-                        if (backdropHolder != null) {
-                            val relX = (gridRootPos.x + left) - backdropHolder.rootOffset.x
-                            val relY = (gridRootPos.y + top) - backdropHolder.rootOffset.y
-                            withTransform({
-                                scale(mag, mag, pivot = Offset(cx, cy))
-                                translate(-relX, -relY)
-                            }) {
-                                drawLayer(backdropHolder.layer)
+                    .clip(lensShape),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .liquidDropletShaderEffect(
+                            cornerRadius = 24.dp,
+                            activeProgress = liftProgress,
+                            magnification = 1.14f,
+                            dispersionPx = 4.5f,
+                        )
+                        .drawWithContent {
+                            if (backdropHolder != null) {
+                                val relX = (gridRootPos.x + lensLeft) - backdropHolder.rootOffset.x
+                                val relY = (gridRootPos.y + lensTop) - backdropHolder.rootOffset.y
+                                withTransform({
+                                    translate(-relX, -relY)
+                                }) {
+                                    drawLayer(backdropHolder.layer)
+                                }
                             }
-                        }
+                            drawRect(
+                                color = if (glass.isDark) {
+                                    Color(0xFF101C32).copy(alpha = 0.32f * liftProgress)
+                                } else {
+                                    Color.White.copy(alpha = 0.28f * liftProgress)
+                                },
+                            )
+                        },
+                )
+                Canvas(Modifier.fillMaxSize()) {
+                    val mag = 1f + 0.28f * liftProgress
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val tintPaint = Paint().apply {
+                        colorFilter = ColorFilter.tint(primaryColor, BlendMode.SrcIn)
+                    }
+                    drawIntoCanvas { canvas ->
+                        canvas.saveLayer(Rect(0f, 0f, size.width, size.height), tintPaint)
                         withTransform({
                             scale(mag, mag, pivot = Offset(cx, cy))
-                            translate(-left, -top)
+                            translate(-lensLeft, -lensTop)
                         }) {
-                            drawLayer(keysLayer)
+                            drawLayer(keysForegroundLayer)
                         }
-                        drawRect(primaryColor.copy(alpha = 0.15f), blendMode = BlendMode.SrcAtop)
-                        drawWaterDropletRim(
-                            cornerRadiusPx = 26.dp.toPx(),
-                            isDark = glass.isDark,
-                            intensity = liftProgress,
-                        )
-                    },
-            )
+                        canvas.restore()
+                    }
+                    drawWaterDropletRim(
+                        cornerRadiusPx = cornerPx,
+                        isDark = glass.isDark,
+                        intensity = liftProgress,
+                    )
+                }
+            }
         }
     }
 }
