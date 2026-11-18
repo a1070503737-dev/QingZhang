@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.3.1",
+  "versionCode": 16,
+  "notes": "# 轻账 1.3.1\n\n- 数字键盘支持按住滑动，松开时输入选中的数字。\n- 底部导航和收支切换使用新的水滴透镜效果，支持滑动选择。\n- 延续 1.3.0 的应用签名，可在「设置 → 检查更新」下载安装。",
+  "apk": {
+    "fileName": "renovation-ledger-1.3.1-signed.apk",
+    "size": 3085928,
+    "sha256": "53120d6d8f8e3e421817cf158bb0193178c53909604866727973aa20d271630c"
+  }
+}
