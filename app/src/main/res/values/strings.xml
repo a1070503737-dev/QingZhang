@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">轻账</string>
+    <string name="shortcut_new_entry">新建记账</string>
+    <string name="shortcut_statistics">查看统计</string>
 </resources>

@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
 
     /** 从通知点进来时要打开的账单 id */
     private var pendingExpenseId by mutableStateOf<Long?>(null)
+    private var pendingShortcut by mutableStateOf<LedgerShortcut?>(null)
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* 结果在提醒设置页里体现 */ }
@@ -39,6 +40,8 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) {
             handleIntent(intent)
             requestNotificationPermissionIfNeeded()
+        } else {
+            pendingShortcut = LedgerShortcut.fromAction(savedInstanceState.getString(PENDING_SHORTCUT))
         }
         setContent {
             RenovationLedgerTheme {
@@ -46,6 +49,8 @@ class MainActivity : ComponentActivity() {
                     LedgerNavHost(
                         pendingExpenseId = pendingExpenseId,
                         onPendingHandled = { pendingExpenseId = null },
+                        pendingShortcut = pendingShortcut,
+                        onShortcutHandled = { pendingShortcut = null },
                     )
                 }
             }
@@ -57,7 +62,16 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(PENDING_SHORTCUT, pendingShortcut?.action)
+    }
+
     private fun handleIntent(intent: Intent?) {
+        LedgerShortcut.fromAction(intent?.action)?.let {
+            pendingShortcut = it
+            return
+        }
         val id = intent?.getLongExtra(EXTRA_EXPENSE_ID, -1L) ?: -1L
         if (id > 0) pendingExpenseId = id
     }
@@ -74,5 +88,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_EXPENSE_ID = "expense_id"
+        private const val PENDING_SHORTCUT = "pending_shortcut"
     }
 }

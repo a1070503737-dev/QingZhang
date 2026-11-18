@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_entry"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_entry"
+        android:shortcutShortLabel="@string/shortcut_new_entry">
+        <intent
+            android:action="com.zhuangxiu.ledger.action.NEW_ENTRY"
+            android:targetPackage="com.zhuangxiu.ledger"
+            android:targetClass="com.zhuangxiu.ledger.LauncherShortcutActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="statistics"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_statistics"
+        android:shortcutShortLabel="@string/shortcut_statistics">
+        <intent
+            android:action="com.zhuangxiu.ledger.action.STATISTICS"
+            android:targetPackage="com.zhuangxiu.ledger"
+            android:targetClass="com.zhuangxiu.ledger.LauncherShortcutActivity" />
+    </shortcut>
+</shortcuts>

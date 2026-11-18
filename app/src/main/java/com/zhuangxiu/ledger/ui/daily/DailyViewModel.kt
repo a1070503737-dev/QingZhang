@@ -14,7 +14,13 @@ import kotlinx.coroutines.flow.*
 import java.time.YearMonth
 import javax.inject.Inject
 
-data class BookState(val books: List<BookEntity> = emptyList(), val selected: BookEntity? = null, val error: String? = null, val all: Boolean = false)
+data class BookState(
+    val books: List<BookEntity> = emptyList(),
+    val selected: BookEntity? = null,
+    val error: String? = null,
+    val all: Boolean = false,
+    val loaded: Boolean = false,
+)
 data class DailyState(val month: YearMonth = YearMonth.now(), val summary: DailySummary? = null, val error: String? = null)
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -29,7 +35,7 @@ class DailyViewModel @Inject constructor(
     val books = combine(repository.books, settings.selectedBook, error, historyBook) { books, selected, error, historyId ->
         val active = books.filterNot { it.archived }
         val history = books.firstOrNull { it.id == historyId && it.archived }
-        BookState(books, history ?: active.firstOrNull { it.id == selected } ?: active.firstOrNull(), error, selected == 0L && history == null)
+        BookState(books, history ?: active.firstOrNull { it.id == selected } ?: active.firstOrNull(), error, selected == 0L && history == null, loaded = true)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookState())
     private val month = saved.getStateFlow("month", YearMonth.now().toString())
     val daily = combine(books, month) { state, month -> (if (state.all) 0L else state.selected?.id) to YearMonth.parse(month) }

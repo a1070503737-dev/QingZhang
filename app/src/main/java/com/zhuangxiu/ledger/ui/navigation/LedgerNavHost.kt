@@ -60,6 +60,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.zhuangxiu.ledger.LedgerShortcut
 import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.data.db.BookKind
 import com.zhuangxiu.ledger.ui.bills.BillsScreen
@@ -150,9 +151,11 @@ fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit, modifier: Mod
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LedgerNavHost(
+internal fun LedgerNavHost(
     pendingExpenseId: Long?,
     onPendingHandled: () -> Unit,
+    pendingShortcut: LedgerShortcut?,
+    onShortcutHandled: () -> Unit,
     navController: NavHostController = rememberNavController(),
 ) {
     val dailyViewModel: DailyViewModel = hiltViewModel()
@@ -175,11 +178,19 @@ fun LedgerNavHost(
     }
     val back: () -> Unit = { navController.popBackStack() }
     val addToBook: (BookEntity) -> Unit = { book ->
-        val route = when (book.kind) {
-            BookKind.DAILY -> Routes.dailyEdit(book.id)
-            BookKind.RENOVATION -> Routes.edit(bookId = book.id)
+        val args = backStackEntry?.arguments
+        val alreadyInNewEntry = args != null && args.getLong("bookId") == book.id && when (currentRoute) {
+            Routes.DAILY_EDIT -> args.getString("entryId").isNullOrEmpty()
+            Routes.EDIT -> args.getLong("id", -1) < 0 && args.getLong("copyFrom", -1) < 0
+            else -> false
         }
-        navController.navigate(route)
+        if (!alreadyInNewEntry) {
+            val route = when (book.kind) {
+                BookKind.DAILY -> Routes.dailyEdit(book.id)
+                BookKind.RENOVATION -> Routes.edit(bookId = book.id)
+            }
+            navController.navigate(route)
+        }
     }
     val openEntryEdit: (String) -> Unit = { id ->
         val projectId = id.takeIf { it.startsWith("payment:") }?.split(':')?.getOrNull(1)?.toLongOrNull()
@@ -198,6 +209,15 @@ fun LedgerNavHost(
     }
 
     var pickQuickBook by rememberSaveable { mutableStateOf(false) }
+    val currentActiveBook = bookState.selected?.takeUnless { it.archived || bookState.all }
+    val activeBooks = bookState.books.filterNot { it.archived }
+    val openQuickEntry: () -> Unit = {
+        when {
+            currentActiveBook != null -> addToBook(currentActiveBook)
+            activeBooks.isNotEmpty() -> pickQuickBook = true
+            currentRoute != Routes.BOOKS -> navController.navigate(Routes.BOOKS) { launchSingleTop = true }
+        }
+    }
     val glass = LedgerTheme.glass
     if (pickQuickBook) {
         ModalBottomSheet(
@@ -211,7 +231,7 @@ fun LedgerNavHost(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text("记到哪个账本？", style = MaterialTheme.typography.titleLarge)
-                bookState.books.filterNot { it.archived }.forEach { book ->
+                activeBooks.forEach { book ->
                     LiquidGlassSurface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
@@ -251,6 +271,25 @@ fun LedgerNavHost(
             navController.navigate(Routes.detail(pendingExpenseId))
             onPendingHandled()
         }
+    }
+
+    LaunchedEffect(pendingShortcut, currentRoute, bookState.loaded) {
+        if (pendingShortcut == null || currentRoute == null) return@LaunchedEffect
+        when (pendingShortcut) {
+            LedgerShortcut.NEW_ENTRY -> {
+                if (!bookState.loaded) return@LaunchedEffect
+                openQuickEntry()
+            }
+            LedgerShortcut.STATISTICS -> {
+                pickQuickBook = false
+                if (tabIndexOf(currentRoute) >= 0) {
+                    switchTab(Routes.STATS)
+                } else {
+                    navController.navigate(Routes.STATS) { launchSingleTop = true }
+                }
+            }
+        }
+        onShortcutHandled()
     }
 
     var editingBook by rememberSaveable { mutableStateOf(false) }
@@ -317,10 +356,7 @@ fun LedgerNavHost(
                     dockSpacer,
                     dailyViewModel::month,
                     dailyViewModel::currentMonth,
-                    onAdd = {
-                        if (bookState.all) pickQuickBook = true
-                        else bookState.selected?.let(addToBook)
-                    },
+                    onAdd = openQuickEntry,
                     onEdit = openEntryEdit,
                     onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
                     bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
