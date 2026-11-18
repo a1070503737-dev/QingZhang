@@ -3,7 +3,10 @@ package com.zhuangxiu.ledger
 import android.app.Application
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
@@ -14,6 +17,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.zhuangxiu.ledger.data.db.*
 import com.zhuangxiu.ledger.domain.DailyStatistics
+import com.zhuangxiu.ledger.ui.components.AmountKeypad
 import com.zhuangxiu.ledger.ui.daily.*
 import com.zhuangxiu.ledger.ui.navigation.*
 import com.zhuangxiu.ledger.ui.theme.RenovationLedgerTheme
@@ -173,5 +177,31 @@ class DailyScreenTest {
         val distance = six.fetchSemanticsNode().boundsInRoot.center - four.fetchSemanticsNode().boundsInRoot.center
         four.performTouchInput { swipe(center, center + distance) }
         amount.assertTextContains("1.26")
+    }
+
+    @Test fun keypadPressChangesOnlyTheTouchedKeyAndInputsOnce() {
+        val entered = mutableListOf<String>()
+        compose.setContent {
+            RenovationLedgerTheme(darkTheme = true) {
+                Box(Modifier.padding(24.dp)) {
+                    AmountKeypad { entered.add(it) }
+                }
+            }
+        }
+        val key = compose.onNodeWithContentDescription("数字键1")
+        val bounds = key.fetchSemanticsNode().boundsInRoot
+        val interiorX = (bounds.left + bounds.width / 4f).toInt()
+        val gapX = bounds.right.toInt() + 3
+        val centerY = bounds.center.y.toInt()
+        val before = compose.onRoot().captureToImage().asAndroidBitmap()
+
+        key.performTouchInput { down(Offset(width - 4f, center.y)) }
+        val pressed = compose.onRoot().captureToImage().asAndroidBitmap()
+        assertEquals(bounds, key.fetchSemanticsNode().boundsInRoot)
+        assertTrue(before.getPixel(interiorX, centerY) != pressed.getPixel(interiorX, centerY))
+        assertEquals(before.getPixel(gapX, centerY), pressed.getPixel(gapX, centerY))
+        assertTrue(entered.isEmpty())
+        key.performTouchInput { up() }
+        compose.runOnIdle { assertEquals(listOf("1"), entered) }
     }
 }
