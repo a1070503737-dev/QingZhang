@@ -9,9 +9,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,7 +32,9 @@ import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Cottage
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PieChartOutline
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -117,7 +120,7 @@ fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit, modifier: Mod
             selectedIndex = selectedIndex,
             height = 64.dp,
             role = Role.Tab,
-            liveSelectOnScrub = true,
+            liveSelectOnScrub = false,
             onSelect = { idx ->
                 val target = TABS[idx].route
                 if (target != current) onNavigate(target)
@@ -145,6 +148,7 @@ fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit, modifier: Mod
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LedgerNavHost(
     pendingExpenseId: Long?,
@@ -196,55 +200,50 @@ fun LedgerNavHost(
     var pickQuickBook by rememberSaveable { mutableStateOf(false) }
     val glass = LedgerTheme.glass
     if (pickQuickBook) {
-        AlertDialog(
+        ModalBottomSheet(
             onDismissRequest = { pickQuickBook = false },
-            shape = RoundedCornerShape(30.dp),
-            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.94f),
-            tonalElevation = 0.dp,
-            modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
-            title = { Text("记到哪个账本？") },
-            text = {
-                Column(
-                    Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    bookState.books.filterNot { it.archived }.forEach { book ->
-                        LiquidGlassSurface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            cornerRadius = 18.dp,
-                            variant = GlassVariant.Clear,
-                            shadowElevation = 0.dp,
-                            onClick = {
-                                pickQuickBook = false
-                                addToBook(book)
-                            },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+            containerColor = glass.elevatedTop,
+        ) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("记到哪个账本？", style = MaterialTheme.typography.titleLarge)
+                bookState.books.filterNot { it.archived }.forEach { book ->
+                    LiquidGlassSurface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        cornerRadius = 18.dp,
+                        variant = GlassVariant.Clear,
+                        shadowElevation = 0.dp,
+                        onClick = {
+                            pickQuickBook = false
+                            addToBook(book)
+                        },
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(
-                                Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    if (book.kind == BookKind.DAILY) Icons.Outlined.AccountBalanceWallet else Icons.Outlined.Cottage,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Text(book.name, style = MaterialTheme.typography.titleMedium)
-                            }
+                            Icon(
+                                if (book.kind == BookKind.DAILY) Icons.Outlined.AccountBalanceWallet else Icons.Outlined.Cottage,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(book.name, style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
-            },
-            confirmButton = {
                 LiquidGlassButton(
                     onClick = { pickQuickBook = false },
                     prominent = false,
-                    minHeight = 38.dp,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 ) { Text("取消") }
-            },
-        )
+            }
+        }
     }
 
     LaunchedEffect(pendingExpenseId) {
@@ -254,7 +253,10 @@ fun LedgerNavHost(
         }
     }
 
-    val showBottomBar = tabIndexOf(currentRoute) >= 0 || currentRoute == Routes.BILLS || currentRoute == null
+    var editingBook by rememberSaveable { mutableStateOf(false) }
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val showBottomBar = !imeVisible && !(currentRoute == Routes.BOOKS && editingBook) &&
+        (tabIndexOf(currentRoute) >= 0 || currentRoute == Routes.BILLS || currentRoute == null)
 
     LiquidGlassBackdrop(
         overlay = {
@@ -307,7 +309,8 @@ fun LedgerNavHost(
             },
         ) {
             composable(Routes.HOME) {
-                val projectBook = bookState.selected?.takeIf { !bookState.all && it.kind == BookKind.RENOVATION }
+                val archivedBook = bookState.selected?.takeIf { !bookState.all && it.archived }
+                val projectBook = bookState.selected?.takeIf { !bookState.all && !it.archived && it.kind == BookKind.RENOVATION }
                 DailyHomeScreen(
                     dailyState,
                     header,
@@ -321,7 +324,8 @@ fun LedgerNavHost(
                     onEdit = openEntryEdit,
                     onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
                     bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
-                    canAdd = bookState.selected != null,
+                    canAdd = if (bookState.all) bookState.books.any { !it.archived } else bookState.selected?.archived == false,
+                    readOnly = archivedBook != null,
                 )
             }
             composable(Routes.PROJECTS, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) { entry ->
@@ -367,6 +371,7 @@ fun LedgerNavHost(
                     onSave = dailyViewModel::saveBook,
                     onSettings = { navController.navigate(Routes.MINE) },
                     onClearError = dailyViewModel::clearError,
+                    onEditingChange = { editingBook = it },
                 )
             }
             composable(
@@ -402,7 +407,7 @@ fun LedgerNavHost(
                     bottomBar = dockSpacer,
                     onMonth = dailyViewModel::month,
                     onToday = dailyViewModel::currentMonth,
-                    onEdit = openEntryEdit,
+                    onEdit = openEntryEdit.takeUnless { !bookState.all && bookState.selected?.archived == true },
                     bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
                 )
             }

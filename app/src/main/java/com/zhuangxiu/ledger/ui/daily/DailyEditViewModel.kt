@@ -24,6 +24,7 @@ data class DailyEditState(
     val originalCategory: String? = null, val account: String? = null, val sourceMethod: String? = null,
     val loading: Boolean = true, val busy: Boolean = false, val complete: Boolean = false,
     val error: String? = null, val missing: Boolean = false,
+    val bookName: String? = null, val resultMessage: String = "已保存账目",
 ) {
     val valid: Boolean get() = amount.matches(Regex("[0-9]+(\\.[0-9]{0,2})?")) && (Money.parseToCents(amount) ?: 0) > 0 && note.length <= 1000
 }
@@ -55,7 +56,9 @@ class DailyEditViewModel @Inject constructor(private val repository: DailyReposi
                 note = saved["note"] ?: base.note, loading = false, complete = saved["complete"] ?: false,
                 categoryName = if (saved.contains("categoryName")) saved["categoryName"] else base.categoryName,
                 sourceMethod = if (saved.contains("sourceMethod")) saved["sourceMethod"] else base.sourceMethod,
-                customCategories = repository.categoriesForBook(bookId))
+                customCategories = repository.categoriesForBook(bookId),
+                bookName = repository.book(bookId)?.name,
+                resultMessage = saved["resultMessage"] ?: base.resultMessage)
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { _state.value = DailyEditState(loading = false, missing = true, error = "无法读取记录，请返回重试") }
     } }
@@ -80,11 +83,16 @@ class DailyEditViewModel @Inject constructor(private val repository: DailyReposi
                 importFingerprint = original?.importFingerprint, importBatchId = original?.importBatchId), editing)
         }
     }
-    fun delete() { if (editing && !_state.value.busy && !_state.value.complete) operate { repository.delete(id) } }
-    private fun operate(block: suspend () -> Unit) {
+    fun delete() { if (editing && !_state.value.busy && !_state.value.complete) operate("已删除账目") { repository.delete(id) } }
+    private fun operate(message: String = "已保存账目", block: suspend () -> Unit) {
         _state.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
-            try { block(); saved["complete"] = true; _state.update { it.copy(complete = true) } }
+            try {
+                block()
+                saved["resultMessage"] = message
+                saved["complete"] = true
+                _state.update { it.copy(complete = true, resultMessage = message) }
+            }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) { _state.update { it.copy(error = e.message ?: "保存失败，请重试") } }
             finally { _state.update { it.copy(busy = false) } }

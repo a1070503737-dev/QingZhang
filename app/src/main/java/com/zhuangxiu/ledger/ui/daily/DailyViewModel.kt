@@ -25,9 +25,11 @@ class DailyViewModel @Inject constructor(
     private val saved: SavedStateHandle,
 ) : ViewModel() {
     private val error = MutableStateFlow<String?>(null)
-    val books = combine(repository.books, settings.selectedBook, error) { books, selected, error ->
+    private val historyBook = saved.getStateFlow<Long?>("historyBook", null)
+    val books = combine(repository.books, settings.selectedBook, error, historyBook) { books, selected, error, historyId ->
         val active = books.filterNot { it.archived }
-        BookState(books, active.firstOrNull { it.id == selected } ?: active.firstOrNull(), error, selected == 0L)
+        val history = books.firstOrNull { it.id == historyId && it.archived }
+        BookState(books, history ?: active.firstOrNull { it.id == selected } ?: active.firstOrNull(), error, selected == 0L && history == null)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BookState())
     private val month = saved.getStateFlow("month", YearMonth.now().toString())
     val daily = combine(books, month) { state, month -> (if (state.all) 0L else state.selected?.id) to YearMonth.parse(month) }
@@ -39,14 +41,24 @@ class DailyViewModel @Inject constructor(
                 .catch { emit(DailyState(month, error = "读取账目失败，请重新打开应用")) }
         }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DailyState())
 
-    fun select(id: Long) = action { settings.selectBook(id) }
+    fun select(id: Long) = action {
+        if (books.value.books.any { it.id == id && it.archived }) {
+            saved["historyBook"] = id
+        } else {
+            settings.selectBook(id)
+            saved["historyBook"] = null
+        }
+    }
     fun month(offset: Long) {
         val next = YearMonth.parse(month.value).plusMonths(offset)
         if (next.year in 1..9999) saved["month"] = next.toString()
     }
     fun currentMonth() { saved["month"] = YearMonth.now().toString() }
     fun saveBook(book: BookEntity, done: () -> Unit) = action {
-        if (book.id == 0L) settings.selectBook(repository.addBook(book.name, book.kind, book.trackPayments, book.trackPhotos))
+        if (book.id == 0L) {
+            settings.selectBook(repository.addBook(book.name, book.kind, book.trackPayments, book.trackPhotos))
+            saved["historyBook"] = null
+        }
         else repository.editBook(book)
         done()
     }

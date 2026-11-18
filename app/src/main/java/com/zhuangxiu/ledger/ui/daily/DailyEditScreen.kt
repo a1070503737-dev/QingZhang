@@ -1,8 +1,8 @@
 package com.zhuangxiu.ledger.ui.daily
 
 import android.app.TimePickerDialog
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -67,7 +68,6 @@ import com.zhuangxiu.ledger.ui.components.GlassVariant
 import com.zhuangxiu.ledger.ui.components.LedgerDatePickerDialog
 import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
 import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
-import com.zhuangxiu.ledger.ui.components.LiquidLensChip
 import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
@@ -80,7 +80,13 @@ import java.time.LocalDate
 @Composable
 fun DailyEditScreen(onBack: () -> Unit, viewModel: DailyEditViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(state.complete) { if (state.complete) onBack() }
+    val context = LocalContext.current
+    LaunchedEffect(state.complete) {
+        if (state.complete) {
+            Toast.makeText(context, state.resultMessage, Toast.LENGTH_SHORT).show()
+            onBack()
+        }
+    }
     BackHandler(state.busy) { }
     DailyEditContent(
         state,
@@ -110,6 +116,8 @@ fun DailyEditContent(
     val keyboard = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
     val glass = LedgerTheme.glass
+    var categoriesOpen by remember { mutableStateOf(false) }
+    var paymentOpen by remember { mutableStateOf(false) }
     val finishNote = {
         keyboard?.hide()
         focusManager.clearFocus()
@@ -138,6 +146,7 @@ fun DailyEditContent(
                             onChange { old -> old.copy(amount = applyAmountKey(old.amount, key)) }
                         }
                     }
+                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     LiquidGlassButton(
                         onClick = onSave,
                         modifier = Modifier
@@ -170,11 +179,12 @@ fun DailyEditContent(
             Column(
                 modifier
                     .fillMaxSize()
-                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                state.bookName?.let { Text("账本 · $it", style = MaterialTheme.typography.labelLarge) }
+
                 // 连续拖拽水滴放大收支分段器（支出 | 收入）
                 val kinds = EntryKind.entries
                 LiquidLensTrack(
@@ -202,12 +212,13 @@ fun DailyEditContent(
 
                 // 所有分类行统一保持 LiquidLensTrack 组件树（selectedIndex 支持 -1），彻底消除跨行选分类时的组件树切换抖动！
                 val categories = DailyCategory.entries.filter { it.kind == state.kind }
-                categories.chunked(3).forEach { row ->
+                val visibleCategories = categories.take(8)
+                visibleCategories.chunked(4).forEach { row ->
                     val selectedInRow = row.indexOfFirst { state.category == it && state.categoryName == null }
                     LiquidLensTrack(
                         itemCount = row.size,
                         selectedIndex = selectedInRow,
-                        height = 60.dp,
+                        height = 58.dp,
                         role = Role.RadioButton,
                         enabled = !state.busy,
                         onSelect = { idx -> onChange { it.copy(category = row[idx], categoryName = null) } },
@@ -234,15 +245,19 @@ fun DailyEditContent(
                 }
 
                 val custom = (listOfNotNull(state.categoryName) + state.customCategories.filter { it.kind == state.kind }.map { it.name }).distinct()
-                if (custom.isNotEmpty()) {
-                    var categoriesOpen by remember { mutableStateOf(false) }
+                val extraCategories = categories.drop(visibleCategories.size)
+                if (custom.isNotEmpty() || extraCategories.isNotEmpty()) {
                     Box {
                         LiquidGlassButton(
                             onClick = { categoriesOpen = true },
                             prominent = false,
-                            minHeight = 38.dp,
+                            enabled = !state.busy,
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                        ) { Text(state.categoryName ?: "更多分类") }
+                        ) {
+                            val selected = state.categoryName ?: state.category.takeIf { it in extraCategories }?.label
+                            Text(selected?.let { "更多分类 · $it" } ?: "更多分类")
+                            Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
+                        }
                         DropdownMenu(
                             expanded = categoriesOpen,
                             onDismissRequest = { categoriesOpen = false },
@@ -250,6 +265,15 @@ fun DailyEditContent(
                             shape = RoundedCornerShape(22.dp),
                             containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
                         ) {
+                            extraCategories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category.label) },
+                                    onClick = {
+                                        onChange { it.copy(category = category, categoryName = null) }
+                                        categoriesOpen = false
+                                    },
+                                )
+                            }
                             custom.forEach { name ->
                                 DropdownMenuItem(
                                     text = { Text(name) },
@@ -266,15 +290,29 @@ fun DailyEditContent(
                 state.account?.let { Text("原账户 · $it", style = MaterialTheme.typography.labelMedium) }
                 state.sourceMethod?.let { Text("支付方式 · $it", style = MaterialTheme.typography.labelMedium) }
 
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PayMethod.entries.forEach { method ->
-                        LiquidLensChip(
-                            selected = state.method == method,
-                            onClick = { onChange { it.copy(method = method, sourceMethod = null) } },
-                            enabled = !state.busy,
-                            leadingIcon = { Icon(method.icon(), null, Modifier.size(18.dp)) },
-                            label = { Text(method.label) },
-                        )
+                Box {
+                    LiquidGlassButton(
+                        onClick = { paymentOpen = true },
+                        enabled = !state.busy,
+                        prominent = false,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    ) {
+                        Icon(state.method.icon(), null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("支付方式 · ${state.sourceMethod ?: state.method.label}")
+                        Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
+                    }
+                    DropdownMenu(expanded = paymentOpen, onDismissRequest = { paymentOpen = false }) {
+                        PayMethod.entries.forEach { method ->
+                            DropdownMenuItem(
+                                text = { Text(method.label) },
+                                leadingIcon = { Icon(method.icon(), null) },
+                                onClick = {
+                                    onChange { it.copy(method = method, sourceMethod = null) }
+                                    paymentOpen = false
+                                },
+                            )
+                        }
                     }
                 }
 
@@ -283,7 +321,6 @@ fun DailyEditContent(
                         onClick = { datePicker = true },
                         enabled = !state.busy,
                         prominent = false,
-                        minHeight = 40.dp,
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     ) {
                         Icon(Icons.Outlined.CalendarToday, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.primary)
@@ -303,7 +340,6 @@ fun DailyEditContent(
                         },
                         enabled = !state.busy,
                         prominent = false,
-                        minHeight = 40.dp,
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     ) {
                         Icon(Icons.Outlined.Schedule, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.primary)
@@ -334,7 +370,6 @@ fun DailyEditContent(
                         }
                     },
                 )
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.height(12.dp))
             }
         }

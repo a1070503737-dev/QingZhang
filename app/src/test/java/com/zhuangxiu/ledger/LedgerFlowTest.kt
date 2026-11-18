@@ -70,6 +70,15 @@ class LedgerFlowTest {
         }
     }
 
+    @Test fun backupCanBeReachedFromSettings() {
+        awaitText("生活账本")
+        compose.onNodeWithContentDescription("设置").performClick()
+        compose.onNodeWithText("备份与恢复").performScrollTo().performClick()
+        awaitText("保存备份到本地")
+        compose.onNodeWithText("从备份恢复").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("导出恢复前安全副本").assertExists()
+    }
+
     @Test fun recordRenovationDepositFromHomeThenOpenPendingAndNavigateTabs() {
         awaitText("生活账本")
         compose.onNodeWithText("账本").performClick()

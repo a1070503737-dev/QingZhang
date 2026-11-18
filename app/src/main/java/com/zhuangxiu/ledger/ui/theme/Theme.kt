@@ -1,6 +1,7 @@
 package com.zhuangxiu.ledger.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -209,12 +210,14 @@ fun RenovationLedgerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
+    val colors = if (darkTheme) DarkColors else LightColors
     CompositionLocalProvider(
         LocalExtraColors provides if (darkTheme) DarkExtra else LightExtra,
         LocalLiquidGlassPalette provides if (darkTheme) DarkGlassPalette else LightGlassPalette,
+        LocalContentColor provides colors.onSurface,
     ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkColors else LightColors,
+            colorScheme = colors,
             shapes = LedgerShapes,
             typography = LedgerTypography,
             content = content,

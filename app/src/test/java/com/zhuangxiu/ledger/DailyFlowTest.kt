@@ -3,6 +3,7 @@ package com.zhuangxiu.ledger
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import org.junit.Rule
 import org.junit.Test
@@ -45,6 +46,10 @@ class DailyFlowTest {
         awaitDescription("日常记账金额")
         compose.onNodeWithText("收入", useUnmergedTree = true).performClick()
         enterAmount("100")
+        compose.onNodeWithText("支出", useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription("日常记账金额").assertTextContains("100")
+        compose.onNodeWithText("收入", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("账本 · 生活账本").assertExists()
         compose.onNodeWithContentDescription("保存日常账目").performClick()
         awaitDescription("本月结余 ¥74.50")
         capture("qingzhang-home")
@@ -97,5 +102,20 @@ class DailyFlowTest {
         compose.onNodeWithContentDescription("切换账本").performClick()
         compose.onNodeWithText("生活账本").performClick()
         awaitDescription("本月结余 ¥100.00")
+        compose.onNodeWithText("账本").performClick()
+        compose.onNodeWithContentDescription("编辑生活账本").assertWidthIsEqualTo(48.dp).performClick()
+        compose.onNodeWithText("归档账本").performScrollTo().performClick().assertIsOn()
+        compose.onNodeWithText("保存").performScrollTo().performClick()
+        awaitText("恢复使用")
+        compose.onNodeWithText("普通账本 · 已归档 · 查看历史").performClick()
+        awaitText("已归档 · 历史明细。恢复使用后可继续记账。")
+        awaitDescription("本月结余 ¥100.00")
+        compose.onNodeWithText("记一笔", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("账本").performClick()
+        compose.onNodeWithText("恢复使用").performClick()
+        compose.waitUntil(20_000) { compose.onAllNodesWithText("恢复使用").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText("生活账本").performClick()
+        awaitDescription("本月结余 ¥100.00")
+
     }
 }

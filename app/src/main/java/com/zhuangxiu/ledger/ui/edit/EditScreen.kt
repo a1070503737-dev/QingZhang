@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -54,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
@@ -88,6 +90,7 @@ private enum class AmountField { TOTAL, PAID }
 @Composable
 fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -108,7 +111,12 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
         viewModel.onImagesPicked(uris)
     }
 
-    LaunchedEffect(state.saved) { if (state.saved) onBack() }
+    LaunchedEffect(state.saved) {
+        if (state.saved) {
+            android.widget.Toast.makeText(context, "已保存装修账单", android.widget.Toast.LENGTH_SHORT).show()
+            onBack()
+        }
+    }
     LaunchedEffect(state.error) {
         state.error?.let {
             snackbar.showSnackbar(it)
@@ -127,16 +135,20 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
                         }
                     },
-                    actions = {
-                        LiquidGlassButton(
-                            onClick = viewModel::save,
-                            enabled = !state.saving && !state.loading,
-                            minHeight = 38.dp,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                            modifier = Modifier.semantics { contentDescription = "保存账单" },
-                        ) { Text("保存") }
-                    },
                 )
+            },
+            bottomBar = {
+                if (!state.loading && state.bookName != null) {
+                    LiquidGlassButton(
+                        onClick = viewModel::save,
+                        enabled = !state.saving,
+                        minHeight = 52.dp,
+                        modifier = Modifier.fillMaxWidth()
+                            .navigationBarsPadding().imePadding()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .semantics { contentDescription = "保存账单" },
+                    ) { Text(if (state.saving) "保存中..." else "保存") }
+                }
             },
             snackbarHost = { SnackbarHost(snackbar) },
         ) { padding ->
@@ -145,11 +157,11 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                 Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                state.bookName?.let { Text("账本 · $it", style = MaterialTheme.typography.labelLarge) }
                 LedgerCard(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -312,12 +324,6 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                     }
                 }
 
-                LiquidGlassButton(
-                    onClick = viewModel::save,
-                    enabled = !state.saving,
-                    minHeight = 52.dp,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(if (state.saving) "保存中..." else "保存") }
                 Spacer(Modifier.height(8.dp))
             }
         }

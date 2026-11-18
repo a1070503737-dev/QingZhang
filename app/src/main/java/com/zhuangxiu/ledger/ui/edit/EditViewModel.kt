@@ -35,6 +35,7 @@ data class FormImage(val id: Long?, val fileName: String)
 /** 记账 / 编辑表单的状态 */
 data class EditUiState(
     val loading: Boolean = true,
+    val bookName: String? = null,
     val isNew: Boolean = true,
     /** 总价输入框的文本（元） */
     val amountText: String = "",
@@ -103,6 +104,7 @@ class EditViewModel @Inject constructor(
                     // 否则默认选中第一个阶段和类型，方便快速记账
                     state.copy(
                         loading = false,
+                        bookName = book?.name,
                         isNew = true,
                         stages = stages,
                         types = types,
@@ -116,6 +118,7 @@ class EditViewModel @Inject constructor(
                     val e = existing.expense
                     state.copy(
                         loading = false,
+                        bookName = book?.name,
                         isNew = false,
                         amountText = Money.toInput(e.totalCents),
                         existingPaidCents = existing.paidCents,

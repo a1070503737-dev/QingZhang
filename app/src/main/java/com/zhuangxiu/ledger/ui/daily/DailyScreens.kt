@@ -6,11 +6,14 @@ import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -75,6 +79,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -180,17 +185,20 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("轻账", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Box {
+                Box(Modifier.weight(1f, fill = false)) {
                     LiquidGlassButton(
                         onClick = { expanded = true },
                         prominent = false,
-                        minHeight = 36.dp,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
+                        minHeight = 48.dp,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp),
                         modifier = Modifier.semantics { contentDescription = "切换账本" },
                     ) {
                         Text(
                             text = if (state.all) "全部账本" else state.selected?.name ?: "请选择账本",
                             style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Spacer(Modifier.width(2.dp))
                         Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
@@ -202,7 +210,12 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
                         containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
                     ) {
                         DropdownMenuItem(
-                            text = { Text("全部账本") },
+                            text = {
+                                Column {
+                                    Text("全部账本")
+                                    Text("包含已归档账本", style = MaterialTheme.typography.bodySmall)
+                                }
+                            },
                             onClick = {
                                 onSelect(0)
                                 expanded = false
@@ -255,19 +268,17 @@ fun MonthSelector(month: YearMonth, onMonth: (Long) -> Unit, onToday: () -> Unit
         LiquidGlassButton(
             onClick = { showDatePicker = true },
             prominent = false,
-            minHeight = 36.dp,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+            modifier = Modifier.weight(1f).semantics { contentDescription = "选择月份" },
         ) {
-            Text("${month.year}年${month.monthValue}月", style = MaterialTheme.typography.titleMedium)
+            Text("${month.year}年${month.monthValue}月", style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        LiquidGlassButton(
-            onClick = onToday,
-            prominent = false,
-            minHeight = 36.dp,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-        ) {
-            Text("本月")
+        if (month != YearMonth.now()) {
+            LiquidGlassButton(
+                onClick = onToday,
+                prominent = false,
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+            ) { Text("本月") }
         }
         LiquidLensIconButton(onClick = { onMonth(1) }, size = 36.dp) {
             Icon(Icons.Outlined.ChevronRight, "下个月")
@@ -360,15 +371,17 @@ fun DailyHomeScreen(
     onProjects: (() -> Unit)? = null,
     bookNames: Map<Long, String> = emptyMap(),
     canAdd: Boolean = true,
+    readOnly: Boolean = false,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    val showAdd = canAdd && WindowInsets.ime.getBottom(LocalDensity.current) == 0
     LiquidGlassBackdrop {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = header,
             bottomBar = bottomBar,
             floatingActionButton = {
-                if (canAdd) {
+                if (showAdd) {
                     LiquidGlassButton(
                         onClick = onAdd,
                         minHeight = 54.dp,
@@ -384,16 +397,22 @@ fun DailyHomeScreen(
             LazyColumn(
                 Modifier
                     .fillMaxSize()
-                    .padding(top = padding.calculateTopPadding()),
+                    .padding(
+                        top = padding.calculateTopPadding(),
+                        bottom = if (showAdd) padding.calculateBottomPadding() + 76.dp else 0.dp,
+                    ),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
                     top = 14.dp,
-                    bottom = padding.calculateBottomPadding() + 88.dp,
+                    bottom = if (showAdd) 16.dp else padding.calculateBottomPadding() + 24.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item { MonthSelector(state.month, onMonth, onToday) }
+                if (readOnly) {
+                    item { Text("已归档 · 历史明细。恢复使用后可继续记账。", style = MaterialTheme.typography.bodyMedium) }
+                }
                 if (onProjects != null) {
                     item {
                         LiquidGlassButton(
@@ -415,16 +434,16 @@ fun DailyHomeScreen(
                     item { LoadingHint() }
                 } else {
                     item { TotalsCard(state.summary.totals) }
-                    item { Text("最近账目", style = MaterialTheme.typography.titleLarge) }
+                    item { Text("本月明细", style = MaterialTheme.typography.titleLarge) }
                     item {
                         OutlinedTextField(
                             value = query,
                             onValueChange = { query = it },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "搜索本月账目、分类或备注" },
                             singleLine = true,
                             shape = CircleShape,
                             colors = glassTextFieldColors(),
-                            placeholder = { Text("搜索分类、备注或支付方式") },
+                            placeholder = { Text("搜索本月账目、分类或备注", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             leadingIcon = { Icon(Icons.Outlined.Search, null) },
                             trailingIcon = {
                                 if (query.isNotEmpty()) {
@@ -437,7 +456,7 @@ fun DailyHomeScreen(
                     }
                     val entries = state.summary.entries.filter {
                         query.isBlank() ||
-                            "${it.displayCategory} ${it.note} ${it.displayPayment} ${it.sourceCategory.orEmpty()}".contains(query.trim(), true)
+                            "${it.displayCategory} ${it.note} ${it.displayPayment} ${it.sourceCategory.orEmpty()} ${Money.toInput(it.amountCents)}".contains(query.trim(), true)
                     }
                     if (entries.isEmpty()) {
                         item {
@@ -450,7 +469,7 @@ fun DailyHomeScreen(
                         }
                     }
                     items(entries, key = { it.id }) { entry ->
-                        DailyEntryRow(entry, bookNames[entry.bookId]) { onEdit(entry.id) }
+                        DailyEntryRow(entry, bookNames[entry.bookId], if (readOnly) null else ({ onEdit(entry.id) }))
                     }
                 }
             }
@@ -459,8 +478,13 @@ fun DailyHomeScreen(
 }
 
 @Composable
-private fun DailyEntryRow(entry: DailyEntryEntity, bookName: String?, onClick: () -> Unit) {
-    LedgerCard(Modifier.fillMaxWidth(), onClick = onClick) {
+private fun DailyEntryRow(entry: DailyEntryEntity, bookName: String?, onClick: (() -> Unit)?) {
+    LiquidGlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        variant = GlassVariant.Clear,
+        shadowElevation = 0.dp,
+        onClick = onClick,
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -561,8 +585,6 @@ private fun formatCalendarCellAmount(cents: Long, compactMode: Boolean): String 
 private fun IncomeExpenseCalendarSection(
     month: YearMonth,
     entries: List<DailyEntryEntity>,
-    onMonth: (Long) -> Unit,
-    onToday: () -> Unit,
     onEdit: ((String) -> Unit)?,
     bookNames: Map<Long, String>,
 ) {
@@ -607,7 +629,6 @@ private fun IncomeExpenseCalendarSection(
     var metricIndex by rememberSaveable { mutableIntStateOf(0) }   // 0 = 净收支, 1 = 支出, 2 = 收入
     var compactAmount by rememberSaveable { mutableStateOf(false) }
     var sortByAmount by rememberSaveable { mutableStateOf(true) }
-    var showMonthPicker by remember { mutableStateOf(false) }
 
     val metricMode = CalendarMetricMode.entries[metricIndex.coerceIn(0, 2)]
     val activeDaysCount = dayMap.size
@@ -702,47 +723,6 @@ private fun IncomeExpenseCalendarSection(
                             fontWeight = FontWeight.SemiBold,
                             color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    }
-                }
-
-                // 内嵌居中月份切换行：< [ 2026年 11月 ] >
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    LiquidLensIconButton(onClick = { onMonth(-1) }, size = 34.dp) {
-                        Icon(Icons.Outlined.ChevronLeft, contentDescription = "上个月")
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    LiquidGlassButton(
-                        onClick = { showMonthPicker = true },
-                        prominent = false,
-                        minHeight = 36.dp,
-                        shape = RoundedCornerShape(12.dp),
-                        cornerRadius = 12.dp,
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp),
-                    ) {
-                        Text(
-                            text = "${month.year}年 ${month.monthValue}月",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    LiquidLensIconButton(onClick = { onMonth(1) }, size = 34.dp) {
-                        Icon(Icons.Outlined.ChevronRight, contentDescription = "下个月")
-                    }
-                    if (month != YearMonth.from(today)) {
-                        Spacer(Modifier.width(8.dp))
-                        LiquidGlassButton(
-                            onClick = onToday,
-                            prominent = false,
-                            minHeight = 32.dp,
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        ) {
-                            Text("今", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        }
                     }
                 }
 
@@ -1082,7 +1062,6 @@ private fun IncomeExpenseCalendarSection(
                     LiquidGlassButton(
                         onClick = { sortByAmount = !sortByAmount },
                         prominent = false,
-                        minHeight = 30.dp,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     ) {
                         Text(
@@ -1198,18 +1177,6 @@ private fun IncomeExpenseCalendarSection(
             }
         }
     }
-
-    if (showMonthPicker) {
-        LedgerDatePickerDialog(
-            month.atDay(1).toEpochDay(),
-            onPick = {
-                val target = YearMonth.from(LocalDate.ofEpochDay(it))
-                onMonth(ChronoUnit.MONTHS.between(month, target))
-                showMonthPicker = false
-            },
-            onDismiss = { showMonthPicker = false },
-        )
-    }
 }
 
 @Composable
@@ -1248,8 +1215,6 @@ fun DailyStatsScreen(
                         IncomeExpenseCalendarSection(
                             month = state.month,
                             entries = summary.entries,
-                            onMonth = onMonth,
-                            onToday = onToday,
                             onEdit = onEdit,
                             bookNames = bookNames,
                         )
@@ -1384,6 +1349,7 @@ fun BooksScreen(
     onSave: (BookEntity, () -> Unit) -> Unit,
     onSettings: () -> Unit,
     onClearError: () -> Unit,
+    onEditingChange: (Boolean) -> Unit = {},
 ) {
     var editingId by rememberSaveable { mutableStateOf(0L) }
     var kind by rememberSaveable { mutableStateOf(BookKind.DAILY) }
@@ -1394,6 +1360,10 @@ fun BooksScreen(
     var name by rememberSaveable { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     LaunchedEffect(state.error) { if (state.error != null) saving = false }
+    DisposableEffect(showDialog) {
+        onEditingChange(showDialog)
+        onDispose { onEditingChange(false) }
+    }
 
     if (!showDialog) {
         LiquidGlassBackdrop {
@@ -1427,24 +1397,33 @@ fun BooksScreen(
                         val active = !book.archived && !state.all && book.id == state.selected?.id
                         LedgerCard(
                             Modifier.fillMaxWidth(),
-                            onClick = if (book.archived) null else ({ onSelect(book.id) }),
                             containerColor = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
                         ) {
-                            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        Modifier
-                                            .size(42.dp)
-                                            .liquidGlass(RoundedCornerShape(14.dp), GlassVariant.Clear, cornerRadius = 14.dp, shadowElevation = 0.dp),
-                                        contentAlignment = Alignment.Center,
+                                    Row(
+                                        Modifier.weight(1f)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .clickable(role = Role.Button, onClickLabel = if (book.archived) "查看历史" else "切换账本") {
+                                                onSelect(book.id)
+                                            }
+                                            .heightIn(min = 48.dp)
+                                            .padding(8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Icon(
                                             if (book.kind == BookKind.DAILY) Icons.Outlined.AccountBalanceWallet else Icons.Outlined.Cottage,
                                             null,
                                             tint = MaterialTheme.colorScheme.primary,
                                         )
+                                        Column(Modifier.weight(1f)) {
+                                            Text(book.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                            val type = if (book.kind == BookKind.DAILY) "普通账本" else "装修账本"
+                                            val status = if (book.archived) "已归档 · 查看历史" else if (active) "正在使用" else "切换账本"
+                                            Text("$type · $status", style = MaterialTheme.typography.bodySmall)
+                                        }
                                     }
-                                    Text(book.name, Modifier.weight(1f).padding(horizontal = 12.dp), style = MaterialTheme.typography.titleLarge)
                                     LiquidLensIconButton(
                                         onClick = {
                                             editingId = book.id
@@ -1456,20 +1435,18 @@ fun BooksScreen(
                                             showDialog = true
                                         },
                                         size = 38.dp,
-                                    ) {
-                                        Icon(Icons.Outlined.Edit, "编辑${book.name}")
-                                    }
+                                    ) { Icon(Icons.Outlined.Edit, "编辑${book.name}") }
                                 }
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Text(if (book.kind == BookKind.DAILY) "普通账本" else "装修账本", style = MaterialTheme.typography.bodyMedium)
-                                    Text(
-                                        text = if (book.archived) "已归档" else if (active) "正在使用" else "点击切换",
-                                        color = MaterialTheme.colorScheme.primary,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        modifier = Modifier
-                                            .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 12.dp, shadowElevation = 0.dp)
-                                            .padding(horizontal = 10.dp, vertical = 3.dp),
-                                    )
+                                if (book.archived) {
+                                    LiquidGlassButton(
+                                        onClick = {
+                                            saving = true
+                                            onSave(book.copy(archived = false)) { saving = false }
+                                        },
+                                        enabled = !saving,
+                                        prominent = false,
+                                        modifier = Modifier.align(Alignment.End),
+                                    ) { Text("恢复使用") }
                                 }
                             }
                         }
@@ -1503,7 +1480,7 @@ fun BooksScreen(
                     if (state.error != null && !showDialog) {
                         item {
                             Text(state.error, color = MaterialTheme.colorScheme.error)
-                            LiquidGlassButton(onClick = onClearError, prominent = false, minHeight = 36.dp) {
+                            LiquidGlassButton(onClick = onClearError, prominent = false) {
                                 Text("知道了")
                             }
                         }
@@ -1600,8 +1577,14 @@ fun BooksScreen(
 
 @Composable
 private fun BookOption(label: String, enabled: Boolean, editable: Boolean, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(enabled, onChange, enabled = editable)
+    Row(
+        Modifier.fillMaxWidth()
+            .toggleable(value = enabled, enabled = editable, role = Role.Checkbox, onValueChange = onChange)
+            .heightIn(min = 48.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(enabled, onCheckedChange = null, enabled = editable)
         Text(label)
     }
 }

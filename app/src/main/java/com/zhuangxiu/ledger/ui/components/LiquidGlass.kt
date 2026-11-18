@@ -1,5 +1,7 @@
 package com.zhuangxiu.ledger.ui.components
 
+import android.animation.ValueAnimator
+import android.app.ActivityManager
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.os.Build
@@ -92,6 +94,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -242,6 +245,13 @@ half4 main(float2 fragCoord) {
 }
 """
 
+@Composable
+private fun fullGlassEffects(): Boolean {
+    val context = LocalContext.current
+    val lowRam = remember(context) { context.getSystemService(ActivityManager::class.java)?.isLowRamDevice == true }
+    return !IsRobolectricRuntime && !lowRam && ValueAnimator.areAnimatorsEnabled()
+}
+
 /**
  * 全局流动极光与真实页面采样底板：
  * - `content`（极光 + 页面主体内容）统一录制进 `backdropLayer`，使悬浮在 `overlay` 层的持久化底栏水滴能够实时穿透毛玻璃、折射下方的真实滚动卡片与文字；
@@ -267,7 +277,7 @@ fun LiquidGlassBackdrop(
     val auraHolder = remember(auraLayer) { LiquidBackdropHolder(auraLayer) }
     val pageHolder = remember(pageLayer) { LiquidBackdropHolder(pageLayer) }
 
-    val phase = if (IsRobolectricRuntime) {
+    val phase = if (!fullGlassEffects()) {
         0.22f
     } else {
         val transition = rememberInfiniteTransition(label = "liquid-aurora")
@@ -362,7 +372,7 @@ internal fun Modifier.liquidDropletShaderEffect(
     magnification: Float = 1.14f,
     dispersionPx: Float = 4.2f,
 ): Modifier {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || IsRobolectricRuntime || activeProgress <= 0.01f) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !fullGlassEffects() || activeProgress <= 0.01f) {
         return this
     }
     val isDark = LedgerTheme.glass.isDark
@@ -443,6 +453,7 @@ fun Modifier.liquidGlass(
     val rimCounter = glass.specularCounter.copy(alpha = (glass.specularCounter.alpha + specularBoost * 0.6f).coerceAtMost(1f))
     val innerTopGlow = glass.innerGlow.copy(alpha = ((glass.innerGlow.alpha + specularBoost * 0.4f) * (1f - melt * 0.55f)).coerceIn(0f, 0.95f))
 
+    val enableShader = fullGlassEffects()
     val elevatedShadow = if (shadowElevation > 0.dp && !IsRobolectricRuntime) {
         Modifier.shadow(
             elevation = shadowElevation,
@@ -462,7 +473,7 @@ fun Modifier.liquidGlass(
             val h = size.height.coerceAtLeast(1f)
             val actualTouch = if (touchOffset != Offset.Unspecified) touchOffset else Offset(w * 0.3f, h * 0.25f)
 
-            val agslBrush: ShaderBrush? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !IsRobolectricRuntime) {
+            val agslBrush: ShaderBrush? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && enableShader) {
                 runCatching {
                     val shader = RuntimeShader(LIQUID_PANEL_AGSL)
                     shader.setFloatUniform("uResolution", w, h)
@@ -799,7 +810,7 @@ fun LiquidLensTrack(
                                     isInteracting = false
                                     break
                                 }
-                                if (!isScrubbing && dx > viewConfig.touchSlop * 0.32f) {
+                                if (!isScrubbing && dx > viewConfig.touchSlop && dx >= dy) {
                                     isScrubbing = true
                                 }
 
@@ -825,8 +836,8 @@ fun LiquidLensTrack(
                         } while (event.changes.any { it.pressed })
 
                         if (!cancelledByVerticalScroll) {
-                            val insideVerticalTolerance = lastPos.y in (-h * 1.4f)..(h * 2.4f)
-                            if (isScrubbing || insideVerticalTolerance) {
+                            val releasedInside = lastPos.y in 0f..h && lastPos.x in 0f..w
+                            if (isScrubbing || releasedInside) {
                                 val finalIdx = (lastPos.x / slot).toInt().coerceIn(0, itemCount - 1)
                                 val changed = finalIdx != optimisticSelected
                                 optimisticSelected = finalIdx
@@ -1341,7 +1352,18 @@ fun LiquidLensIconButton(
     CompositionLocalProvider(LocalContentColor provides animatedTint.copy(alpha = if (enabled) 1f else 0.42f)) {
         Box(
             modifier = modifier
-                .size(size)
+                .size(maxOf(48.dp, size))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    enabled = enabled,
+                    role = Role.Button,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onClick()
+                    },
+                )
+                .padding(((48.dp - size) / 2).coerceAtLeast(0.dp))
                 .liquidInteractive(
                     interactionSource = interactionSource,
                     enabled = enabled,
@@ -1368,17 +1390,7 @@ fun LiquidLensIconButton(
                             intensity = pressProgress,
                         )
                     }
-                }
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    enabled = enabled,
-                    role = Role.Button,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onClick()
-                    },
-                ),
+                },
             contentAlignment = Alignment.Center,
             content = content,
         )
