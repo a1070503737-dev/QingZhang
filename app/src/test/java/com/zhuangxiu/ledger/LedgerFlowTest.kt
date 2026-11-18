@@ -105,10 +105,10 @@ class LedgerFlowTest {
         compose.onNodeWithText("装修测试").performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("账单总金额").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("账单总金额").performClick()
-        enterRenovationAmount("12800")
+        enterRenovationAmount("12000+800=")
         compose.onNodeWithText("定金").performScrollTo().performClick()
         compose.onNodeWithText("已付定金").performScrollTo().performClick()
-        enterRenovationAmount("800")
+        enterRenovationAmount("1000−200=")
         compose.onNodeWithText("剩余待付 ¥12,000.00").assertExists()
         capture("edit")
         compose.onNodeWithContentDescription("保存账单").performClick()
@@ -143,8 +143,14 @@ class LedgerFlowTest {
     }
 
     private fun enterRenovationAmount(amount: String) {
-        amount.forEach { digit ->
-            compose.onNodeWithContentDescription("数字键$digit", useUnmergedTree = true).performClick()
+        amount.forEach { key ->
+            val description = when (key) {
+                '+' -> "加"
+                '−' -> "减"
+                '=' -> "等于"
+                else -> "数字键$key"
+            }
+            compose.onNodeWithContentDescription(description, useUnmergedTree = true).performClick()
         }
         compose.onNodeWithText("完成").performClick()
     }

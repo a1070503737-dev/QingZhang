@@ -71,8 +71,10 @@ import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
 import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
+import com.zhuangxiu.ledger.ui.components.amountOperationHint
 import com.zhuangxiu.ledger.ui.components.applyAmountKey
 import com.zhuangxiu.ledger.ui.components.glassTextFieldColors
+import com.zhuangxiu.ledger.ui.components.hasAmountOperation
 import com.zhuangxiu.ledger.ui.components.liquidGlass
 import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import java.time.LocalDate
@@ -205,7 +207,7 @@ fun DailyEditContent(
 
                 DailyAmountDisplay(
                     state.amount,
-                    state.amount.isNotEmpty() && !state.valid,
+                    state.amount.isNotEmpty() && !hasAmountOperation(state.amount) && !state.valid,
                     enabled = !state.busy,
                     onClick = { if (noteFocused) finishNote() },
                 )
@@ -402,6 +404,7 @@ fun DailyEditContent(
 @Composable
 private fun DailyAmountDisplay(amount: String, isError: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val calculationHint = amountOperationHint(amount)
     LiquidGlassSurface(
         onClick = onClick,
         modifier = Modifier
@@ -430,12 +433,14 @@ private fun DailyAmountDisplay(amount: String, isError: Boolean, enabled: Boolea
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = amount.ifEmpty { "0.00" },
-                    fontSize = 32.sp,
+                    fontSize = if (calculationHint == null) 32.sp else 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isError) colors.onErrorContainer else if (amount.isEmpty()) colors.onPrimaryContainer.copy(alpha = 0.45f) else colors.onPrimaryContainer,
                 )
             }
-            if (isError) {
+            if (calculationHint != null) {
+                Text(calculationHint, style = MaterialTheme.typography.bodySmall, color = colors.onPrimaryContainer)
+            } else if (isError) {
                 Text("请输入大于 0 且不超过 2 位小数的有效金额", style = MaterialTheme.typography.bodySmall, color = colors.onErrorContainer)
             }
         }

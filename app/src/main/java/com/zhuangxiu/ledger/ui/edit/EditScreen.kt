@@ -78,6 +78,7 @@ import com.zhuangxiu.ledger.ui.components.LiquidGlassTopBar
 import com.zhuangxiu.ledger.ui.components.LiquidLensChip
 import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
 import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
+import com.zhuangxiu.ledger.ui.components.amountOperationHint
 import com.zhuangxiu.ledger.ui.components.applyAmountKey
 import com.zhuangxiu.ledger.ui.components.glassTextFieldColors
 import com.zhuangxiu.ledger.ui.components.liquidGlass
@@ -96,10 +97,12 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
     val keyboard = LocalSoftwareKeyboardController.current
     val glass = LedgerTheme.glass
     var amountField by rememberSaveable { mutableStateOf<AmountField?>(null) }
+    var amountDraft by rememberSaveable { mutableStateOf("") }
     val openAmount: (AmountField) -> Unit = { field ->
         if (!state.saving) {
             keyboard?.hide()
             focusManager.clearFocus()
+            amountDraft = if (field == AmountField.TOTAL) state.amountText else state.paidText
             amountField = field
         }
     }
@@ -331,8 +334,13 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
 
     amountField?.let { field ->
         val isTotal = field == AmountField.TOTAL
-        val amount = if (isTotal) state.amountText else state.paidText
-        val close = { amountField = null }
+        val validAmount = amountDraft.isEmpty() || Money.parseToCents(amountDraft) != null
+        val close = {
+            if (validAmount) {
+                if (isTotal) viewModel.updateAmount { amountDraft } else viewModel.updatePaid { amountDraft }
+            }
+            amountField = null
+        }
         AlertDialog(
             onDismissRequest = close,
             shape = RoundedCornerShape(30.dp),
@@ -342,16 +350,22 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
             title = { Text(if (isTotal) "输入装修总价" else paidAmountLabel(state.status)) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("¥${amount.ifEmpty { "0.00" }}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("¥${amountDraft.ifEmpty { "0.00" }}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    val hint = amountOperationHint(amountDraft)
+                    if (hint != null) {
+                        Text(hint, style = MaterialTheme.typography.bodySmall)
+                    } else if (!validAmount) {
+                        Text("请输入有效的非负金额", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
                     AmountKeypad { key ->
-                        val change: (String) -> String = { applyAmountKey(it, key) }
-                        if (isTotal) viewModel.updateAmount(change) else viewModel.updatePaid(change)
+                        amountDraft = applyAmountKey(amountDraft, key)
                     }
                 }
             },
             confirmButton = {
                 LiquidGlassButton(
                     onClick = close,
+                    enabled = validAmount,
                     minHeight = 40.dp,
                     contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
                 ) { Text("完成") }

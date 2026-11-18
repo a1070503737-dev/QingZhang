@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,23 +69,16 @@ import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
-internal fun applyAmountKey(amount: String, key: String): String = when {
-    key == "⌫" -> amount.dropLast(1)
-    key == "." && amount.contains('.') -> amount
-    key == "." && amount.isEmpty() -> "0."
-    else -> amount + key
-}
-
 private val KEYPAD_ROWS = listOf(
-    listOf("1", "2", "3"),
-    listOf("4", "5", "6"),
-    listOf("7", "8", "9"),
-    listOf(".", "0", "⌫"),
+    listOf("1", "2", "3", "+"),
+    listOf("4", "5", "6", "−"),
+    listOf("7", "8", "9", "⌫"),
+    listOf(".", "0", "0", "="),
 )
 
 /**
  * 2D 连续滑动水滴凸透镜数字键盘：
- * - 单点或按住在 12 键间连续漫游时，高透凸透镜水滴以高阻尼弹簧平滑跟随拇指；
+ * - 单点或按住滑动时，凸透镜水滴跟随手指，松手输入选中的键；
  * - 水滴下方自动挖空原按键以消除重影，内部穿透毛玻璃折射底层画面，并将字符以 1.26x 纯净品牌蓝锋利放大，松手精准输入目标键。
  */
 @Composable
@@ -96,6 +90,9 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
     val keysForegroundLayer = rememberGraphicsLayer()
     val viewConfig = LocalViewConfiguration.current
     val density = LocalDensity.current
+    val enterKey by rememberUpdatedState(onKey)
+    val columns = KEYPAD_ROWS.first().size
+    val rows = KEYPAD_ROWS.size
 
     var gridSize by remember { mutableStateOf(IntSize.Zero) }
     var gridRootPos by remember { mutableStateOf(Offset.Zero) }
@@ -116,12 +113,12 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
 
     fun keyIndexAt(pos: Offset, size: IntSize): Int {
         if (size.width <= 0 || size.height <= 0) return -1
-        val col = (pos.x / (size.width / 3f)).toInt().coerceIn(0, 2)
-        val row = (pos.y / (size.height / 4f)).toInt().coerceIn(0, 3)
-        return row * 3 + col
+        val col = (pos.x / (size.width.toFloat() / columns)).toInt().coerceIn(0, columns - 1)
+        val row = (pos.y / (size.height.toFloat() / rows)).toInt().coerceIn(0, rows - 1)
+        return row * columns + col
     }
 
-    val lensW = if (gridSize.width > 0) (gridSize.width / 3f) * (1.02f + 0.14f * liftProgress) else 0f
+    val lensW = gridSize.width.toFloat() / columns * (1.02f + 0.14f * liftProgress)
     val lensH = with(density) { 60.dp.toPx() } * (0.88f + 0.12f * liftProgress)
     val lensLeft = if (gridSize.width > 0) {
         (animatedOffset.x - lensW / 2f).coerceIn(-lensW * 0.12f, gridSize.width - lensW * 0.88f)
@@ -164,7 +161,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                                     scrubbing = true
                                 }
                                 val idx = keyIndexAt(ch.position, size)
-                                if (idx != hoveredFlatIdx && idx in 0..11) {
+                                if (idx != hoveredFlatIdx && idx >= 0) {
                                     hoveredFlatIdx = idx
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 }
@@ -174,10 +171,10 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                             }
                         } while (event.changes.any { it.pressed })
 
-                        if (scrubbing && hoveredFlatIdx in 0..11) {
-                            val key = KEYPAD_ROWS[hoveredFlatIdx / 3][hoveredFlatIdx % 3]
+                        if (scrubbing && hoveredFlatIdx >= 0) {
+                            val key = KEYPAD_ROWS[hoveredFlatIdx / columns][hoveredFlatIdx % columns]
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onKey(key)
+                            enterKey(key)
                         }
                     } finally {
                         activePointer = false
@@ -213,17 +210,24 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
         ) {
             KEYPAD_ROWS.forEach { keys ->
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    keys.forEach { key ->
-                        val isBackspace = key == "⌫"
+                    keys.distinct().forEach { key ->
+                        val description = when (key) {
+                            "+" -> "加"
+                            "−" -> "减"
+                            "=" -> "等于"
+                            "⌫" -> "退格"
+                            else -> "数字键$key"
+                        }
+                        val isAction = key in listOf("+", "−", "=", "⌫")
                         val interactionSource = remember(key) { MutableInteractionSource() }
                         Box(
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(if (key == "0") 2f else 1f)
                                 .heightIn(min = 50.dp)
                                 .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
                                 .liquidGlass(
                                     shape = RoundedCornerShape(18.dp),
-                                    variant = if (isBackspace) {
+                                    variant = if (isAction) {
                                         GlassVariant.Tinted(MaterialTheme.colorScheme.secondaryContainer)
                                     } else {
                                         GlassVariant.Elevated
@@ -249,7 +253,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.semantics {
-                                    contentDescription = if (isBackspace) "退格" else "数字键$key"
+                                    contentDescription = description
                                 },
                             )
                         }
