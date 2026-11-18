@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.2.0",
+  "versionCode": 12,
+  "notes": "轻账 1.2.0 支持从鲨鱼记账合并导入 CSV 或 XLSX。在「设置 → 数据导入」选择文件，可预览收支、调整列与分类映射、核对疑似重复记录，再确认导入。\n\n- 首页支持普通账本、装修账本及全部账本汇总。装修支出按实际付款日期计入。\n- 数据库自动升级，保留原有账单、付款、分类和凭证。升级前建议在旧版导出一份 ZIP 备份。\n- 沿用 1.0.9 和 1.1.0 的签名。打开「设置 → 检查更新」即可下载安装。",
+  "apk": {
+    "fileName": "renovation-ledger-1.2.0-signed.apk",
+    "size": 3069544,
+    "sha256": "04e9c7d60ef0958f03ba24afe6e788283068c0b02b9d98822dd3a45f196323b4"
+  }
+}
