@@ -9,7 +9,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -38,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +51,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -99,6 +104,9 @@ private val TABS = listOf(
 
 private fun tabIndexOf(route: String?): Int = TABS.indexOfFirst { it.route == route }
 
+private val DockHeight = 80.dp
+private val DockBottomGap = 10.dp
+
 @Composable
 fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit, modifier: Modifier = Modifier) {
     val selected = tabIndexOf(current).coerceAtLeast(0)
@@ -106,17 +114,34 @@ fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit, modifier: Mod
         val route = TABS[index].route
         if (route != current) onNavigate(route)
     }
-    NavigationBar(
-        modifier = modifier.swipeToSelect(TABS.size, onSelect = openTab),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    val colors = MaterialTheme.colorScheme
+    Box(
+        modifier.fillMaxWidth().navigationBarsPadding()
+            .padding(start = 18.dp, end = 18.dp, bottom = DockBottomGap),
+        contentAlignment = Alignment.Center,
     ) {
-        TABS.forEachIndexed { index, tab ->
-            NavigationBarItem(
-                selected = index == selected,
-                onClick = { openTab(index) },
-                icon = { Icon(tab.icon, contentDescription = null) },
-                label = { Text(tab.label) },
-            )
+        Surface(
+            modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            color = colors.surfaceContainer,
+            border = BorderStroke(1.dp, colors.outlineVariant),
+            shadowElevation = 6.dp,
+        ) {
+            NavigationBar(
+                modifier = Modifier.height(DockHeight).swipeToSelect(TABS.size, onSelect = openTab),
+                containerColor = Color.Transparent,
+                tonalElevation = 0.dp,
+                windowInsets = WindowInsets(0, 0, 0, 0),
+            ) {
+                TABS.forEachIndexed { index, tab ->
+                    NavigationBarItem(
+                        selected = index == selected,
+                        onClick = { openTab(index) },
+                        icon = { Icon(tab.icon, contentDescription = null) },
+                        label = { Text(tab.label) },
+                    )
+                }
+            }
         }
     }
 }
@@ -175,7 +200,7 @@ internal fun LedgerNavHost(
             Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .height(80.dp),
+                .height(DockHeight + DockBottomGap),
         )
     }
 

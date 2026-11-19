@@ -3,6 +3,10 @@ package com.zhuangxiu.ledger
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.drawable.AdaptiveIconDrawable
 import androidx.compose.ui.test.*
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -18,6 +22,7 @@ import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.xmlpull.v1.XmlPullParser
+import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = LedgerApp::class, sdk = [35], qualifiers = "w393dp-h852dp-xxhdpi")
@@ -41,6 +46,21 @@ class LauncherShortcutTest {
 
     private fun awaitDescription(description: String) {
         compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription(description).fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test fun launcherIconRendersBlueNotebookAndGoldCoinAndSupportsTheming() {
+        val icon = context.getDrawable(context.applicationInfo.icon) as AdaptiveIconDrawable
+        requireNotNull(icon.monochrome)
+        val bitmap = Bitmap.createBitmap(240, 240, Bitmap.Config.ARGB_8888)
+        icon.setBounds(0, 0, bitmap.width, bitmap.height)
+        icon.draw(Canvas(bitmap))
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        assertTrue(pixels.any { Color.blue(it) - Color.red(it) > 40 && Color.alpha(it) == 255 })
+        assertTrue(pixels.any { Color.red(it) > 230 && Color.green(it) > 160 && Color.blue(it) < 155 })
+        val preview = File("build/reports/ui/qingzhang-launcher-icon.png")
+        preview.parentFile?.mkdirs()
+        preview.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
     @Test fun declaredShortcutsForwardToExistingTaskWithoutClearTask() {

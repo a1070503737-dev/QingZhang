@@ -149,6 +149,53 @@ class DailyScreenTest {
         capture("ux-home-light-320")
     }
 
+    @Test
+    fun monthSwipeChangesOneMonthOnReleaseAndCalendarStillSelectsDates() {
+        val initial = YearMonth.of(2025, 1)
+        val book = BookEntity(1, "生活账本", BookKind.DAILY)
+        var month by mutableStateOf(initial)
+        var statistics by mutableStateOf(false)
+        val deltas = mutableListOf<Long>()
+        compose.setContent {
+            RenovationLedgerTheme {
+                val state = DailyState(month, DailyStatistics.calculate(emptyList(), book.id, month))
+                val header: @Composable () -> Unit = { BookHeader(BookState(listOf(book), book), {}, {}) }
+                val changeMonth: (Long) -> Unit = { delta ->
+                    deltas.add(delta)
+                    month = month.plusMonths(delta)
+                }
+                if (statistics) {
+                    DailyStatsScreen(state, header, {}, changeMonth, {})
+                } else {
+                    DailyHomeScreen(state, header, {}, changeMonth, {}, {}, {})
+                }
+            }
+        }
+
+        val monthPicker = compose.onNodeWithContentDescription("选择月份")
+        monthPicker.performTouchInput {
+            down(center)
+            moveTo(center - Offset(120.dp.toPx(), 0f))
+        }
+        compose.runOnIdle { assertEquals(emptyList<Long>(), deltas) }
+        monthPicker.performTouchInput { up() }
+        compose.onNodeWithText("2025年2月").assertIsDisplayed()
+        compose.onNodeWithContentDescription("本月结余 ¥0.00").performTouchInput {
+            swipe(center - Offset(32.dp.toPx(), 0f), center + Offset(110.dp.toPx(), 0f))
+        }
+        compose.onNodeWithText("2025年1月").assertIsDisplayed()
+        compose.runOnIdle { statistics = true }
+        val calendarDay = compose.onNodeWithContentDescription("1月15日 0.00")
+        calendarDay.performTouchInput { swipe(center, center - Offset(116.dp.toPx(), 0f)) }
+        compose.onNodeWithText("2025年2月").assertIsDisplayed()
+        val nextDay = compose.onNodeWithContentDescription("2月12日 0.00")
+        nextDay.performClick()
+        val list = compose.onNode(hasScrollToIndexAction())
+        list.performScrollToNode(hasText("(2025.02.12)"))
+        compose.onNodeWithText("(2025.02.12)").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(listOf(1L, -1L, 1L), deltas) }
+    }
+
     @Test @Config(qualifiers = "w360dp-h800dp-xhdpi")
     fun dockCommitsOnlyLastTabOnRelease() {
         val visited = mutableListOf<String>()
@@ -160,6 +207,9 @@ class DailyScreenTest {
         val home = compose.onNodeWithText("首页")
         val stats = compose.onNodeWithText("统计")
         val books = compose.onNodeWithText("账本")
+        val screen = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        assertTrue(home.fetchSemanticsNode().boundsInRoot.left > screen.left)
+        assertTrue(books.fetchSemanticsNode().boundsInRoot.right < screen.right)
         val statsOffset = stats.fetchSemanticsNode().boundsInRoot.center - home.fetchSemanticsNode().boundsInRoot.center
         val booksOffset = books.fetchSemanticsNode().boundsInRoot.center - home.fetchSemanticsNode().boundsInRoot.center
         home.performTouchInput {

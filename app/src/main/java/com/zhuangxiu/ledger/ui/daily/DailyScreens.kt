@@ -3,8 +3,8 @@ package com.zhuangxiu.ledger.ui.daily
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
@@ -82,6 +82,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -91,12 +92,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -233,6 +232,22 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
             }
         },
     )
+}
+
+@Composable
+private fun Modifier.swipeMonth(onMonth: (Long) -> Unit): Modifier {
+    val changeMonth by rememberUpdatedState(onMonth)
+    return pointerInput(Unit) {
+        val threshold = 48.dp.toPx()
+        var distance = 0f
+        detectHorizontalDragGestures(
+            onDragStart = { distance = 0f },
+            onDragEnd = {
+                if (abs(distance) >= threshold) changeMonth(if (distance < 0) 1L else -1L)
+            },
+            onHorizontalDrag = { _, delta -> distance += delta },
+        )
+    }
 }
 
 @Composable
@@ -384,7 +399,8 @@ fun DailyHomeScreen(
             LazyColumn(
                 Modifier
                     .fillMaxSize()
-                    .padding(top = padding.calculateTopPadding()),
+                    .padding(top = padding.calculateTopPadding())
+                    .swipeMonth(onMonth),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
@@ -569,7 +585,6 @@ private fun IncomeExpenseCalendarSection(
 ) {
     val isDark = LedgerTheme.isDark
     val haptic = LocalHapticFeedback.current
-    val viewConfig = LocalViewConfiguration.current
     val today = remember { LocalDate.now() }
 
     val dayMap = remember(entries) {
@@ -727,34 +742,21 @@ private fun IncomeExpenseCalendarSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .pointerInput(month, rowCount) {
-                                awaitEachGesture {
-                                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
-                                    var lockedHorizontal = false
-                                    do {
-                                        val event = awaitPointerEvent(PointerEventPass.Main)
-                                        val ch = event.changes.firstOrNull { it.id == down.id } ?: event.changes.firstOrNull()
-                                        if (ch != null && ch.pressed) {
-                                            val dx = abs(ch.position.x - down.position.x)
-                                            val dy = abs(ch.position.y - down.position.y)
-                                            if (!lockedHorizontal && dy > viewConfig.touchSlop && dy > dx * 1.3f) {
-                                                break
-                                            }
-                                            if (!lockedHorizontal && dx > viewConfig.touchSlop * 0.45f) {
-                                                lockedHorizontal = true
-                                            }
-                                            if (lockedHorizontal) {
-                                                dayAtOffset(ch.position, size)?.let { dNum ->
-                                                    val ep = month.atDay(dNum).toEpochDay()
-                                                    if (ep != selectedEpochDay) {
-                                                        selectedEpochDay = ep
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                    }
-                                                }
-                                                ch.consume()
-                                            }
-                                        }
-                                    } while (event.changes.any { it.pressed })
+                                fun selectDay(pos: Offset) {
+                                    val day = dayAtOffset(pos, size) ?: return
+                                    val epochDay = month.atDay(day).toEpochDay()
+                                    if (epochDay != selectedEpochDay) {
+                                        selectedEpochDay = epochDay
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
                                 }
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = ::selectDay,
+                                    onDrag = { change, _ ->
+                                        selectDay(change.position)
+                                        change.consume()
+                                    },
+                                )
                             },
                     ) {
                         Column(
@@ -962,7 +964,7 @@ private fun IncomeExpenseCalendarSection(
 
                 if (dayEntries.isEmpty()) {
                     Text(
-                        text = "当日暂无收支账目，点击或滑动上方日历中的着色日期即可查看明细。",
+                        text = "当日暂无收支账目。点击日期查看明细，长按后可滑动选择日期。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 8.dp),
@@ -1079,7 +1081,8 @@ fun DailyStatsScreen(
             LazyColumn(
                 Modifier
                     .fillMaxSize()
-                    .padding(top = padding.calculateTopPadding()),
+                    .padding(top = padding.calculateTopPadding())
+                    .swipeMonth(onMonth),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
