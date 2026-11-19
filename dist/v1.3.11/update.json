@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.3.11",
+  "versionCode": 26,
+  "notes": "# 轻账 1.3.11\n\n- 悬浮底栏加入轻微透色，保持标签与图标清晰。\n- 首页和统计页左右滑动时，内容随手势移动并露出相邻月份。短滑松手回弹，滑过阈值后平滑切换。",
+  "apk": {
+    "fileName": "renovation-ledger-1.3.11-signed.apk",
+    "size": 3127392,
+    "sha256": "98d7cb39c13c187d24b708a933b1d3cf8e55f471fd50a9954f9b775ade463696"
+  }
+}
