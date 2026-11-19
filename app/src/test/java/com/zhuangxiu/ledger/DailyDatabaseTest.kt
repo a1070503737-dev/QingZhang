@@ -45,6 +45,43 @@ class DailyDatabaseTest {
         assertEquals("午饭", repo.get("test")!!.note)
         repo.delete("test"); assertNull(repo.get("test"))
     }
+
+    @Test fun multiFileImportUsesOneBookAndTransactionWithSourceAwareDuplicates() = runTest {
+        val original = ImportRow(2, 20774, 750, EntryKind.EXPENSE, 1250, "餐饮", "午饭", null, null)
+        val other = original.copy(number = 3, cents = 500, category = "咖啡")
+        val inputs = listOf(
+            ImportInput(ImportSource("first", "0:CSV", "first-map"),
+                ParsedImport(listOf(original, original.copy(number = 3)), emptyList()), "first.csv"),
+            ImportInput(ImportSource("second", "0:明细", "second-map"),
+                ParsedImport(listOf(original, other), listOf(ImportIssue(4, "日期无效"))), "second.xlsx"),
+        )
+        val importing = ImportRepository(db, repo)
+        val preview = importing.preview(null, inputs)
+        assertEquals(listOf(Repeat.IN_FILE, Repeat.IN_FILE, Repeat.IN_BATCH, Repeat.NONE), preview.rows.map { it.repeat })
+        assertEquals("second.xlsx", preview.issues.single().fileName)
+        assertTrue(db.dailyDao().all().isEmpty())
+
+        val failed = runCatching {
+            importing.commit(null, "批量账本", inputs, preview,
+                mapOf(ImportCategory(EntryKind.EXPENSE, "咖啡") to " "), skipInvalid = true, skipPossible = true)
+        }
+        assertTrue(failed.isFailure)
+        assertTrue(db.dailyDao().all().isEmpty())
+        assertTrue(db.dailyDao().books().none { it.name == "批量账本" })
+        assertTrue(db.dailyDao().allBatches().isEmpty())
+
+        val receipt = importing.commit(null, "批量账本", inputs, preview, emptyMap(), skipInvalid = true, skipPossible = true)
+        assertEquals(3, receipt.imported)
+        assertEquals(1, receipt.skipped)
+        assertEquals(1, receipt.failed)
+        assertEquals(3000L, receipt.months.values.single().expense)
+        val book = db.dailyDao().books().single { it.name == "批量账本" }
+        assertTrue(db.dailyDao().all().all { it.bookId == book.id })
+        assertEquals(2, db.dailyDao().allBatches().size)
+        val repeat = importing.preview(book.id, inputs)
+        assertEquals(3, repeat.rows.count { it.repeat == Repeat.EXACT })
+        assertEquals(0, importing.commit(book.id, "", inputs, repeat, emptyMap(), skipInvalid = true, skipPossible = true).imported)
+    }
     @Test fun entriesAndCustomCategorySuggestionsStayInTheirBook() = runTest {
         assertEquals(listOf(BookKind.DAILY), db.dailyDao().books().map { it.kind })
         val book = repo.addBook("旅行")

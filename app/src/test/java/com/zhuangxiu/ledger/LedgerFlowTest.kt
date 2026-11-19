@@ -2,6 +2,7 @@ package com.zhuangxiu.ledger
 
 import android.graphics.Bitmap
 import android.app.Activity
+import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import android.view.WindowManager
@@ -36,7 +37,7 @@ class LedgerFlowTest {
         output.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
-    @Test fun importFromDocumentPickerRequiresConfirmationAndRefreshesHome() {
+    @Test fun importMultipleDocumentsRequiresConfirmationAndRefreshesHome() {
         awaitText("生活账本")
         compose.onNodeWithContentDescription("设置").performClick()
         compose.onNodeWithText("数据导入").performScrollTo().performClick()
@@ -46,13 +47,23 @@ class LedgerFlowTest {
             val file = File(compose.activity.cacheDir, "test-shark.csv")
             file.writeText("日期,收支类型,类别,账户,金额,备注\n" +
                 "${java.time.LocalDate.now()},支出,餐饮,现金,12.34,导入测试")
+            val other = File(compose.activity.cacheDir, "another-shark.csv")
+            other.writeText("金额,类别,日期,收支类型\n2.66,交通,${java.time.LocalDate.now()},支出")
+            val duplicate = file.copyTo(File(compose.activity.cacheDir, "copy-shark.csv"), overwrite = true)
+            val invalid = File(compose.activity.cacheDir, "invalid.csv").apply { writeText("无法识别") }
             val shadow = Shadows.shadowOf(compose.activity)
             val launched = shadow.nextStartedActivityForResult
             assertEquals(Intent.ACTION_OPEN_DOCUMENT, launched.intent.action)
-            shadow.callOnActivityResult(launched.requestCode, Activity.RESULT_OK, Intent().setData(Uri.fromFile(file)))
+            assertTrue(launched.intent.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false))
+            val files = ClipData.newRawUri("账单", Uri.fromFile(file)).apply {
+                listOf(other, duplicate, invalid).forEach { addItem(ClipData.Item(Uri.fromFile(it))) }
+            }
+            shadow.callOnActivityResult(launched.requestCode, Activity.RESULT_OK, Intent().apply { clipData = files })
         }
-        awaitText("CSV · UTF-8")
         val list = compose.onNodeWithTag("import-list")
+        awaitText("已跳过 1 个内容完全相同的文件")
+        awaitText("以下文件未加入导入")
+        list.performScrollToNode(hasText("已选 2 个文件"))
         list.performScrollToNode(hasText("生成预览"))
         compose.onNodeWithText("生成预览").performClick()
         compose.waitUntil(15_000) {
@@ -62,11 +73,11 @@ class LedgerFlowTest {
         awaitText("合并到目标账本？")
         compose.onNodeWithText("导入", useUnmergedTree = true).performClick()
         list.performScrollToIndex(0)
-        awaitText("成功 1 笔 · 跳过 0 笔 · 解析失败 0 笔")
+        awaitText("成功 2 笔 · 跳过 0 笔 · 解析失败 0 笔")
         compose.onNodeWithContentDescription("返回").performClick()
         compose.onNodeWithContentDescription("返回").performClick()
         compose.waitUntil(15_000) {
-            compose.onAllNodesWithContentDescription("本月支出 ¥12.34").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithContentDescription("本月支出 ¥15.00").fetchSemanticsNodes().isNotEmpty()
         }
     }
 

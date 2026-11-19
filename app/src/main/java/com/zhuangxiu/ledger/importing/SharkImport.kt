@@ -74,7 +74,7 @@ data class ImportRow(
         "${value.length}:$value"
     }.toByteArray().sha256() }
 }
-data class ImportIssue(val number: Int, val reason: String)
+data class ImportIssue(val number: Int, val reason: String, val fileName: String? = null)
 data class ParsedImport(val rows: List<ImportRow>, val issues: List<ImportIssue>)
 
 fun guessColumns(headers: List<String>): Map<ImportField, Int> = buildMap {
