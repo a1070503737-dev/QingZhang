@@ -235,33 +235,35 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
 @Composable
 fun MonthSelector(month: YearMonth, onMonth: (Long) -> Unit, onToday: () -> Unit) {
     var showDatePicker by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        LedgerIconButton(onClick = { onMonth(-1) }, size = 36.dp) {
-            Icon(Icons.Outlined.ChevronLeft, "上个月")
-        }
-        LedgerButton(
-            onClick = { showDatePicker = true },
-            prominent = false,
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-            modifier = Modifier.weight(1f).semantics { contentDescription = "选择月份" },
+    MonthSwipeRegion(month, onMonth, Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text("${month.year}年${month.monthValue}月", style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        if (month != YearMonth.now()) {
+            LedgerIconButton(onClick = { onMonth(-1) }, size = 36.dp) {
+                Icon(Icons.Outlined.ChevronLeft, "上个月")
+            }
             LedgerButton(
-                onClick = onToday,
+                onClick = { showDatePicker = true },
                 prominent = false,
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-            ) { Text("本月") }
-        }
-        LedgerIconButton(onClick = { onMonth(1) }, size = 36.dp) {
-            Icon(Icons.Outlined.ChevronRight, "下个月")
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                modifier = Modifier.weight(1f).semantics { contentDescription = "选择月份" },
+            ) {
+                Text("${month.year}年${month.monthValue}月", style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (month != YearMonth.now()) {
+                LedgerButton(
+                    onClick = onToday,
+                    prominent = false,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                ) { Text("本月") }
+            }
+            LedgerIconButton(onClick = { onMonth(1) }, size = 36.dp) {
+                Icon(Icons.Outlined.ChevronRight, "下个月")
+            }
         }
     }
     if (showDatePicker) {
@@ -378,9 +380,7 @@ fun DailyHomeScreen(
             } else {
                 24.dp
             }
-            MonthSwipeList(
-                month = state.month,
-                onMonth = onMonth,
+            LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
                 contentPadding = PaddingValues(
                     start = 20.dp,
@@ -1059,9 +1059,7 @@ fun DailyStatsScreen(
 ) {
     LedgerBackground {
         Scaffold(containerColor = Color.Transparent, topBar = header, bottomBar = bottomBar) { padding ->
-            MonthSwipeList(
-                month = state.month,
-                onMonth = onMonth,
+            LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
                 contentPadding = PaddingValues(
                     start = 20.dp,

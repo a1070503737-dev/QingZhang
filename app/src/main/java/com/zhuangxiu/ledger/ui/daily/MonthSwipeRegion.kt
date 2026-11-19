@@ -5,17 +5,9 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
@@ -41,13 +34,11 @@ import java.time.YearMonth
 import kotlin.math.abs
 
 @Composable
-internal fun MonthSwipeList(
+internal fun MonthSwipeRegion(
     month: YearMonth,
     onMonth: (Long) -> Unit,
-    contentPadding: PaddingValues,
-    verticalArrangement: Arrangement.Vertical,
     modifier: Modifier = Modifier,
-    content: LazyListScope.() -> Unit,
+    content: @Composable () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val currentMonth by rememberUpdatedState(month)
@@ -103,26 +94,22 @@ internal fun MonthSwipeList(
         },
     ) {
         preview?.let { adjacent ->
-            Column(
-                modifier = Modifier
-                    .align(if (adjacent > month) Alignment.CenterEnd else Alignment.CenterStart)
-                    .width(88.dp)
-                    .graphicsLayer { alpha = (abs(position) / 52.dp.toPx()).coerceIn(0f, 1f) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            Box(
+                Modifier.matchParentSize(),
+                contentAlignment = if (adjacent > month) Alignment.CenterEnd else Alignment.CenterStart,
             ) {
-                Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = colors.primary)
-                Text("${adjacent.year} 年", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-                Text("${adjacent.monthValue} 月", style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
+                Text(
+                    "${adjacent.monthValue} 月",
+                    modifier = Modifier.width(88.dp)
+                        .graphicsLayer { alpha = (abs(position) / 52.dp.toPx()).coerceIn(0f, 1f) },
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.onSurface,
+                )
             }
         }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize()
-                .graphicsLayer { translationX = position }
-                .background(colors.background),
-            contentPadding = contentPadding,
-            verticalArrangement = verticalArrangement,
-            content = content,
-        )
+        Box(
+            Modifier.fillMaxWidth().graphicsLayer { translationX = position }.background(colors.background),
+        ) { content() }
     }
 }

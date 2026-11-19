@@ -192,13 +192,12 @@ class DailyScreenTest {
         monthPicker.performTouchInput { swipe(center, center + Offset(35.dp.toPx(), 0f)) }
         compose.onNodeWithText("2025年2月").assertIsDisplayed()
         compose.onNodeWithText("1 月").assertDoesNotExist()
-        compose.onNodeWithContentDescription("本月结余 ¥0.00").performTouchInput {
+        monthPicker.performTouchInput {
             swipe(center - Offset(32.dp.toPx(), 0f), center + Offset(110.dp.toPx(), 0f))
         }
         compose.onNodeWithText("2025年1月").assertIsDisplayed()
         compose.runOnIdle { statistics = true }
-        val calendarDay = compose.onNodeWithContentDescription("1月15日 0.00")
-        calendarDay.performTouchInput { swipe(center, center - Offset(116.dp.toPx(), 0f)) }
+        monthPicker.performTouchInput { swipe(center, center - Offset(116.dp.toPx(), 0f)) }
         compose.onNodeWithText("2025年2月").assertIsDisplayed()
         val nextDay = compose.onNodeWithContentDescription("2月12日 0.00")
         nextDay.performClick()

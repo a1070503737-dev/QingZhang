@@ -1,7 +1,9 @@
 package com.zhuangxiu.ledger
 
 import android.graphics.Bitmap
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -28,6 +30,31 @@ class DailyFlowTest {
         val file = File("build/reports/ui/$name.png"); file.parentFile!!.mkdirs()
         file.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
+
+    @Test fun mainSwipeShowsNeighborBeforeReleaseAndDockControlsTheSamePages() {
+        awaitDescription("本月结余 ¥0.00")
+        val root = compose.onRoot()
+        val summary = compose.onNodeWithContentDescription("本月结余 ¥0.00")
+        val summaryY = summary.fetchSemanticsNode().boundsInRoot.center.y
+        root.performTouchInput {
+            down(Offset(width * 0.82f, summaryY))
+            moveTo(Offset(width * 0.27f, summaryY))
+        }
+        compose.onNodeWithText("收支日历", useUnmergedTree = true).assertIsDisplayed()
+        capture("qingzhang-tab-swipe-preview")
+        root.performTouchInput { up() }
+        compose.onNodeWithText("统计").assertIsSelected()
+        compose.onNodeWithText("收支日历").assertIsDisplayed()
+        val stats = compose.onNodeWithText("统计")
+        val books = compose.onNodeWithText("账本")
+        val distance = books.fetchSemanticsNode().boundsInRoot.center - stats.fetchSemanticsNode().boundsInRoot.center
+        stats.performTouchInput { swipe(center, center + distance) }
+        books.assertIsSelected()
+        compose.onNodeWithText("我的账本").assertIsDisplayed()
+        compose.onNodeWithText("首页").performClick()
+        summary.assertIsDisplayed()
+    }
+
     @Test fun dailyCrudStatisticsRestartAndBookSwitch() {
         awaitText("生活账本")
         awaitDescription("本月结余 ¥0.00")
@@ -67,7 +94,9 @@ class DailyFlowTest {
         awaitText("收支日历")
         capture("qingzhang-stats")
         statsTab.assertIsSelected()
-        val statsList = compose.onNode(hasScrollToIndexAction())
+        val statsList = compose.onNode(
+            hasScrollToIndexAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange),
+        )
         statsList.performScrollToNode(hasText("当日收支明细"))
         compose.onNodeWithText("收入 +¥100.00").assertExists()
         compose.onNodeWithText("支出 -¥25.50").assertExists()

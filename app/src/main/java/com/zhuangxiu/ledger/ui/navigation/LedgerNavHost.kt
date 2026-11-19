@@ -9,9 +9,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.Column
@@ -24,7 +22,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -32,16 +29,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Cottage
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.PieChartOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,8 +43,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -74,7 +64,6 @@ import com.zhuangxiu.ledger.ui.components.LedgerBackground
 import com.zhuangxiu.ledger.ui.components.LedgerButton
 import com.zhuangxiu.ledger.ui.components.LedgerPanel
 import com.zhuangxiu.ledger.ui.components.LedgerTopBar
-import com.zhuangxiu.ledger.ui.components.swipeToSelect
 import com.zhuangxiu.ledger.ui.daily.BookHeader
 import com.zhuangxiu.ledger.ui.daily.BooksScreen
 import com.zhuangxiu.ledger.ui.daily.DailyEditScreen
@@ -93,59 +82,6 @@ import com.zhuangxiu.ledger.ui.mine.MineScreen
 import com.zhuangxiu.ledger.ui.mine.ReminderScreen
 import com.zhuangxiu.ledger.ui.mine.UpdateScreen
 import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
-
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
-
-private val TABS = listOf(
-    Tab(Routes.HOME, "首页", Icons.Outlined.Home),
-    Tab(Routes.STATS, "统计", Icons.Outlined.PieChartOutline),
-    Tab(Routes.BOOKS, "账本", Icons.Outlined.AccountBalanceWallet),
-)
-
-private fun tabIndexOf(route: String?): Int = TABS.indexOfFirst { it.route == route }
-
-private val DockHeight = 80.dp
-private val DockBottomGap = 10.dp
-
-@Composable
-fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit, modifier: Modifier = Modifier) {
-    val selected = tabIndexOf(current).coerceAtLeast(0)
-    val openTab: (Int) -> Unit = { index ->
-        val route = TABS[index].route
-        if (route != current) onNavigate(route)
-    }
-    val colors = MaterialTheme.colorScheme
-    Box(
-        modifier.fillMaxWidth().navigationBarsPadding()
-            .padding(start = 18.dp, end = 18.dp, bottom = DockBottomGap),
-        contentAlignment = Alignment.Center,
-    ) {
-        Surface(
-            modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
-            color = colors.surfaceContainer.copy(alpha = 0.84f),
-            contentColor = colors.onSurface,
-            border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.80f)),
-            shadowElevation = 6.dp,
-        ) {
-            NavigationBar(
-                modifier = Modifier.height(DockHeight).swipeToSelect(TABS.size, onSelect = openTab),
-                containerColor = Color.Transparent,
-                tonalElevation = 0.dp,
-                windowInsets = WindowInsets(0, 0, 0, 0),
-            ) {
-                TABS.forEachIndexed { index, tab ->
-                    NavigationBarItem(
-                        selected = index == selected,
-                        onClick = { openTab(index) },
-                        icon = { Icon(tab.icon, contentDescription = null) },
-                        label = { Text(tab.label) },
-                    )
-                }
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -166,13 +102,13 @@ internal fun LedgerNavHost(
         BookHeader(bookState, dailyViewModel::select) { navController.navigate(Routes.MINE) }
     }
     val switchTab: (String) -> Unit = { route ->
-        if (currentRoute != route) {
-            navController.navigate(route) {
-                popUpTo(Routes.HOME) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
-            }
+        val primary = if (isTabHost(currentRoute)) {
+            backStackEntry
+        } else {
+            navController.popBackStack(Routes.HOME, inclusive = false)
+            navController.getBackStackEntry(Routes.HOME)
         }
+        primary?.savedStateHandle?.set(RequestedTabKey, route)
     }
     val back: () -> Unit = { navController.popBackStack() }
     val addToBook: (BookEntity) -> Unit = { book ->
@@ -212,7 +148,7 @@ internal fun LedgerNavHost(
         when {
             currentActiveBook != null -> addToBook(currentActiveBook)
             activeBooks.isNotEmpty() -> pickQuickBook = true
-            currentRoute != Routes.BOOKS -> navController.navigate(Routes.BOOKS) { launchSingleTop = true }
+            else -> switchTab(Routes.BOOKS)
         }
     }
     if (pickQuickBook) {
@@ -276,7 +212,7 @@ internal fun LedgerNavHost(
             }
             LedgerShortcut.STATISTICS -> {
                 pickQuickBook = false
-                if (tabIndexOf(currentRoute) >= 0) {
+                if (isTabHost(currentRoute)) {
                     switchTab(Routes.STATS)
                 } else {
                     navController.navigate(Routes.STATS) { launchSingleTop = true }
@@ -286,10 +222,8 @@ internal fun LedgerNavHost(
         onShortcutHandled()
     }
 
-    var editingBook by rememberSaveable { mutableStateOf(false) }
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val showBottomBar = !imeVisible && !(currentRoute == Routes.BOOKS && editingBook) &&
-        (tabIndexOf(currentRoute) >= 0 || currentRoute == Routes.BILLS || currentRoute == null)
+    val showBottomBar = !imeVisible && currentRoute == Routes.BILLS
 
     LedgerBackground(
         overlay = {
@@ -310,28 +244,10 @@ internal fun LedgerNavHost(
             navController = navController,
             startDestination = Routes.HOME,
             enterTransition = {
-                val fromTab = tabIndexOf(initialState.destination.route)
-                val toTab = tabIndexOf(targetState.destination.route)
-                if (fromTab >= 0 && toTab >= 0) {
-                    val dir = if (toTab >= fromTab) 1 else -1
-                    fadeIn(tween(180, easing = FastOutSlowInEasing)) +
-                        slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { fullWidth -> dir * (fullWidth / 14) }
-                } else {
-                    fadeIn(tween(200, easing = FastOutSlowInEasing)) +
-                        slideInHorizontally(tween(240, easing = FastOutSlowInEasing)) { it / 6 }
-                }
+                fadeIn(tween(200, easing = FastOutSlowInEasing)) +
+                    slideInHorizontally(tween(240, easing = FastOutSlowInEasing)) { it / 6 }
             },
-            exitTransition = {
-                val fromTab = tabIndexOf(initialState.destination.route)
-                val toTab = tabIndexOf(targetState.destination.route)
-                if (fromTab >= 0 && toTab >= 0) {
-                    val dir = if (toTab >= fromTab) 1 else -1
-                    fadeOut(tween(130, easing = FastOutSlowInEasing)) +
-                        slideOutHorizontally(tween(220, easing = FastOutSlowInEasing)) { fullWidth -> -dir * (fullWidth / 14) }
-                } else {
-                    fadeOut(tween(160, easing = FastOutSlowInEasing))
-                }
-            },
+            exitTransition = { fadeOut(tween(160, easing = FastOutSlowInEasing)) },
             popEnterTransition = {
                 fadeIn(tween(180, easing = FastOutSlowInEasing)) +
                     slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { -it / 7 }
@@ -341,22 +257,55 @@ internal fun LedgerNavHost(
                     slideOutHorizontally(tween(220, easing = FastOutSlowInEasing)) { it / 6 }
             },
         ) {
-            composable(Routes.HOME) {
-                val archivedBook = bookState.selected?.takeIf { !bookState.all && it.archived }
-                val projectBook = bookState.selected?.takeIf { !bookState.all && !it.archived && it.kind == BookKind.RENOVATION }
-                DailyHomeScreen(
-                    dailyState,
-                    header,
-                    dockSpacer,
-                    dailyViewModel::month,
-                    dailyViewModel::currentMonth,
-                    onAdd = openQuickEntry,
-                    onEdit = openEntryEdit,
-                    onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
-                    bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
-                    canAdd = if (bookState.all) bookState.books.any { !it.archived } else bookState.selected?.archived == false,
-                    readOnly = archivedBook != null,
-                )
+            TABS.forEach { tab ->
+                composable(tab.route) { entry ->
+                    LedgerTabPages(entry, tab.route) { route, openTab, onEditingBook ->
+                        when (route) {
+                            Routes.HOME -> {
+                                val archivedBook = bookState.selected?.takeIf { !bookState.all && it.archived }
+                                val projectBook = bookState.selected?.takeIf { !bookState.all && !it.archived && it.kind == BookKind.RENOVATION }
+                                DailyHomeScreen(
+                                    dailyState,
+                                    header,
+                                    dockSpacer,
+                                    dailyViewModel::month,
+                                    dailyViewModel::currentMonth,
+                                    onAdd = openQuickEntry,
+                                    onEdit = openEntryEdit,
+                                    onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
+                                    bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
+                                    canAdd = if (bookState.all) bookState.books.any { !it.archived } else bookState.selected?.archived == false,
+                                    readOnly = archivedBook != null,
+                                )
+                            }
+                            Routes.STATS -> {
+                                DailyStatsScreen(
+                                    state = dailyState,
+                                    header = header,
+                                    bottomBar = dockSpacer,
+                                    onMonth = dailyViewModel::month,
+                                    onToday = dailyViewModel::currentMonth,
+                                    onEdit = openEntryEdit.takeUnless { !bookState.all && bookState.selected?.archived == true },
+                                    bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
+                                )
+                            }
+                            Routes.BOOKS -> {
+                                BooksScreen(
+                                    bookState,
+                                    bottomBar = dockSpacer,
+                                    onSelect = {
+                                        dailyViewModel.select(it)
+                                        openTab(Routes.HOME)
+                                    },
+                                    onSave = dailyViewModel::saveBook,
+                                    onSettings = { navController.navigate(Routes.MINE) },
+                                    onClearError = dailyViewModel::clearError,
+                                    onEditingChange = onEditingBook,
+                                )
+                            }
+                        }
+                    }
+                }
             }
             composable(Routes.PROJECTS, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) { entry ->
                 val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
@@ -390,20 +339,6 @@ internal fun LedgerNavHost(
                     },
                 )
             }
-            composable(Routes.BOOKS) {
-                BooksScreen(
-                    bookState,
-                    bottomBar = dockSpacer,
-                    onSelect = {
-                        dailyViewModel.select(it)
-                        switchTab(Routes.HOME)
-                    },
-                    onSave = dailyViewModel::saveBook,
-                    onSettings = { navController.navigate(Routes.MINE) },
-                    onClearError = dailyViewModel::clearError,
-                    onEditingChange = { editingBook = it },
-                )
-            }
             composable(
                 Routes.DAILY_EDIT,
                 arguments = listOf(
@@ -428,17 +363,6 @@ internal fun LedgerNavHost(
                     onOpenExpense = { navController.navigate(Routes.detail(it)) },
                     onEditExpense = { navController.navigate(Routes.edit(id = it)) },
                     onCopyExpense = { navController.navigate(Routes.edit(copyFrom = it, bookId = bookId)) },
-                )
-            }
-            composable(Routes.STATS) {
-                DailyStatsScreen(
-                    state = dailyState,
-                    header = header,
-                    bottomBar = dockSpacer,
-                    onMonth = dailyViewModel::month,
-                    onToday = dailyViewModel::currentMonth,
-                    onEdit = openEntryEdit.takeUnless { !bookState.all && bookState.selected?.archived == true },
-                    bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
                 )
             }
             composable(Routes.MINE) {
