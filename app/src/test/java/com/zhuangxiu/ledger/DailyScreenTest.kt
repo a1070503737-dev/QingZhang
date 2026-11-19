@@ -53,6 +53,41 @@ class DailyScreenTest {
         capture("qingzhang-home-dark")
     }
 
+    @Test fun homeUsesRedIncomeGreenExpenseAndBalanceColorBySign() {
+        val month = YearMonth.now()
+        val day = month.atDay(1).toEpochDay()
+        val book = BookEntity(1, "生活账本", BookKind.DAILY)
+        val income = DailyEntryEntity("income", book.id, 10_000L, EntryKind.INCOME, DailyCategory.SALARY, day, 660, PayMethod.ALIPAY)
+        val expense = DailyEntryEntity("expense", book.id, 2_500L, EntryKind.EXPENSE, DailyCategory.SHOPPING, day, 661, PayMethod.ALIPAY)
+        var rows by mutableStateOf(listOf(income, expense))
+        compose.setContent {
+            RenovationLedgerTheme(dynamicColor = false) {
+                DailyHomeScreen(
+                    DailyState(month, DailyStatistics.calculate(rows, book.id, month)),
+                    { BookHeader(BookState(listOf(book), book), {}, {}) },
+                    { LedgerBottomBar(Routes.HOME, {}) }, {}, {}, {}, {},
+                )
+            }
+        }
+
+        fun assertTextColor(node: SemanticsNodeInteraction, color: Int) {
+            val image = node.assertIsDisplayed().captureToImage().asAndroidBitmap()
+            val pixels = IntArray(image.width * image.height)
+            image.getPixels(pixels, 0, image.width, 0, 0, image.width, image.height)
+            assertTrue("Expected text to contain ${color.toUInt().toString(16)}", color in pixels)
+        }
+
+        val red = 0xFFB42324.toInt()
+        val green = 0xFF12653E.toInt()
+        assertTextColor(compose.onNodeWithContentDescription("本月收入 ¥100.00"), red)
+        assertTextColor(compose.onNodeWithContentDescription("本月支出 ¥25.00"), green)
+        assertTextColor(compose.onNodeWithContentDescription("本月结余 ¥75.00"), red)
+        compose.runOnIdle { rows = listOf(expense) }
+        assertTextColor(compose.onNodeWithContentDescription("本月结余 -¥25.00"), green)
+        compose.runOnIdle { rows = emptyList() }
+        assertTextColor(compose.onNodeWithContentDescription("本月结余 ¥0.00"), 0xFF111C2D.toInt())
+    }
+
     @Test fun darkEmptyHomeHasBlackBackgroundAndRoomAboveRecordButton() {
         val month = YearMonth.now()
         val book = BookEntity(1, "生活账本", BookKind.DAILY)

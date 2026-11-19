@@ -33,6 +33,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -47,6 +50,8 @@ import com.zhuangxiu.ledger.ui.components.LedgerButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
+import com.zhuangxiu.ledger.ui.components.incomeExpenseText
+import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Money
 import java.time.LocalDate
 
@@ -253,7 +258,12 @@ fun ImportScreen(onBack: () -> Unit, model: ImportViewModel = hiltViewModel()) {
                 items(repeats) { item ->
                     val row = item.row
                     val source = item.fileName?.let { "$it · " }.orEmpty()
-                    Text("${source}第 ${row.number} 行 · ${LocalDate.ofEpochDay(row.day)} · ${row.category ?: "未指定"} · ${Money.format(row.cents)} · ${item.repeat.label}")
+                    val amountColor = LedgerTheme.extra.transaction(row.kind == EntryKind.INCOME)
+                    Text(buildAnnotatedString {
+                        append("${source}第 ${row.number} 行 · ${LocalDate.ofEpochDay(row.day)} · ${row.category ?: "未指定"} · ")
+                        withStyle(SpanStyle(color = amountColor)) { append("${row.kind.label} ${Money.format(row.cents)}") }
+                        append(" · ${item.repeat.label}")
+                    })
                 }
                 if (preview.issues.isNotEmpty()) item { Text("无法解析的记录", style = MaterialTheme.typography.titleMedium) }
                 items(preview.issues) { problem ->
@@ -297,7 +307,7 @@ fun ImportScreen(onBack: () -> Unit, model: ImportViewModel = hiltViewModel()) {
 
 @Composable
 private fun ImportAmounts(income: Long, expense: Long) {
-    Text("收入 ${Money.format(income)} · 支出 ${Money.format(expense)}")
+    Text(incomeExpenseText(income, expense))
 }
 
 @Composable

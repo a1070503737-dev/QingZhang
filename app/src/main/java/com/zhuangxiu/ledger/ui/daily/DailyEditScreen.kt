@@ -77,6 +77,7 @@ import com.zhuangxiu.ledger.ui.components.applyAmountKey
 import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
 import com.zhuangxiu.ledger.ui.components.hasAmountOperation
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
+import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import java.time.LocalDate
 
 @Composable
@@ -203,6 +204,7 @@ fun DailyEditContent(
 
                 DailyAmountDisplay(
                     state.amount,
+                    state.kind == EntryKind.INCOME,
                     state.amount.isNotEmpty() && !hasAmountOperation(state.amount) && !state.valid,
                     enabled = !state.busy,
                     onClick = { if (noteFocused) finishNote() },
@@ -401,8 +403,11 @@ fun DailyEditContent(
 }
 
 @Composable
-private fun DailyAmountDisplay(amount: String, isError: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun DailyAmountDisplay(amount: String, income: Boolean, isError: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val amounts = LedgerTheme.extra
+    val ink = if (isError) colors.onErrorContainer else amounts.transaction(income)
+    val container = if (isError) colors.errorContainer else if (income) amounts.incomeContainer else amounts.expenseContainer
     val calculationHint = amountOperationHint(amount)
     LedgerPanel(
         onClick = onClick,
@@ -411,32 +416,30 @@ private fun DailyAmountDisplay(amount: String, isError: Boolean, enabled: Boolea
             .semantics { contentDescription = "日常记账金额" },
         enabled = enabled,
         shape = RoundedCornerShape(22.dp),
-        variant = SurfaceTone.Accent(
-            if (isError) colors.errorContainer else colors.primaryContainer,
-        ),
+        variant = SurfaceTone.Accent(container),
     ) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
             Text(
                 "金额",
                 style = MaterialTheme.typography.labelMedium,
-                color = if (isError) colors.onErrorContainer else colors.onPrimaryContainer.copy(alpha = 0.78f),
+                color = ink,
             )
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     "¥",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = if (isError) colors.onErrorContainer else colors.onPrimaryContainer,
+                    color = ink,
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = amount.ifEmpty { "0.00" },
                     fontSize = if (calculationHint == null) 32.sp else 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isError) colors.onErrorContainer else if (amount.isEmpty()) colors.onPrimaryContainer.copy(alpha = 0.45f) else colors.onPrimaryContainer,
+                    color = if (amount.isEmpty()) ink.copy(alpha = 0.65f) else ink,
                 )
             }
             if (calculationHint != null) {
-                Text(calculationHint, style = MaterialTheme.typography.bodySmall, color = colors.onPrimaryContainer)
+                Text(calculationHint, style = MaterialTheme.typography.bodySmall, color = ink)
             } else if (isError) {
                 Text("请输入大于 0 且不超过 2 位小数的有效金额", style = MaterialTheme.typography.bodySmall, color = colors.onErrorContainer)
             }

@@ -57,6 +57,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -83,6 +86,7 @@ import com.zhuangxiu.ledger.ui.components.PageHeading
 import com.zhuangxiu.ledger.ui.components.StatusChip
 import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
+import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
@@ -184,8 +188,12 @@ fun BillsScreen(
                         ) { Text("清除", color = MaterialTheme.colorScheme.primary) }
                     }
                 }
+                val expenseColor = LedgerTheme.extra.expense
                 Text(
-                    "共 ${state.count} 笔，合计 ${Money.format(state.totalCents)}",
+                    buildAnnotatedString {
+                        append("共 ${state.count} 笔，合计 ")
+                        withStyle(SpanStyle(color = expenseColor)) { append(Money.format(state.totalCents)) }
+                    },
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
@@ -218,7 +226,7 @@ fun BillsScreen(
                                 Text(
                                     Money.format(group.totalCents),
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = expenseColor,
                                 )
                             }
                         }
@@ -318,10 +326,11 @@ private fun ExpenseActionSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            val expenseColor = LedgerTheme.extra.expense
             Text(
-                buildString {
-                    append(Money.format(item.expense.totalCents))
-                    if (item.remainingCents > 0) append(", 待付 ").append(Money.format(item.remainingCents))
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = expenseColor)) { append(Money.format(item.expense.totalCents)) }
+                    if (item.remainingCents > 0) append(", 待付 ${Money.format(item.remainingCents)}")
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp),

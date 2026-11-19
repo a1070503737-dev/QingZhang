@@ -55,6 +55,7 @@ import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
 import com.zhuangxiu.ledger.ui.components.StatusChip
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
+import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
@@ -169,9 +170,9 @@ fun DetailScreen(
 
 @Composable
 private fun SummaryCard(item: ExpenseWithDetails) {
-    LedgerCard(Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.primaryContainer) {
+    LedgerCard(Modifier.fillMaxWidth(), containerColor = LedgerTheme.extra.expenseContainer) {
         Column(Modifier.padding(22.dp)) {
-            val onColor = MaterialTheme.colorScheme.onPrimaryContainer
+            val onColor = MaterialTheme.colorScheme.onSurface
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     item.expense.payee.ifBlank { "${item.stage.name} · ${item.type.name}" },
@@ -187,7 +188,7 @@ private fun SummaryCard(item: ExpenseWithDetails) {
                 Money.format(item.expense.totalCents),
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
-                color = onColor,
+                color = LedgerTheme.extra.expense,
             )
         }
     }
@@ -211,7 +212,7 @@ private fun PaymentCard(
                         .padding(12.dp),
                 ) {
                     Text("已付", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(Money.format(item.paidCents), style = MaterialTheme.typography.titleMedium)
+                    Text(Money.format(item.paidCents), style = MaterialTheme.typography.titleMedium, color = LedgerTheme.extra.expense)
                 }
                 Column(
                     Modifier
@@ -235,14 +236,14 @@ private fun PaymentCard(
                     .fillMaxWidth()
                     .height(9.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                    .background(LedgerTheme.extra.expenseContainer),
             ) {
                 Box(
                     Modifier
                         .fillMaxWidth(progress)
                         .height(9.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
+                        .background(LedgerTheme.extra.expense),
                 )
             }
             val due = item.expense.dueDate
@@ -276,7 +277,7 @@ private fun PaymentCard(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        Text(Money.format(payment.amountCents), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                        Text(Money.format(payment.amountCents), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = LedgerTheme.extra.expense)
                         Spacer(Modifier.width(6.dp))
                         LedgerIconButton(onClick = { onDeletePayment(payment) }, size = 34.dp) {
                             Icon(

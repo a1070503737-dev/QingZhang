@@ -80,6 +80,7 @@ import com.zhuangxiu.ledger.ui.components.amountOperationHint
 import com.zhuangxiu.ledger.ui.components.applyAmountKey
 import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
+import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
@@ -166,22 +167,22 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                         .fillMaxWidth()
                         .semantics { contentDescription = "账单总金额" },
                     onClick = { openAmount(AmountField.TOTAL) },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    containerColor = LedgerTheme.extra.expenseContainer,
                 ) {
                     Column(Modifier.padding(horizontal = 22.dp, vertical = 18.dp)) {
                         Text(
                             "总价",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("¥", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("¥", style = MaterialTheme.typography.headlineMedium, color = LedgerTheme.extra.expense)
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 state.amountText.ifEmpty { "0.00" },
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = if (state.amountText.isEmpty()) 0.5f else 1f),
+                                color = LedgerTheme.extra.expense.copy(alpha = if (state.amountText.isEmpty()) 0.65f else 1f),
                             )
                         }
                     }

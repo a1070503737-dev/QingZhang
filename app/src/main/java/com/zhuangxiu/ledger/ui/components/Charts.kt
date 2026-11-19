@@ -52,7 +52,8 @@ import com.zhuangxiu.ledger.util.Money
 
 @Composable
 fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAmount: Boolean = false) {
-    val palette = LedgerTheme.extra.chart
+    val palette = LedgerTheme.extra.expenseChart
+    val expenseColor = LedgerTheme.extra.expense
     val total = slices.sumOf { it.cents }
     val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
@@ -101,6 +102,7 @@ fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAm
                     if (exactAmount) Money.format(total) else Money.formatShort(total),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
+                    color = expenseColor,
                 )
             }
         }
@@ -134,7 +136,7 @@ fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAm
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.width(12.dp))
-                    Text(Money.format(slice.cents), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text(Money.format(slice.cents), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = expenseColor)
                 }
             }
         }
@@ -143,10 +145,10 @@ fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAm
 
 @Composable
 fun MonthlyBarChart(months: List<MonthAmount>, modifier: Modifier = Modifier) {
-    val barColor = MaterialTheme.colorScheme.primary
+    val barColor = LedgerTheme.extra.expense
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
     val labelStyle = TextStyle(fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    val valueStyle = TextStyle(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+    val valueStyle = TextStyle(fontSize = 10.sp, color = barColor, fontWeight = FontWeight.Medium)
     val measurer = rememberTextMeasurer()
     val max = months.maxOfOrNull { it.cents }?.coerceAtLeast(1) ?: 1
     val scroll = rememberScrollState()
@@ -209,13 +211,12 @@ fun MonthlyBarChart(months: List<MonthAmount>, modifier: Modifier = Modifier) {
 fun BudgetCompareChart(items: List<BudgetItem>, modifier: Modifier = Modifier) {
     val max = items.maxOfOrNull { maxOf(it.usage.budgetCents, it.usage.spentCents) }?.coerceAtLeast(1) ?: 1
     val budgetColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.48f)
+    val expenseColor = LedgerTheme.extra.expense
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             LegendDot(budgetColor, "预算")
             Spacer(Modifier.width(16.dp))
-            LegendDot(MaterialTheme.colorScheme.primary, "实际")
-            Spacer(Modifier.width(16.dp))
-            LegendDot(MaterialTheme.colorScheme.error, "超支")
+            LegendDot(expenseColor, "实际")
         }
         items.forEach { item ->
             val actualColor = if (item.usage.level == BudgetLevel.OVER) {
@@ -236,7 +237,7 @@ fun BudgetCompareChart(items: List<BudgetItem>, modifier: Modifier = Modifier) {
                 Spacer(Modifier.height(4.dp))
                 CompareBar(item.usage.budgetCents.toFloat() / max, budgetColor, Money.format(item.usage.budgetCents))
                 Spacer(Modifier.height(4.dp))
-                CompareBar(item.usage.spentCents.toFloat() / max, actualColor, Money.format(item.usage.spentCents))
+                CompareBar(item.usage.spentCents.toFloat() / max, expenseColor, Money.format(item.usage.spentCents), labelColor = expenseColor)
             }
         }
     }
@@ -252,7 +253,7 @@ private fun LegendDot(color: Color, label: String) {
 }
 
 @Composable
-private fun CompareBar(fraction: Float, color: Color, label: String) {
+private fun CompareBar(fraction: Float, color: Color, label: String, labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
     val animated by animateFloatAsState(
         targetValue = fraction.coerceIn(0f, 1f),
         animationSpec = spring(dampingRatio = 0.76f, stiffness = Spring.StiffnessLow),
@@ -276,7 +277,7 @@ private fun CompareBar(fraction: Float, color: Color, label: String) {
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = labelColor,
             modifier = Modifier.widthIn(min = 84.dp),
         )
     }

@@ -20,6 +20,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -40,6 +43,7 @@ import com.zhuangxiu.ledger.ui.components.BudgetProgressBar
 import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.budgetLevelColor
+import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Money
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -147,10 +151,11 @@ private fun GroupTitle(text: String) {
 @Composable
 private fun BudgetRow(item: BudgetItem, highlighted: Boolean = false, onClick: () -> Unit) {
     val usage = item.usage
+    val expenseColor = LedgerTheme.extra.expense
     LedgerCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        containerColor = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = if (highlighted) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -176,7 +181,7 @@ private fun BudgetRow(item: BudgetItem, highlighted: Boolean = false, onClick: (
                     Text(
                         "已花 ${Money.format(usage.spentCents)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = expenseColor,
                     )
                 }
             } else {
@@ -185,7 +190,11 @@ private fun BudgetRow(item: BudgetItem, highlighted: Boolean = false, onClick: (
                 Spacer(Modifier.height(6.dp))
                 Row {
                     Text(
-                        "已花 ${Money.format(usage.spentCents)} / ${Money.format(usage.budgetCents)}",
+                        buildAnnotatedString {
+                            append("已花 ")
+                            withStyle(SpanStyle(color = expenseColor)) { append(Money.format(usage.spentCents)) }
+                            append(" / ${Money.format(usage.budgetCents)}")
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),

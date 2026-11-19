@@ -46,6 +46,7 @@ import com.zhuangxiu.ledger.ui.components.LedgerSegments
 import com.zhuangxiu.ledger.ui.components.MonthlyBarChart
 import com.zhuangxiu.ledger.ui.components.PageHeading
 import com.zhuangxiu.ledger.ui.components.PieChart
+import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
@@ -101,12 +102,12 @@ fun StatsScreen(
                     Modifier
                         .padding(horizontal = 16.dp)
                         .fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    containerColor = LedgerTheme.extra.expenseContainer,
                 ) {
                     Column(Modifier.padding(20.dp)) {
-                        Text("花费合计", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
-                        Text(Money.format(state.totalCents), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text("共 ${state.count} 笔账单", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f))
+                        Text("花费合计", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(Money.format(state.totalCents), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = LedgerTheme.extra.expense)
+                        Text("共 ${state.count} 笔账单", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 

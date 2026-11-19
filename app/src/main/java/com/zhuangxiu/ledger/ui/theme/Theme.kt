@@ -116,28 +116,45 @@ private val LedgerTypography = Typography(
     labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium),
 )
 
-/** Material 配色之外的补充颜色：预警色和图表色板 */
+/** Material 配色之外的账目、图表和预警颜色。 */
 data class ExtraColors(
     val warning: Color,
-    val success: Color,
-    val chart: List<Color>,
-)
+    val income: Color,
+    val expense: Color,
+    val incomeContainer: Color,
+    val expenseContainer: Color,
+    val expenseChart: List<Color>,
+) {
+    fun transaction(income: Boolean): Color = if (income) this.income else expense
+
+    fun balance(cents: Long, neutral: Color): Color = when {
+        cents > 0 -> income
+        cents < 0 -> expense
+        else -> neutral
+    }
+}
 
 private val LightExtra = ExtraColors(
     warning = Color(0xFFD97706),
-    success = Color(0xFF076447),
-    chart = listOf(
-        Color(0xFF2563EB), Color(0xFF0EA5E9), Color(0xFF10B981), Color(0xFFF59E0B), Color(0xFF8B5CF6),
-        Color(0xFFEC4899), Color(0xFF14B8A6), Color(0xFF6366F1), Color(0xFFF97316), Color(0xFF64748B),
+    income = Color(0xFFB42324),
+    expense = Color(0xFF12653E),
+    incomeContainer = Color(0xFFFCE8E6),
+    expenseContainer = Color(0xFFE0F3E6),
+    expenseChart = listOf(
+        Color(0xFF12653E), Color(0xFF439B69), Color(0xFF85BC48), Color(0xFF286B58), Color(0xFF9BCDB0),
+        Color(0xFF547D33), Color(0xFF24A575), Color(0xFF456A43), Color(0xFF5EAC95), Color(0xFF739850),
     ),
 )
 
 private val DarkExtra = ExtraColors(
     warning = Color(0xFFFBBF24),
-    success = Color(0xFF5EEAD4),
-    chart = listOf(
-        Color(0xFF93C5FD), Color(0xFF67E8F9), Color(0xFF6EE7B7), Color(0xFFFCD34D), Color(0xFFC4B5FD),
-        Color(0xFFF9A8D4), Color(0xFF5EEAD4), Color(0xFFA5B4FC), Color(0xFFFDBA74), Color(0xFF94A3B8),
+    income = Color(0xFFFF9D96),
+    expense = Color(0xFF7CE0A6),
+    incomeContainer = Color(0xFF482322),
+    expenseContainer = Color(0xFF1B3A2C),
+    expenseChart = listOf(
+        Color(0xFF7CE0A6), Color(0xFF3DA778), Color(0xFFA5D76D), Color(0xFF50977E), Color(0xFFB3E7CD),
+        Color(0xFF7A9C51), Color(0xFF56D1B0), Color(0xFF8EB384), Color(0xFF2C8869), Color(0xFF8AC164),
     ),
 )
 

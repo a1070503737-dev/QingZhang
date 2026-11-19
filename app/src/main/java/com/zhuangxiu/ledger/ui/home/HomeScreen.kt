@@ -199,12 +199,12 @@ fun HomeContent(
 
 @Composable
 private fun BudgetOverviewCard(summary: LedgerSummary, budget: BudgetUsage?, onOpenBudget: () -> Unit) {
-    val ink = MaterialTheme.colorScheme.onTertiaryContainer
+    val ink = MaterialTheme.colorScheme.onSurface
     val muted = ink.copy(alpha = 0.82f)
     LedgerPanel(
         onClick = onOpenBudget,
         shape = RoundedCornerShape(30.dp),
-        variant = SurfaceTone.Accent(MaterialTheme.colorScheme.tertiaryContainer),
+        variant = SurfaceTone.Accent(LedgerTheme.extra.expenseContainer),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(24.dp)) {
@@ -225,7 +225,7 @@ private fun BudgetOverviewCard(summary: LedgerSummary, budget: BudgetUsage?, onO
                 amount,
                 style = MaterialTheme.typography.displaySmall,
                 fontSize = if (amount.length > 13) 26.sp else 36.sp,
-                color = ink,
+                color = LedgerTheme.extra.expense,
             )
             Spacer(Modifier.height(4.dp))
             Text("按订单总价统计，包含未付尾款", style = MaterialTheme.typography.bodySmall, color = muted)
@@ -238,9 +238,9 @@ private fun BudgetOverviewCard(summary: LedgerSummary, budget: BudgetUsage?, onO
             } else {
                 val over = budget.level == BudgetLevel.OVER
                 val progressColor = when (budget.level) {
-                    BudgetLevel.OVER -> Color(0xFFFFC2B0)
-                    BudgetLevel.WARNING -> Color(0xFFFFDF9E)
-                    else -> Color(0xFF9DF8D6)
+                    BudgetLevel.OVER -> MaterialTheme.colorScheme.error
+                    BudgetLevel.WARNING -> LedgerTheme.extra.warning
+                    else -> LedgerTheme.extra.expense
                 }
                 BoxWithConstraints {
                     if (maxWidth < 280.dp || LocalDensity.current.fontScale > 1.2f) {
@@ -316,6 +316,7 @@ private fun PaymentCard(
             }
             Text(
                 Money.format(cents),
+                color = if (pending) MaterialTheme.colorScheme.onSurface else LedgerTheme.extra.expense,
                 style = MaterialTheme.typography.titleLarge,
                 fontSize = if (Money.format(cents).length > 11) 16.sp else 20.sp,
             )

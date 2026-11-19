@@ -60,7 +60,11 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -243,6 +247,7 @@ fun ExpenseRow(
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                 Text(
                     text = Money.format(item.expense.totalCents),
+                    color = LedgerTheme.extra.expense,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -262,6 +267,17 @@ fun ExpenseRow(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun incomeExpenseText(income: Long, expense: Long): AnnotatedString {
+    val amounts = LedgerTheme.extra
+    return buildAnnotatedString {
+        append("收入 ")
+        withStyle(SpanStyle(color = amounts.income)) { append(Money.format(income)) }
+        append("   支出 ")
+        withStyle(SpanStyle(color = amounts.expense)) { append(Money.format(expense)) }
     }
 }
 

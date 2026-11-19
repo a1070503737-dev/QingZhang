@@ -2,6 +2,7 @@ package com.zhuangxiu.ledger.ui.daily
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
@@ -125,6 +126,7 @@ import com.zhuangxiu.ledger.ui.components.LedgerIconButton
 import com.zhuangxiu.ledger.ui.components.LedgerSegments
 import com.zhuangxiu.ledger.ui.components.LoadingHint
 import com.zhuangxiu.ledger.ui.components.PieChart
+import com.zhuangxiu.ledger.ui.components.incomeExpenseText
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
@@ -293,7 +295,7 @@ private fun TotalsCard(totals: DailyTotals) {
             Text(
                 Money.format(totals.balance),
                 style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = LedgerTheme.extra.balance(totals.balance, MaterialTheme.colorScheme.onSurface),
                 modifier = Modifier.semantics { contentDescription = "本月结余 ${Money.format(totals.balance)}" },
             )
             HorizontalDivider(
@@ -328,7 +330,7 @@ private fun Metric(label: String, cents: Long, income: Boolean, modifier: Modifi
         Text(
             Money.format(cents),
             style = MaterialTheme.typography.titleLarge,
-            color = if (income) LedgerTheme.extra.success else MaterialTheme.colorScheme.onSurface,
+            color = LedgerTheme.extra.transaction(income),
             modifier = Modifier.semantics { contentDescription = "$label ${Money.format(cents)}" },
         )
     }
@@ -513,7 +515,7 @@ private fun DailyEntryRow(entry: DailyEntryEntity, bookName: String?, onClick: (
             Text(
                 (if (income) "+" else "-") + Money.format(entry.amountCents),
                 style = MaterialTheme.typography.titleMedium,
-                color = if (income) LedgerTheme.extra.success else colors.onSurface,
+                color = LedgerTheme.extra.transaction(income),
             )
         }
     }
@@ -608,14 +610,7 @@ private fun IncomeExpenseCalendarSection(
     val metricMode = CalendarMetricMode.entries[metricIndex.coerceIn(0, 2)]
     val activeDaysCount = dayMap.size
 
-    // 正负色板（兼顾浅色与深色高对比度）
-    val posBg = if (isDark) Color(0xFF3D1D25) else Color(0xFFFDF0F0)
-    val posText = if (isDark) Color(0xFFFF8A80) else Color(0xFFD93025)
-    val posSelectedBg = Color(0xFFD93F3A)
-
-    val negBg = if (isDark) Color(0xFF13382A) else Color(0xFFE7F6EE)
-    val negText = if (isDark) Color(0xFF6EE7B7) else Color(0xFF178058)
-    val negSelectedBg = Color(0xFF357A5B)
+    val amounts = LedgerTheme.extra
 
     val zeroBg = if (isDark) MaterialTheme.colorScheme.surfaceContainer else Color(0xFFF3F5F8)
     val zeroText = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
@@ -786,28 +781,23 @@ private fun IncomeExpenseCalendarSection(
                                             val isFuture = date.isAfter(today)
 
                                             val tileBg = when {
-                                                isSelected && valCents > 0L -> posSelectedBg
-                                                isSelected && valCents < 0L -> negSelectedBg
+                                                valCents > 0L -> amounts.incomeContainer
+                                                valCents < 0L -> amounts.expenseContainer
                                                 isSelected -> MaterialTheme.colorScheme.primary
-                                                valCents > 0L -> posBg
-                                                valCents < 0L -> negBg
                                                 !isFuture || hasEntries -> zeroBg
                                                 else -> Color.Transparent
                                             }
                                             val dayTextColor = when {
                                                 isSelected && valCents == 0L -> MaterialTheme.colorScheme.onPrimary
-                                                isSelected -> Color.White
+                                                isSelected -> MaterialTheme.colorScheme.onSurface
                                                 isToday -> MaterialTheme.colorScheme.primary
                                                 isFuture && !hasEntries -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.80f)
                                                 else -> MaterialTheme.colorScheme.onSurface
                                             }
-                                            val amountTextColor = when {
-                                                isSelected && valCents == 0L -> MaterialTheme.colorScheme.onPrimary
-                                                isSelected -> Color.White.copy(alpha = 0.95f)
-                                                valCents > 0L -> posText
-                                                valCents < 0L -> negText
-                                                else -> zeroText
-                                            }
+                                            val amountTextColor = amounts.balance(
+                                                valCents,
+                                                if (isSelected) MaterialTheme.colorScheme.onPrimary else zeroText,
+                                            )
                                             val subLabel = when {
                                                 valCents != 0L -> formatCalendarCellAmount(valCents, compactAmount)
                                                 isToday && !hasEntries -> "无账目"
@@ -823,6 +813,7 @@ private fun IncomeExpenseCalendarSection(
                                                     .height(52.dp)
                                                     .clip(cellShape)
                                                     .background(tileBg)
+                                                    .then(if (isSelected && valCents != 0L) Modifier.border(1.dp, amountTextColor, cellShape) else Modifier)
                                                     .clickable(
                                                         interactionSource = cellInteraction,
                                                         indication = null,
@@ -890,11 +881,7 @@ private fun IncomeExpenseCalendarSection(
                             val ep = month.atDay(d).toEpochDay()
                             val valCents = dayMap[ep]?.valueFor(metricMode) ?: 0L
                             val isSel = ep == selectedEpochDay
-                            val barColor = when {
-                                valCents > 0L -> if (isSel) posSelectedBg else posText
-                                valCents < 0L -> if (isSel) negSelectedBg else negText
-                                else -> MaterialTheme.colorScheme.outlineVariant
-                            }
+                            val barColor = amounts.balance(valCents, MaterialTheme.colorScheme.outlineVariant)
                             val ratio = (abs(valCents).toDouble() / maxAbs).toFloat().coerceIn(0.05f, 1f)
                             Column(
                                 modifier = Modifier
@@ -991,14 +978,14 @@ private fun IncomeExpenseCalendarSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("收入 +${Money.format(inc)}", style = MaterialTheme.typography.labelMedium, color = posText)
-                        Text("支出 -${Money.format(exp)}", style = MaterialTheme.typography.labelMedium, color = negText)
+                        Text("收入 +${Money.format(inc)}", style = MaterialTheme.typography.labelMedium, color = amounts.income)
+                        Text("支出 -${Money.format(exp)}", style = MaterialTheme.typography.labelMedium, color = amounts.expense)
                         val net = inc - exp
                         Text(
                             text = "净额 ${if (net >= 0) "+" else "-"}${Money.format(abs(net))}",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (net > 0) posText else if (net < 0) negText else MaterialTheme.colorScheme.onSurface,
+                            color = amounts.balance(net, MaterialTheme.colorScheme.onSurface),
                         )
                     }
 
@@ -1039,14 +1026,14 @@ private fun IncomeExpenseCalendarSection(
                                             Modifier
                                                 .clip(RoundedCornerShape(5.dp))
                                                 .background(
-                                                    if (isInc) posBg else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
+                                                    if (isInc) amounts.incomeContainer else amounts.expenseContainer,
                                                 )
                                                 .padding(horizontal = 6.dp, vertical = 1.dp),
                                         ) {
                                             Text(
                                                 text = tagText,
                                                 fontSize = 10.sp,
-                                                color = if (isInc) posText else MaterialTheme.colorScheme.primary,
+                                                color = amounts.transaction(isInc),
                                             )
                                         }
                                     }
@@ -1066,7 +1053,7 @@ private fun IncomeExpenseCalendarSection(
                                     text = (if (isInc) "+" else "-") + "%.2f".format(entry.amountCents / 100.0),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (isInc) posText else negText,
+                                    color = amounts.transaction(isInc),
                                 )
                             }
                         }
@@ -1133,21 +1120,21 @@ fun DailyStatsScreen(
                                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                             Row {
                                                 Text(category, Modifier.weight(1f))
-                                                Text(Money.format(amount), fontWeight = FontWeight.Medium)
+                                                Text(Money.format(amount), fontWeight = FontWeight.Medium, color = LedgerTheme.extra.expense)
                                             }
                                             Box(
                                                 Modifier
                                                     .fillMaxWidth()
                                                     .height(8.dp)
                                                     .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                                    .background(LedgerTheme.extra.expenseContainer),
                                             ) {
                                                 Box(
                                                     Modifier
                                                         .fillMaxWidth(ratio)
                                                         .height(8.dp)
                                                         .clip(CircleShape)
-                                                        .background(MaterialTheme.colorScheme.primary),
+                                                        .background(LedgerTheme.extra.expense),
                                                 )
                                             }
                                         }
@@ -1161,7 +1148,7 @@ fun DailyStatsScreen(
                             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Text("近六个月收支", style = MaterialTheme.typography.titleLarge)
                                 Text(
-                                    "截至 ${state.month} · 绿柱收入 / 蓝柱支出",
+                                    "截至 ${state.month} · 红柱收入 / 绿柱支出",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -1175,7 +1162,7 @@ fun DailyStatsScreen(
                                     ) {
                                         Text(month.month.toString(), style = MaterialTheme.typography.labelMedium)
                                         Text(
-                                            "收入 ${Money.format(month.totals.income)}   支出 ${Money.format(month.totals.expense)}",
+                                            incomeExpenseText(month.totals.income, month.totals.expense),
                                             style = MaterialTheme.typography.bodySmall,
                                         )
                                     }
@@ -1197,8 +1184,8 @@ fun DailyStatsScreen(
 @Composable
 private fun DailyTrend(months: List<DailyMonth>) {
     val max = months.maxOfOrNull { maxOf(it.totals.income, it.totals.expense) }?.coerceAtLeast(1) ?: 1
-    val incomeColor = LedgerTheme.extra.success
-    val expenseColor = MaterialTheme.colorScheme.primary
+    val incomeColor = LedgerTheme.extra.income
+    val expenseColor = LedgerTheme.extra.expense
     Row(
         Modifier
             .fillMaxWidth()
