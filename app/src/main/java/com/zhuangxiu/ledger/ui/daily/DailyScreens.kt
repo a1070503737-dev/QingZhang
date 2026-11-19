@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
@@ -82,7 +81,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -235,22 +233,6 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
 }
 
 @Composable
-private fun Modifier.swipeMonth(onMonth: (Long) -> Unit): Modifier {
-    val changeMonth by rememberUpdatedState(onMonth)
-    return pointerInput(Unit) {
-        val threshold = 48.dp.toPx()
-        var distance = 0f
-        detectHorizontalDragGestures(
-            onDragStart = { distance = 0f },
-            onDragEnd = {
-                if (abs(distance) >= threshold) changeMonth(if (distance < 0) 1L else -1L)
-            },
-            onHorizontalDrag = { _, delta -> distance += delta },
-        )
-    }
-}
-
-@Composable
 fun MonthSelector(month: YearMonth, onMonth: (Long) -> Unit, onToday: () -> Unit) {
     var showDatePicker by remember { mutableStateOf(false) }
     Row(
@@ -396,11 +378,10 @@ fun DailyHomeScreen(
             } else {
                 24.dp
             }
-            LazyColumn(
-                Modifier
-                    .fillMaxSize()
-                    .padding(top = padding.calculateTopPadding())
-                    .swipeMonth(onMonth),
+            MonthSwipeList(
+                month = state.month,
+                onMonth = onMonth,
+                modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
@@ -1078,11 +1059,10 @@ fun DailyStatsScreen(
 ) {
     LedgerBackground {
         Scaffold(containerColor = Color.Transparent, topBar = header, bottomBar = bottomBar) { padding ->
-            LazyColumn(
-                Modifier
-                    .fillMaxSize()
-                    .padding(top = padding.calculateTopPadding())
-                    .swipeMonth(onMonth),
+            MonthSwipeList(
+                month = state.month,
+                onMonth = onMonth,
+                modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,

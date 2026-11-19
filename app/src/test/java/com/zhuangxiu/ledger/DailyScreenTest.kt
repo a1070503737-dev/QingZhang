@@ -3,11 +3,17 @@ package com.zhuangxiu.ledger
 import android.app.Application
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
@@ -177,9 +183,15 @@ class DailyScreenTest {
             down(center)
             moveTo(center - Offset(120.dp.toPx(), 0f))
         }
+        compose.onNodeWithText("2 月").assertIsDisplayed()
+        capture("qingzhang-month-swipe-preview")
         compose.runOnIdle { assertEquals(emptyList<Long>(), deltas) }
         monthPicker.performTouchInput { up() }
         compose.onNodeWithText("2025年2月").assertIsDisplayed()
+        compose.onNodeWithText("2 月").assertDoesNotExist()
+        monthPicker.performTouchInput { swipe(center, center + Offset(35.dp.toPx(), 0f)) }
+        compose.onNodeWithText("2025年2月").assertIsDisplayed()
+        compose.onNodeWithText("1 月").assertDoesNotExist()
         compose.onNodeWithContentDescription("本月结余 ¥0.00").performTouchInput {
             swipe(center - Offset(32.dp.toPx(), 0f), center + Offset(110.dp.toPx(), 0f))
         }
@@ -222,6 +234,29 @@ class DailyScreenTest {
         compose.runOnIdle { assertEquals(listOf(Routes.BOOKS), visited) }
         stats.performTouchInput { click(center) }
         compose.runOnIdle { assertEquals(listOf(Routes.BOOKS, Routes.STATS), visited) }
+    }
+
+    @Test
+    fun floatingDockLetsContentShowThroughItsSurface() {
+        compose.setContent {
+            RenovationLedgerTheme(dynamicColor = false) {
+                Box(Modifier.fillMaxSize()) {
+                    Row(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(1f).fillMaxHeight().background(Color.Red))
+                        Box(Modifier.weight(1f).fillMaxHeight().background(Color.Blue))
+                    }
+                    LedgerBottomBar(Routes.HOME, {}, Modifier.align(Alignment.BottomCenter))
+                }
+            }
+        }
+        val image = compose.onRoot().captureToImage().asAndroidBitmap()
+        val stats = compose.onNodeWithText("统计").fetchSemanticsNode().boundsInRoot
+        val y = (stats.top - stats.height).toInt()
+        val left = image.getPixel(image.width * 5 / 12, y)
+        val right = image.getPixel(image.width * 7 / 12, y)
+        assertTrue(android.graphics.Color.red(left) > android.graphics.Color.red(right))
+        assertTrue(android.graphics.Color.blue(right) > android.graphics.Color.blue(left))
+        assertTrue(android.graphics.Color.green(left) > 128 && android.graphics.Color.green(right) > 128)
     }
 
     @Test @Config(qualifiers = "w320dp-h740dp-xhdpi")

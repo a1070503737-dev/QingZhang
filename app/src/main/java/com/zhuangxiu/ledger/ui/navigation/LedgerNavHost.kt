@@ -123,8 +123,9 @@ fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit, modifier: Mod
         Surface(
             modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth(),
             shape = RoundedCornerShape(28.dp),
-            color = colors.surfaceContainer,
-            border = BorderStroke(1.dp, colors.outlineVariant),
+            color = colors.surfaceContainer.copy(alpha = 0.84f),
+            contentColor = colors.onSurface,
+            border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.80f)),
             shadowElevation = 6.dp,
         ) {
             NavigationBar(
