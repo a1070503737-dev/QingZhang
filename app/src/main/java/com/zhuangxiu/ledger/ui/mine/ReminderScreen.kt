@@ -42,12 +42,12 @@ import com.zhuangxiu.ledger.data.repository.ReminderSettings
 import com.zhuangxiu.ledger.data.repository.SettingsRepository
 import com.zhuangxiu.ledger.notification.Notifier
 import com.zhuangxiu.ledger.notification.ReminderChecker
-import com.zhuangxiu.ledger.ui.components.GlassVariant
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerIconButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
-import com.zhuangxiu.ledger.ui.components.liquidGlass
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -120,7 +120,7 @@ fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewMo
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
-                        LiquidGlassButton(
+                        LedgerButton(
                             onClick = {
                                 if (Build.VERSION.SDK_INT >= 33) {
                                     permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -154,18 +154,18 @@ fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewMo
                     }
                     Row(
                         modifier = Modifier
-                            .liquidGlass(CircleShape, GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp)
+                            .ledgerContainer(CircleShape, SurfaceTone.Flat)
                             .padding(horizontal = 4.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        LiquidLensIconButton(
+                        LedgerIconButton(
                             onClick = { viewModel.setDaysBefore(settings.remindDaysBefore - 1) },
                             enabled = settings.paymentReminderEnabled && settings.remindDaysBefore > 0,
                             size = 36.dp,
                         ) { Icon(Icons.Outlined.Remove, contentDescription = "减少") }
                         Text("${settings.remindDaysBefore} 天", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 4.dp))
-                        LiquidLensIconButton(
+                        LedgerIconButton(
                             onClick = { viewModel.setDaysBefore(settings.remindDaysBefore + 1) },
                             enabled = settings.paymentReminderEnabled && settings.remindDaysBefore < 30,
                             size = 36.dp,
@@ -176,7 +176,7 @@ fun ReminderScreen(onBack: () -> Unit, viewModel: ReminderViewModel = hiltViewMo
             LedgerCard(Modifier.fillMaxWidth()) {
                 SwitchRow("预算预警通知", "预算用到 80% 或超支时发通知", settings.budgetAlertEnabled, viewModel::setBudgetAlert)
             }
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = { viewModel.checkNow() },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = canNotify,

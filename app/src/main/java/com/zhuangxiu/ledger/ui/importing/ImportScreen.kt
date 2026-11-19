@@ -41,13 +41,12 @@ import com.zhuangxiu.ledger.data.db.EntryKind
 import com.zhuangxiu.ledger.importing.ImportField
 import com.zhuangxiu.ledger.importing.Repeat
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
-import com.zhuangxiu.ledger.ui.components.GlassVariant
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
+import com.zhuangxiu.ledger.ui.components.LedgerButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
-import com.zhuangxiu.ledger.ui.components.glassTextFieldColors
-import com.zhuangxiu.ledger.ui.components.liquidGlass
-import com.zhuangxiu.ledger.ui.theme.LedgerTheme
+import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import com.zhuangxiu.ledger.util.Money
 import java.time.LocalDate
 
@@ -79,7 +78,7 @@ fun ImportScreen(onBack: () -> Unit, model: ImportViewModel = hiltViewModel()) {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("从鲨鱼记账导入", style = MaterialTheme.typography.headlineSmall)
                         Text("可同时选择多个 CSV 或 XLSX 文件，核对预览后一并导入同一个账本。", style = MaterialTheme.typography.bodyMedium)
-                        LiquidGlassButton(
+                        LedgerButton(
                             onClick = { picker.launch(arrayOf("*/*")) },
                             enabled = !state.busy,
                             modifier = Modifier.fillMaxWidth(),
@@ -114,7 +113,7 @@ fun ImportScreen(onBack: () -> Unit, model: ImportViewModel = hiltViewModel()) {
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .liquidGlass(RoundedCornerShape(16.dp), GlassVariant.Clear, cornerRadius = 16.dp, shadowElevation = 0.dp)
+                            .ledgerContainer(RoundedCornerShape(16.dp), SurfaceTone.Flat)
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                     ) {
                         Text(month.toString(), style = MaterialTheme.typography.labelLarge)
@@ -138,7 +137,7 @@ fun ImportScreen(onBack: () -> Unit, model: ImportViewModel = hiltViewModel()) {
                                     !state.busy,
                                     model::selectFile,
                                 )
-                                LiquidGlassButton(onClick = model::removeFile, enabled = !state.busy, prominent = false) {
+                                LedgerButton(onClick = model::removeFile, enabled = !state.busy, prominent = false) {
                                     Text("移除当前文件")
                                 }
                             } else {
@@ -164,10 +163,10 @@ fun ImportScreen(onBack: () -> Unit, model: ImportViewModel = hiltViewModel()) {
                                     singleLine = true,
                                     enabled = !state.busy,
                                     shape = RoundedCornerShape(18.dp),
-                                    colors = glassTextFieldColors(),
+                                    colors = ledgerTextFieldColors(),
                                 )
                             }
-                            LiquidGlassButton(
+                            LedgerButton(
                                 onClick = model::preview,
                                 enabled = !state.busy,
                                 modifier = Modifier.fillMaxWidth(),
@@ -210,7 +209,7 @@ fun ImportScreen(onBack: () -> Unit, model: ImportViewModel = hiltViewModel()) {
                         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("导入预览", style = MaterialTheme.typography.titleLarge)
                             Text("合计 ${state.files.size} 个文件")
-                            LiquidGlassButton(onClick = { model.change { it } }, enabled = !state.busy, prominent = false) {
+                            LedgerButton(onClick = { model.change { it } }, enabled = !state.busy, prominent = false) {
                                 Text("返回调整文件")
                             }
                             Text("共 ${preview.rows.size + preview.issues.size} 笔 · 可解析 ${preview.rows.size} 笔 · 无法解析 ${preview.issues.size} 笔")
@@ -269,7 +268,7 @@ fun ImportScreen(onBack: () -> Unit, model: ImportViewModel = hiltViewModel()) {
                                 eligible.filter { it.row.kind == EntryKind.INCOME }.sumOf { it.row.cents },
                                 eligible.filter { it.row.kind == EntryKind.EXPENSE }.sumOf { it.row.cents },
                             )
-                            LiquidGlassButton(
+                            LedgerButton(
                                 onClick = { confirm = true },
                                 enabled = !state.busy &&
                                     (preview.rows.isNotEmpty() || preview.issues.isNotEmpty()) &&
@@ -318,15 +317,13 @@ private fun <T> ImportChoice(
     select: (T) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
-    val glass = LedgerTheme.glass
     Box(Modifier.fillMaxWidth()) {
-        LiquidGlassButton(
+        LedgerButton(
             onClick = { open = true },
             modifier = Modifier.fillMaxWidth(),
             prominent = false,
             enabled = enabled && options.isNotEmpty(),
             shape = RoundedCornerShape(18.dp),
-            cornerRadius = 18.dp,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Text("$label · $value", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
@@ -337,7 +334,7 @@ private fun <T> ImportChoice(
             onDismissRequest = { open = false },
             modifier = Modifier.heightIn(max = 360.dp),
             shape = RoundedCornerShape(22.dp),
-            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             options.forEach { (key, title) ->
                 DropdownMenuItem(

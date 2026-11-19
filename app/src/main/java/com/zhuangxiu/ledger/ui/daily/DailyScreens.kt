@@ -1,10 +1,6 @@
 package com.zhuangxiu.ledger.ui.daily
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateOffsetAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -27,7 +23,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -91,19 +86,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -114,11 +102,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.data.db.BookKind
 import com.zhuangxiu.ledger.data.db.DailyCategory
@@ -128,29 +114,26 @@ import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.domain.CategorySlice
 import com.zhuangxiu.ledger.domain.DailyMonth
 import com.zhuangxiu.ledger.domain.DailyTotals
-import com.zhuangxiu.ledger.ui.components.GlassVariant
-import com.zhuangxiu.ledger.ui.components.IsRobolectricRuntime
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.LedgerDatePickerDialog
-import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
-import com.zhuangxiu.ledger.ui.components.LiquidGlassTopBar
-import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
-import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
+import com.zhuangxiu.ledger.ui.components.LedgerBackground
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerPanel
+import com.zhuangxiu.ledger.ui.components.LedgerTopBar
+import com.zhuangxiu.ledger.ui.components.LedgerIconButton
+import com.zhuangxiu.ledger.ui.components.LedgerSegments
 import com.zhuangxiu.ledger.ui.components.LoadingHint
 import com.zhuangxiu.ledger.ui.components.PieChart
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
-import com.zhuangxiu.ledger.ui.components.drawWaterDropletRim
-import com.zhuangxiu.ledger.ui.components.glassTextFieldColors
-import com.zhuangxiu.ledger.ui.components.liquidGlass
+import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Money
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 fun DailyCategory.icon(): ImageVector = when (this) {
     DailyCategory.FOOD -> Icons.Outlined.Restaurant
@@ -180,13 +163,12 @@ fun PayMethod.icon(): ImageVector = when (this) {
 @Composable
 fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val glass = LedgerTheme.glass
-    LiquidGlassTopBar(
+    LedgerTopBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("轻账", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Box(Modifier.weight(1f, fill = false)) {
-                    LiquidGlassButton(
+                    LedgerButton(
                         onClick = { expanded = true },
                         prominent = false,
                         minHeight = 48.dp,
@@ -207,7 +189,7 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
                         shape = RoundedCornerShape(22.dp),
-                        containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         DropdownMenuItem(
                             text = {
@@ -244,7 +226,7 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
             }
         },
         actions = {
-            LiquidLensIconButton(onClick = onSettings) {
+            LedgerIconButton(onClick = onSettings) {
                 Icon(Icons.Outlined.Settings, "设置")
             }
         },
@@ -257,15 +239,14 @@ fun MonthSelector(month: YearMonth, onMonth: (Long) -> Unit, onToday: () -> Unit
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .liquidGlass(CircleShape, GlassVariant.Regular, cornerRadius = 26.dp, shadowElevation = 4.dp)
-            .padding(horizontal = 8.dp, vertical = 5.dp),
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        LiquidLensIconButton(onClick = { onMonth(-1) }, size = 36.dp) {
+        LedgerIconButton(onClick = { onMonth(-1) }, size = 36.dp) {
             Icon(Icons.Outlined.ChevronLeft, "上个月")
         }
-        LiquidGlassButton(
+        LedgerButton(
             onClick = { showDatePicker = true },
             prominent = false,
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
@@ -274,13 +255,13 @@ fun MonthSelector(month: YearMonth, onMonth: (Long) -> Unit, onToday: () -> Unit
             Text("${month.year}年${month.monthValue}月", style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (month != YearMonth.now()) {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = onToday,
                 prominent = false,
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
             ) { Text("本月") }
         }
-        LiquidLensIconButton(onClick = { onMonth(1) }, size = 36.dp) {
+        LedgerIconButton(onClick = { onMonth(1) }, size = 36.dp) {
             Icon(Icons.Outlined.ChevronRight, "下个月")
         }
     }
@@ -299,29 +280,25 @@ fun MonthSelector(month: YearMonth, onMonth: (Long) -> Unit, onToday: () -> Unit
 
 @Composable
 private fun TotalsCard(totals: DailyTotals) {
-    LiquidGlassSurface(
+    LedgerPanel(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        cornerRadius = 28.dp,
-        variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
-        shadowElevation = 14.dp,
-        enableTilt = true,
     ) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 "本月结余",
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
             )
             Text(
                 Money.format(totals.balance),
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.semantics { contentDescription = "本月结余 ${Money.format(totals.balance)}" },
             )
             HorizontalDivider(
                 Modifier.padding(vertical = 6.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                color = MaterialTheme.colorScheme.outlineVariant,
             )
             BoxWithConstraints {
                 val compact = maxWidth < 290.dp || LocalDensity.current.fontScale > 1.25f
@@ -344,9 +321,7 @@ private fun TotalsCard(totals: DailyTotals) {
 @Composable
 private fun Metric(label: String, cents: Long, income: Boolean, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier
-            .liquidGlass(RoundedCornerShape(18.dp), GlassVariant.Clear, cornerRadius = 18.dp, shadowElevation = 0.dp)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -377,15 +352,17 @@ fun DailyHomeScreen(
     val density = LocalDensity.current
     var addButtonHeight by remember { mutableIntStateOf(0) }
     val showAdd = canAdd && WindowInsets.ime.getBottom(density) == 0
-    LiquidGlassBackdrop {
+    LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = header,
             bottomBar = bottomBar,
             floatingActionButton = {
                 if (showAdd) {
-                    LiquidGlassButton(
+                    LedgerButton(
                         onClick = onAdd,
+                        prominent = false,
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.onSizeChanged { addButtonHeight = it.height },
                         minHeight = 54.dp,
                         contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
@@ -420,7 +397,7 @@ fun DailyHomeScreen(
                 }
                 if (onProjects != null) {
                     item {
-                        LiquidGlassButton(
+                        LedgerButton(
                             onClick = onProjects,
                             prominent = false,
                             modifier = Modifier.fillMaxWidth(),
@@ -447,12 +424,12 @@ fun DailyHomeScreen(
                             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "搜索本月账目、分类或备注" },
                             singleLine = true,
                             shape = CircleShape,
-                            colors = glassTextFieldColors(),
+                            colors = ledgerTextFieldColors(),
                             placeholder = { Text("搜索本月账目、分类或备注", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             leadingIcon = { Icon(Icons.Outlined.Search, null) },
                             trailingIcon = {
                                 if (query.isNotEmpty()) {
-                                    LiquidLensIconButton(onClick = { query = "" }, size = 32.dp) {
+                                    LedgerIconButton(onClick = { query = "" }, size = 32.dp) {
                                         Icon(Icons.Outlined.Close, "清空搜索", modifier = Modifier.size(16.dp))
                                     }
                                 }
@@ -465,10 +442,10 @@ fun DailyHomeScreen(
                     }
                     if (entries.isEmpty()) {
                         item {
-                            LiquidGlassSurface(
+                            LedgerPanel(
                                 modifier = Modifier.fillMaxWidth(),
-                                variant = GlassVariant.Clear,
-                                shadowElevation = 0.dp,
+                                variant = SurfaceTone.Flat,
+
                             ) {
                                 Row(
                                     Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
@@ -500,59 +477,44 @@ fun DailyHomeScreen(
 
 @Composable
 private fun DailyEntryRow(entry: DailyEntryEntity, bookName: String?, onClick: (() -> Unit)?) {
-    LiquidGlassSurface(
+    val colors = MaterialTheme.colorScheme
+    val income = entry.kind == EntryKind.INCOME
+    val time = if (entry.minute < 0) null else "%02d:%02d".format(entry.minute / 60, entry.minute % 60)
+    LedgerPanel(
         modifier = Modifier.fillMaxWidth(),
-        variant = GlassVariant.Clear,
-        shadowElevation = 0.dp,
+        shape = RoundedCornerShape(20.dp),
         onClick = onClick,
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(44.dp)
-                        .liquidGlass(
-                            shape = RoundedCornerShape(15.dp),
-                            variant = GlassVariant.Tinted(MaterialTheme.colorScheme.secondaryContainer),
-                            cornerRadius = 15.dp,
-                            shadowElevation = 2.dp,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(entry.category.icon(), null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                }
-                Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                    Text(entry.displayCategory, style = MaterialTheme.typography.titleMedium)
-                    val time = if (entry.minute < 0) "" else " · ${"%02d:%02d".format(entry.minute / 60, entry.minute % 60)}"
-                    Text(
-                        "${LocalDate.ofEpochDay(entry.day)}$time",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                Modifier.size(42.dp).background(colors.secondaryContainer, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(entry.category.icon(), contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(21.dp))
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(entry.displayCategory, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    listOfNotNull(bookName, entry.displayPayment).joinToString(" · "),
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    (if (entry.kind == EntryKind.INCOME) "+" else "-") + Money.format(entry.amountCents),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = if (entry.kind == EntryKind.INCOME) LedgerTheme.extra.success else MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            if (entry.note.isNotBlank()) {
-                Text(
-                    entry.note,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    listOfNotNull(LocalDate.ofEpochDay(entry.day).toString(), time).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = colors.onSurfaceVariant,
                 )
+                Text(listOfNotNull(bookName, entry.displayPayment).joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                if (entry.note.isNotBlank()) {
+                    Text(entry.note, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
             }
+            Text(
+                (if (income) "+" else "-") + Money.format(entry.amountCents),
+                style = MaterialTheme.typography.titleMedium,
+                color = if (income) LedgerTheme.extra.success else colors.onSurface,
+            )
         }
     }
 }
@@ -595,13 +557,7 @@ private fun formatCalendarCellAmount(cents: Long, compactMode: Boolean): String 
     }
 }
 
-/**
- * 统计页收支日历 + 当日收支明细联动模块（1:1 对标蚂蚁财富收益日历交互逻辑并融合 Liquid Glass 光学水滴手感）：
- * - 顶部支持「月历格 / 每日柱图」视图切换、「净收支 / 支出 / 收入」水滴分段切换、「¥ / 简」金额精度切换及 `< YYYY年MM月 >` 月份步进；
- * - 7 列周日-周六日历圆角色块：正收益/净流入呈暖珊红浅底 (`+427.90`)、净支出呈薄荷翡翠浅底 (`-488.58`)、平账呈清雾浅灰 (`0.00`)、今日标 `今`、未来无账目日留白；
- * - 选中态呈高饱和实心翡翠绿 / 珊瑚红 / 冰晶蓝并配纯白字与悬浮投影，支持单点或按住手指在日历格上连续滑动水滴放大镜实时选日；
- * - 下方实时联动「当日收支明细 (YYYY.MM.DD)」卡片，支持「金额排序 ⇅ / 时间排序 ⇅」切换及点击账目直达编辑。
- */
+/** 统计日历与所选日期的账目。 */
 @Composable
 private fun IncomeExpenseCalendarSection(
     month: YearMonth,
@@ -609,11 +565,9 @@ private fun IncomeExpenseCalendarSection(
     onEdit: ((String) -> Unit)?,
     bookNames: Map<Long, String>,
 ) {
-    val glass = LedgerTheme.glass
-    val isDark = glass.isDark
+    val isDark = LedgerTheme.isDark
     val haptic = LocalHapticFeedback.current
     val viewConfig = LocalViewConfiguration.current
-    val density = LocalDensity.current
     val today = remember { LocalDate.now() }
 
     val dayMap = remember(entries) {
@@ -680,25 +634,24 @@ private fun IncomeExpenseCalendarSection(
                     Box(
                         Modifier
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isDark) 0.55f else 0.78f))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                             .padding(horizontal = 11.dp, vertical = 4.dp),
                     ) {
                         Text(
                             text = "本月记账 ${activeDaysCount} 天 · 共 ${entries.size} 笔",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium,
                         )
                     }
                 }
 
-                // 顶部三联液态水滴切换条：[月历/柱图]  [净收支/支出/收入]  [¥/简]
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    LiquidLensTrack(
+                    LedgerSegments(
                         itemCount = 2,
                         selectedIndex = viewModeIndex,
                         onSelect = { viewModeIndex = it },
@@ -710,11 +663,11 @@ private fun IncomeExpenseCalendarSection(
                             imageVector = if (idx == 0) Icons.Outlined.CalendarToday else Icons.Outlined.BarChart,
                             contentDescription = if (idx == 0) "日历视图" else "柱图视图",
                             modifier = Modifier.size(16.dp),
-                            tint = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isSel) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
-                    LiquidLensTrack(
+                    LedgerSegments(
                         itemCount = CalendarMetricMode.entries.size,
                         selectedIndex = metricIndex,
                         onSelect = { metricIndex = it },
@@ -726,11 +679,11 @@ private fun IncomeExpenseCalendarSection(
                             text = CalendarMetricMode.entries[idx].label,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isSel) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
-                    LiquidLensTrack(
+                    LedgerSegments(
                         itemCount = 2,
                         selectedIndex = if (compactAmount) 1 else 0,
                         onSelect = { compactAmount = (it == 1) },
@@ -742,7 +695,7 @@ private fun IncomeExpenseCalendarSection(
                             text = if (idx == 0) "¥" else "简",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isSel) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -762,27 +715,10 @@ private fun IncomeExpenseCalendarSection(
                         }
                     }
 
-                    // 7 列日历网格 + 连续按住滑动水滴放大镜选日
                     val firstDayOffset = month.atDay(1).dayOfWeek.value % 7 // 周日=0 .. 周六=6
                     val daysInMonth = month.lengthOfMonth()
                     val totalSlots = firstDayOffset + daysInMonth
                     val rowCount = (totalSlots + 6) / 7
-
-                    val calendarGridLayer = rememberGraphicsLayer()
-                    var gridSize by remember { mutableStateOf(IntSize.Zero) }
-                    var gridScrubbing by remember { mutableStateOf(false) }
-                    var scrubPos by remember { mutableStateOf(Offset.Zero) }
-
-                    val loupeProgress by animateFloatAsState(
-                        targetValue = if (gridScrubbing) 1f else 0f,
-                        animationSpec = spring(dampingRatio = 0.78f, stiffness = 540f),
-                        label = "calendar-loupe-lift",
-                    )
-                    val animatedScrubPos by animateOffsetAsState(
-                        targetValue = scrubPos,
-                        animationSpec = spring(dampingRatio = 0.92f, stiffness = 2400f),
-                        label = "calendar-loupe-pos",
-                    )
 
                     fun dayAtOffset(pos: Offset, size: IntSize): Int? {
                         if (size.width <= 0 || size.height <= 0 || rowCount <= 0) return null
@@ -795,56 +731,39 @@ private fun IncomeExpenseCalendarSection(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .zIndex(if (loupeProgress > 0.01f) 14f else 0f)
-                            .onGloballyPositioned { gridSize = it.size }
                             .pointerInput(month, rowCount) {
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
                                     var lockedHorizontal = false
-                                    scrubPos = down.position
-                                    try {
-                                        do {
-                                            val event = awaitPointerEvent(PointerEventPass.Main)
-                                            val ch = event.changes.firstOrNull { it.id == down.id } ?: event.changes.firstOrNull()
-                                            if (ch != null && ch.pressed) {
-                                                val dx = abs(ch.position.x - down.position.x)
-                                                val dy = abs(ch.position.y - down.position.y)
-                                                if (!lockedHorizontal && dy > viewConfig.touchSlop && dy > dx * 1.3f) {
-                                                    gridScrubbing = false
-                                                    break
-                                                }
-                                                if (!lockedHorizontal && dx > viewConfig.touchSlop * 0.45f) {
-                                                    lockedHorizontal = true
-                                                    gridScrubbing = true
-                                                }
-                                                if (lockedHorizontal) {
-                                                    scrubPos = ch.position
-                                                    dayAtOffset(ch.position, size)?.let { dNum ->
-                                                        val ep = month.atDay(dNum).toEpochDay()
-                                                        if (ep != selectedEpochDay) {
-                                                            selectedEpochDay = ep
-                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                        }
-                                                    }
-                                                    ch.consume()
-                                                }
+                                    do {
+                                        val event = awaitPointerEvent(PointerEventPass.Main)
+                                        val ch = event.changes.firstOrNull { it.id == down.id } ?: event.changes.firstOrNull()
+                                        if (ch != null && ch.pressed) {
+                                            val dx = abs(ch.position.x - down.position.x)
+                                            val dy = abs(ch.position.y - down.position.y)
+                                            if (!lockedHorizontal && dy > viewConfig.touchSlop && dy > dx * 1.3f) {
+                                                break
                                             }
-                                        } while (event.changes.any { it.pressed })
-                                    } finally {
-                                        gridScrubbing = false
-                                    }
+                                            if (!lockedHorizontal && dx > viewConfig.touchSlop * 0.45f) {
+                                                lockedHorizontal = true
+                                            }
+                                            if (lockedHorizontal) {
+                                                dayAtOffset(ch.position, size)?.let { dNum ->
+                                                    val ep = month.atDay(dNum).toEpochDay()
+                                                    if (ep != selectedEpochDay) {
+                                                        selectedEpochDay = ep
+                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    }
+                                                }
+                                                ch.consume()
+                                            }
+                                        }
+                                    } while (event.changes.any { it.pressed })
                                 }
                             },
                     ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .drawWithContent {
-                                    calendarGridLayer.record {
-                                        this@drawWithContent.drawContent()
-                                    }
-                                    drawLayer(calendarGridLayer)
-                                },
+                            modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             for (r in 0 until rowCount) {
@@ -876,12 +795,14 @@ private fun IncomeExpenseCalendarSection(
                                                 else -> Color.Transparent
                                             }
                                             val dayTextColor = when {
+                                                isSelected && valCents == 0L -> MaterialTheme.colorScheme.onPrimary
                                                 isSelected -> Color.White
                                                 isToday -> MaterialTheme.colorScheme.primary
                                                 isFuture && !hasEntries -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.80f)
                                                 else -> MaterialTheme.colorScheme.onSurface
                                             }
                                             val amountTextColor = when {
+                                                isSelected && valCents == 0L -> MaterialTheme.colorScheme.onPrimary
                                                 isSelected -> Color.White.copy(alpha = 0.95f)
                                                 valCents > 0L -> posText
                                                 valCents < 0L -> negText
@@ -900,18 +821,6 @@ private fun IncomeExpenseCalendarSection(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .height(52.dp)
-                                                    .then(
-                                                        if (isSelected && !IsRobolectricRuntime) {
-                                                            Modifier.shadow(
-                                                                elevation = 6.dp,
-                                                                shape = cellShape,
-                                                                ambientColor = tileBg.copy(alpha = 0.45f),
-                                                                spotColor = tileBg.copy(alpha = 0.55f),
-                                                            )
-                                                        } else {
-                                                            Modifier
-                                                        },
-                                                    )
                                                     .clip(cellShape)
                                                     .background(tileBg)
                                                     .clickable(
@@ -959,35 +868,6 @@ private fun IncomeExpenseCalendarSection(
                                         }
                                     }
                                 }
-                            }
-                        }
-
-                        // 日历滑动放大水滴透镜
-                        if (loupeProgress > 0.02f && gridSize.width > 0) {
-                            val loupeW = with(density) { 78.dp.toPx() }
-                            val loupeH = with(density) { 64.dp.toPx() }
-                            val left = (animatedScrubPos.x - loupeW / 2f).coerceIn(-loupeW * 0.1f, gridSize.width - loupeW * 0.9f)
-                            val top = (animatedScrubPos.y - loupeH * 0.72f).coerceIn(-loupeH * 0.35f, gridSize.height - loupeH * 0.65f)
-                            val loupeShape = RoundedCornerShape(20.dp)
-                            Canvas(
-                                modifier = Modifier
-                                    .offset { IntOffset(left.roundToInt(), top.roundToInt()) }
-                                    .size(78.dp, 64.dp)
-                                    .then(if (!IsRobolectricRuntime) Modifier.shadow(12.dp, loupeShape) else Modifier)
-                                    .clip(loupeShape),
-                            ) {
-                                drawRect(if (isDark) glass.surfaceBottom.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.94f))
-                                withTransform({
-                                    scale(1.22f, 1.22f, pivot = Offset(size.width / 2f, size.height / 2f))
-                                    translate(-left, -top)
-                                }) {
-                                    drawLayer(calendarGridLayer)
-                                }
-                                drawWaterDropletRim(
-                                    cornerRadiusPx = 20.dp.toPx(),
-                                    isDark = isDark,
-                                    intensity = loupeProgress,
-                                )
                             }
                         }
                     }
@@ -1045,7 +925,7 @@ private fun IncomeExpenseCalendarSection(
                                     text = "${d}日",
                                     fontSize = 10.sp,
                                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (isSel) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -1080,7 +960,7 @@ private fun IncomeExpenseCalendarSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
                     )
-                    LiquidGlassButton(
+                    LedgerButton(
                         onClick = { sortByAmount = !sortByAmount },
                         prominent = false,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
@@ -1106,7 +986,7 @@ private fun IncomeExpenseCalendarSection(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .liquidGlass(RoundedCornerShape(14.dp), GlassVariant.Clear, cornerRadius = 14.dp, shadowElevation = 0.dp)
+                            .ledgerContainer(RoundedCornerShape(14.dp), SurfaceTone.Flat)
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
@@ -1127,12 +1007,10 @@ private fun IncomeExpenseCalendarSection(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f))
                         }
                         val isInc = entry.kind == EntryKind.INCOME
-                        LiquidGlassSurface(
+                        LedgerPanel(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            cornerRadius = 16.dp,
-                            variant = GlassVariant.Clear,
-                            shadowElevation = 0.dp,
+                            variant = SurfaceTone.Flat,
                             onClick = onEdit?.let { handler -> { handler(entry.id) } },
                         ) {
                             Row(
@@ -1144,11 +1022,10 @@ private fun IncomeExpenseCalendarSection(
                                 Box(
                                     Modifier
                                         .size(38.dp)
-                                        .liquidGlass(
+                                        .ledgerContainer(
                                             shape = RoundedCornerShape(12.dp),
-                                            variant = GlassVariant.Tinted(MaterialTheme.colorScheme.secondaryContainer),
-                                            cornerRadius = 12.dp,
-                                            shadowElevation = 0.dp,
+                                            variant = SurfaceTone.Accent(MaterialTheme.colorScheme.secondaryContainer),
+
                                         ),
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -1210,7 +1087,7 @@ fun DailyStatsScreen(
     onEdit: ((String) -> Unit)? = null,
     bookNames: Map<Long, String> = emptyMap(),
 ) {
-    LiquidGlassBackdrop {
+    LedgerBackground {
         Scaffold(containerColor = Color.Transparent, topBar = header, bottomBar = bottomBar) { padding ->
             LazyColumn(
                 Modifier
@@ -1270,11 +1147,7 @@ fun DailyStatsScreen(
                                                         .fillMaxWidth(ratio)
                                                         .height(8.dp)
                                                         .clip(CircleShape)
-                                                        .background(
-                                                            Brush.horizontalGradient(
-                                                                listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f), MaterialTheme.colorScheme.primary),
-                                                            ),
-                                                        ),
+                                                        .background(MaterialTheme.colorScheme.primary),
                                                 )
                                             }
                                         }
@@ -1297,7 +1170,7 @@ fun DailyStatsScreen(
                                     Column(
                                         Modifier
                                             .fillMaxWidth()
-                                            .liquidGlass(RoundedCornerShape(14.dp), GlassVariant.Clear, cornerRadius = 14.dp, shadowElevation = 0.dp)
+                                            .ledgerContainer(RoundedCornerShape(14.dp), SurfaceTone.Flat)
                                             .padding(horizontal = 12.dp, vertical = 8.dp),
                                     ) {
                                         Text(month.month.toString(), style = MaterialTheme.typography.labelMedium)
@@ -1346,14 +1219,14 @@ private fun DailyTrend(months: List<DailyMonth>) {
                             .width(16.dp)
                             .height(incH)
                             .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                            .background(Brush.verticalGradient(listOf(incomeColor, incomeColor.copy(alpha = 0.55f)))),
+                            .background(incomeColor),
                     )
                     Box(
                         Modifier
                             .width(16.dp)
                             .height(expH)
                             .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                            .background(Brush.verticalGradient(listOf(expenseColor, expenseColor.copy(alpha = 0.55f)))),
+                            .background(expenseColor),
                     )
                 }
                 Text("${month.month.monthValue}月", style = MaterialTheme.typography.labelSmall)
@@ -1387,14 +1260,14 @@ fun BooksScreen(
     }
 
     if (!showDialog) {
-        LiquidGlassBackdrop {
+        LedgerBackground {
             Scaffold(
                 containerColor = Color.Transparent,
                 topBar = {
-                    LiquidGlassTopBar(
+                    LedgerTopBar(
                         title = { Text("我的账本") },
                         actions = {
-                            LiquidLensIconButton(onClick = onSettings) {
+                            LedgerIconButton(onClick = onSettings) {
                                 Icon(Icons.Outlined.Settings, "设置")
                             }
                         },
@@ -1418,7 +1291,7 @@ fun BooksScreen(
                         val active = !book.archived && !state.all && book.id == state.selected?.id
                         LedgerCard(
                             Modifier.fillMaxWidth(),
-                            containerColor = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                            containerColor = if (active) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLow,
                         ) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1445,7 +1318,7 @@ fun BooksScreen(
                                             Text("$type · $status", style = MaterialTheme.typography.bodySmall)
                                         }
                                     }
-                                    LiquidLensIconButton(
+                                    LedgerIconButton(
                                         onClick = {
                                             editingId = book.id
                                             name = book.name
@@ -1459,7 +1332,7 @@ fun BooksScreen(
                                     ) { Icon(Icons.Outlined.Edit, "编辑${book.name}") }
                                 }
                                 if (book.archived) {
-                                    LiquidGlassButton(
+                                    LedgerButton(
                                         onClick = {
                                             saving = true
                                             onSave(book.copy(archived = false)) { saving = false }
@@ -1473,7 +1346,7 @@ fun BooksScreen(
                         }
                     }
                     item {
-                        LiquidGlassButton(
+                        LedgerButton(
                             onClick = {
                                 editingId = 0
                                 kind = BookKind.DAILY
@@ -1486,9 +1359,9 @@ fun BooksScreen(
                             prominent = false,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Icon(Icons.Outlined.Add, null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Outlined.Add, null)
                             Spacer(Modifier.width(6.dp))
-                            Text("新建账本", color = MaterialTheme.colorScheme.primary)
+                            Text("新建账本")
                         }
                     }
                     item {
@@ -1501,7 +1374,7 @@ fun BooksScreen(
                     if (state.error != null && !showDialog) {
                         item {
                             Text(state.error, color = MaterialTheme.colorScheme.error)
-                            LiquidGlassButton(onClick = onClearError, prominent = false) {
+                            LedgerButton(onClick = onClearError, prominent = false) {
                                 Text("知道了")
                             }
                         }
@@ -1538,11 +1411,11 @@ fun BooksScreen(
                             singleLine = true,
                             enabled = !saving,
                             shape = RoundedCornerShape(18.dp),
-                            colors = glassTextFieldColors(),
+                            colors = ledgerTextFieldColors(),
                         )
                         if (editingId == 0L) {
                             val kinds = listOf(BookKind.DAILY to "普通账本", BookKind.RENOVATION to "装修账本")
-                            LiquidLensTrack(
+                            LedgerSegments(
                                 itemCount = kinds.size,
                                 selectedIndex = if (kind == BookKind.DAILY) 0 else 1,
                                 height = 46.dp,
@@ -1554,7 +1427,7 @@ fun BooksScreen(
                                     kinds[idx].second,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -1566,7 +1439,7 @@ fun BooksScreen(
                     }
                 }
                 state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                LiquidGlassButton(
+                LedgerButton(
                     enabled = name.isNotBlank() && !saving,
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {

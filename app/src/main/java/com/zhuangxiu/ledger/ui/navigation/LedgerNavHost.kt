@@ -12,7 +12,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -37,6 +36,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,8 +49,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,12 +64,12 @@ import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.data.db.BookKind
 import com.zhuangxiu.ledger.ui.bills.BillsScreen
 import com.zhuangxiu.ledger.ui.bills.BillsViewModel
-import com.zhuangxiu.ledger.ui.components.GlassVariant
-import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
-import com.zhuangxiu.ledger.ui.components.LiquidGlassTopBar
-import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
+import com.zhuangxiu.ledger.ui.components.LedgerBackground
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerPanel
+import com.zhuangxiu.ledger.ui.components.LedgerTopBar
+import com.zhuangxiu.ledger.ui.components.swipeToSelect
 import com.zhuangxiu.ledger.ui.daily.BookHeader
 import com.zhuangxiu.ledger.ui.daily.BooksScreen
 import com.zhuangxiu.ledger.ui.daily.DailyEditScreen
@@ -88,7 +87,6 @@ import com.zhuangxiu.ledger.ui.mine.CategoriesScreen
 import com.zhuangxiu.ledger.ui.mine.MineScreen
 import com.zhuangxiu.ledger.ui.mine.ReminderScreen
 import com.zhuangxiu.ledger.ui.mine.UpdateScreen
-import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -101,50 +99,24 @@ private val TABS = listOf(
 
 private fun tabIndexOf(route: String?): Int = TABS.indexOfFirst { it.route == route }
 
-/**
- * 全局唯一持久化悬浮液态水滴导航栏：
- * 独立于 NavHost 之外，切换“首页 / 统计 / 账本”时底栏实例永不销毁重建，
- * 水滴透镜全程丝滑跟手穿过三个 Tab 并实时穿透折射底部滚动页面内容，彻底消除双底栏重影与断层！
- */
 @Composable
 fun LedgerBottomBar(current: String, onNavigate: (String) -> Unit, modifier: Modifier = Modifier) {
-    val selectedIndex = tabIndexOf(current).let { if (it < 0) 0 else it }
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 22.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center,
+    val selected = tabIndexOf(current).coerceAtLeast(0)
+    val openTab: (Int) -> Unit = { index ->
+        val route = TABS[index].route
+        if (route != current) onNavigate(route)
+    }
+    NavigationBar(
+        modifier = modifier.swipeToSelect(TABS.size, onSelect = openTab),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        LiquidLensTrack(
-            itemCount = TABS.size,
-            selectedIndex = selectedIndex,
-            height = 64.dp,
-            role = Role.Tab,
-            liveSelectOnScrub = false,
-            onSelect = { idx ->
-                val target = TABS[idx].route
-                if (target != current) onNavigate(target)
-            },
-        ) { idx, isSelected ->
-            val tab = TABS[idx]
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Icon(
-                    imageVector = tab.icon,
-                    contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp),
-                )
-                Text(
-                    text = tab.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        TABS.forEachIndexed { index, tab ->
+            NavigationBarItem(
+                selected = index == selected,
+                onClick = { openTab(index) },
+                icon = { Icon(tab.icon, contentDescription = null) },
+                label = { Text(tab.label) },
+            )
         }
     }
 }
@@ -198,13 +170,12 @@ internal fun LedgerNavHost(
         else navController.navigate(Routes.dailyEdit(1, id))
     }
 
-    // 透明占位高度，确保各主页 FAB 精准悬停在持久化底栏上方，同时页面内容可滚入底栏下方供水滴实时折射
     val dockSpacer: @Composable () -> Unit = {
         Spacer(
             Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .height(84.dp),
+                .height(80.dp),
         )
     }
 
@@ -218,13 +189,12 @@ internal fun LedgerNavHost(
             currentRoute != Routes.BOOKS -> navController.navigate(Routes.BOOKS) { launchSingleTop = true }
         }
     }
-    val glass = LedgerTheme.glass
     if (pickQuickBook) {
         ModalBottomSheet(
             onDismissRequest = { pickQuickBook = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-            containerColor = glass.elevatedTop,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             Column(
                 Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
@@ -232,12 +202,10 @@ internal fun LedgerNavHost(
             ) {
                 Text("记到哪个账本？", style = MaterialTheme.typography.titleLarge)
                 activeBooks.forEach { book ->
-                    LiquidGlassSurface(
+                    LedgerPanel(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
-                        cornerRadius = 18.dp,
-                        variant = GlassVariant.Clear,
-                        shadowElevation = 0.dp,
+                        variant = SurfaceTone.Flat,
                         onClick = {
                             pickQuickBook = false
                             addToBook(book)
@@ -257,7 +225,7 @@ internal fun LedgerNavHost(
                         }
                     }
                 }
-                LiquidGlassButton(
+                LedgerButton(
                     onClick = { pickQuickBook = false },
                     prominent = false,
                     modifier = Modifier.fillMaxWidth(),
@@ -297,7 +265,7 @@ internal fun LedgerNavHost(
     val showBottomBar = !imeVisible && !(currentRoute == Routes.BOOKS && editingBook) &&
         (tabIndexOf(currentRoute) >= 0 || currentRoute == Routes.BILLS || currentRoute == null)
 
-    LiquidGlassBackdrop(
+    LedgerBackground(
         overlay = {
             AnimatedVisibility(
                 visible = showBottomBar,
@@ -368,10 +336,10 @@ internal fun LedgerNavHost(
                 val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
                 HomeScreen(
                     header = {
-                        LiquidGlassTopBar(
+                        LedgerTopBar(
                             title = { Text("装修项目") },
                             navigationIcon = {
-                                LiquidGlassButton(
+                                LedgerButton(
                                     onClick = back,
                                     prominent = false,
                                     minHeight = 36.dp,

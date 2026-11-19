@@ -36,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,14 +47,14 @@ import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.data.db.PaymentEntity
 import com.zhuangxiu.ledger.ui.components.AmountInputDialog
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
-import com.zhuangxiu.ledger.ui.components.GlassVariant
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerIconButton
 import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
 import com.zhuangxiu.ledger.ui.components.StatusChip
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
-import com.zhuangxiu.ledger.ui.components.liquidGlass
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
@@ -78,10 +77,10 @@ fun DetailScreen(
         title = "账单详情",
         onBack = onBack,
         actions = {
-            LiquidLensIconButton(onClick = { onEdit(viewModel.expenseId) }) {
+            LedgerIconButton(onClick = { onEdit(viewModel.expenseId) }) {
                 Icon(Icons.Outlined.Edit, contentDescription = "编辑")
             }
-            LiquidLensIconButton(onClick = { showDelete = true }) {
+            LedgerIconButton(onClick = { showDelete = true }) {
                 Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除")
             }
         },
@@ -113,7 +112,7 @@ fun DetailScreen(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier
                                         .size(92.dp)
-                                        .liquidGlass(RoundedCornerShape(16.dp), GlassVariant.Clear, cornerRadius = 16.dp, shadowElevation = 4.dp)
+                                        .ledgerContainer(RoundedCornerShape(16.dp), SurfaceTone.Flat)
                                         .clip(RoundedCornerShape(16.dp))
                                         .clickable { onViewImage(item.expense.id, index) },
                                 )
@@ -208,7 +207,7 @@ private fun PaymentCard(
                 Column(
                     Modifier
                         .weight(1f)
-                        .liquidGlass(RoundedCornerShape(16.dp), GlassVariant.Clear, cornerRadius = 16.dp, shadowElevation = 0.dp)
+                        .ledgerContainer(RoundedCornerShape(16.dp), SurfaceTone.Flat)
                         .padding(12.dp),
                 ) {
                     Text("已付", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -217,7 +216,7 @@ private fun PaymentCard(
                 Column(
                     Modifier
                         .weight(1f)
-                        .liquidGlass(RoundedCornerShape(16.dp), GlassVariant.Clear, cornerRadius = 16.dp, shadowElevation = 0.dp)
+                        .ledgerContainer(RoundedCornerShape(16.dp), SurfaceTone.Flat)
                         .padding(12.dp),
                 ) {
                     Text("剩余待付", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -243,11 +242,7 @@ private fun PaymentCard(
                         .fillMaxWidth(progress)
                         .height(9.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.78f), MaterialTheme.colorScheme.primary),
-                            ),
-                        ),
+                        .background(MaterialTheme.colorScheme.primary),
                 )
             }
             val due = item.expense.dueDate
@@ -283,7 +278,7 @@ private fun PaymentCard(
                         }
                         Text(Money.format(payment.amountCents), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                         Spacer(Modifier.width(6.dp))
-                        LiquidLensIconButton(onClick = { onDeletePayment(payment) }, size = 34.dp) {
+                        LedgerIconButton(onClick = { onDeletePayment(payment) }, size = 34.dp) {
                             Icon(
                                 Icons.Outlined.DeleteOutline,
                                 contentDescription = "删除付款记录",
@@ -296,7 +291,7 @@ private fun PaymentCard(
             }
             if (item.remainingCents > 0) {
                 Spacer(Modifier.height(14.dp))
-                LiquidGlassButton(
+                LedgerButton(
                     onClick = onAddPayment,
                     prominent = false,
                     modifier = Modifier.fillMaxWidth(),

@@ -1,7 +1,6 @@
 package com.zhuangxiu.ledger.ui.viewer
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -35,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -49,7 +47,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
-import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
+import com.zhuangxiu.ledger.ui.components.LedgerIconButton
 import java.io.File
 
 @Composable
@@ -85,17 +83,12 @@ fun ViewerScreen(
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 10.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(Color(0x991E293B), Color(0x730F172A))))
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.12f))),
-                        shape = CircleShape,
-                    )
+                    .background(Color(0xDD232326))
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                LiquidLensIconButton(onClick = onBack, size = 38.dp, tint = Color.White) {
+                LedgerIconButton(onClick = onBack, size = 38.dp, tint = Color.White) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = Color.White)
                 }
                 Text(
@@ -105,11 +98,11 @@ fun ViewerScreen(
                     modifier = Modifier.weight(1f),
                 )
                 if (viewModel.expenseId <= 0 && current != null) {
-                    LiquidLensIconButton(onClick = { onOpenExpense(current.expenseId) }, size = 38.dp, tint = Color.White) {
+                    LedgerIconButton(onClick = { onOpenExpense(current.expenseId) }, size = 38.dp, tint = Color.White) {
                         Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = "查看账单", tint = Color.White)
                     }
                 }
-                LiquidLensIconButton(onClick = { showDelete = true }, size = 38.dp, tint = Color.White) {
+                LedgerIconButton(onClick = { showDelete = true }, size = 38.dp, tint = Color.White) {
                     Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除", tint = Color.White)
                 }
             }

@@ -34,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -48,16 +47,16 @@ import com.zhuangxiu.ledger.domain.BudgetUsage
 import com.zhuangxiu.ledger.domain.LedgerSummary
 import com.zhuangxiu.ledger.ui.components.EmptyHint
 import com.zhuangxiu.ledger.ui.components.ExpenseRow
-import com.zhuangxiu.ledger.ui.components.GlassVariant
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
-import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
+import com.zhuangxiu.ledger.ui.components.LedgerBackground
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerPanel
 import com.zhuangxiu.ledger.ui.components.LoadingHint
 import com.zhuangxiu.ledger.ui.components.PageHeading
 import com.zhuangxiu.ledger.ui.components.SectionTitle
 import com.zhuangxiu.ledger.ui.components.budgetLevelColor
-import com.zhuangxiu.ledger.ui.components.liquidGlass
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Money
 import kotlin.math.abs
@@ -90,13 +89,13 @@ fun HomeContent(
     header: @Composable () -> Unit = {},
     showBudget: Boolean = true,
 ) {
-    LiquidGlassBackdrop {
+    LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = header,
             bottomBar = bottomBar,
             floatingActionButton = {
-                LiquidGlassButton(
+                LedgerButton(
                     onClick = onAdd,
                     minHeight = 54.dp,
                     contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
@@ -120,11 +119,10 @@ fun HomeContent(
                         Box(
                             Modifier
                                 .size(50.dp)
-                                .liquidGlass(
+                                .ledgerContainer(
                                     shape = RoundedCornerShape(18.dp),
-                                    variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
-                                    cornerRadius = 18.dp,
-                                    shadowElevation = 6.dp,
+                                    variant = SurfaceTone.Accent(MaterialTheme.colorScheme.primaryContainer),
+
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -160,7 +158,7 @@ fun HomeContent(
                                 "最近账单",
                                 Modifier.padding(start = 18.dp, end = 12.dp, top = 12.dp, bottom = 4.dp),
                                 trailing = {
-                                    LiquidGlassButton(
+                                    LedgerButton(
                                         onClick = onOpenBills,
                                         prominent = false,
                                         minHeight = 34.dp,
@@ -170,7 +168,7 @@ fun HomeContent(
                             )
                             if (state.recent.isEmpty()) {
                                 EmptyHint(Icons.AutoMirrored.Outlined.ReceiptLong, "新家的第一笔花费，从这里开始")
-                                LiquidGlassButton(
+                                LedgerButton(
                                     onClick = onAdd,
                                     prominent = false,
                                     modifier = Modifier
@@ -201,15 +199,12 @@ fun HomeContent(
 
 @Composable
 private fun BudgetOverviewCard(summary: LedgerSummary, budget: BudgetUsage?, onOpenBudget: () -> Unit) {
-    val ink = Color(0xFFF5FCF8)
-    val muted = Color(0xFFD2E8DC)
-    LiquidGlassSurface(
+    val ink = MaterialTheme.colorScheme.onTertiaryContainer
+    val muted = ink.copy(alpha = 0.82f)
+    LedgerPanel(
         onClick = onOpenBudget,
         shape = RoundedCornerShape(30.dp),
-        cornerRadius = 30.dp,
-        variant = GlassVariant.Tinted(Color(0xFF1F5C48), vivid = true),
-        shadowElevation = 16.dp,
-        enableTilt = true,
+        variant = SurfaceTone.Accent(MaterialTheme.colorScheme.tertiaryContainer),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(24.dp)) {
@@ -280,7 +275,7 @@ private fun BudgetOverviewCard(summary: LedgerSummary, budget: BudgetUsage?, onO
                             .fillMaxWidth(budget.fraction.coerceIn(0f, 1f))
                             .height(8.dp)
                             .clip(CircleShape)
-                            .background(Brush.horizontalGradient(listOf(progressColor.copy(alpha = 0.8f), progressColor))),
+                            .background(progressColor),
                     )
                 }
                 Spacer(Modifier.height(10.dp))

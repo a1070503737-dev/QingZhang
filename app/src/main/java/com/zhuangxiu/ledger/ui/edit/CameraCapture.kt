@@ -37,7 +37,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -46,8 +45,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerIconButton
 import java.io.File
 
 @Composable
@@ -86,10 +85,10 @@ fun CameraCaptureDialog(
                 ) {
                     Text("需要相机权限才能拍摄凭证，请在系统设置中允许。", color = Color.White)
                     Spacer(Modifier.height(16.dp))
-                    LiquidGlassButton(onClick = onDismiss) { Text("知道了") }
+                    LedgerButton(onClick = onDismiss) { Text("知道了") }
                 }
             }
-            LiquidLensIconButton(
+            LedgerIconButton(
                 onClick = onDismiss,
                 size = 44.dp,
                 tint = Color.White,
@@ -138,14 +137,14 @@ private fun CameraContent(createFile: () -> File, onCaptured: (File) -> Unit) {
                 .background(Color.White.copy(alpha = 0.16f), CircleShape)
                 .border(
                     width = 2.dp,
-                    brush = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.92f), Color.White.copy(alpha = 0.32f))),
+                    color = Color.White,
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            LiquidLensIconButton(
+            LedgerIconButton(
                 onClick = {
-                    if (capturing) return@LiquidLensIconButton
+                    if (capturing) return@LedgerIconButton
                     capturing = true
                     val file = createFile()
                     controller.takePicture(

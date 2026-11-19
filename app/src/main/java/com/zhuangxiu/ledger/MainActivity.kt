@@ -15,12 +15,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
-import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
 import com.zhuangxiu.ledger.ui.navigation.LedgerNavHost
 import com.zhuangxiu.ledger.ui.theme.RenovationLedgerTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-/** 唯一的 Activity，所有页面都是沉浸式 Liquid Glass Compose 页面 */
+/** 唯一的 Activity，使用 Compose 绘制页面 */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -45,14 +44,12 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             RenovationLedgerTheme {
-                LiquidGlassBackdrop {
-                    LedgerNavHost(
-                        pendingExpenseId = pendingExpenseId,
-                        onPendingHandled = { pendingExpenseId = null },
-                        pendingShortcut = pendingShortcut,
-                        onShortcutHandled = { pendingShortcut = null },
-                    )
-                }
+                LedgerNavHost(
+                    pendingExpenseId = pendingExpenseId,
+                    onPendingHandled = { pendingExpenseId = null },
+                    pendingShortcut = pendingShortcut,
+                    onShortcutHandled = { pendingShortcut = null },
+                )
             }
         }
     }

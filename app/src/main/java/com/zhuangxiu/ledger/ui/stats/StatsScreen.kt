@@ -39,14 +39,13 @@ import com.zhuangxiu.ledger.data.db.CategoryKind
 import com.zhuangxiu.ledger.ui.components.BudgetCompareChart
 import com.zhuangxiu.ledger.ui.components.EmptyHint
 import com.zhuangxiu.ledger.ui.components.LedgerCard
-import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidLensChip
-import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
+import com.zhuangxiu.ledger.ui.components.LedgerBackground
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerChip
+import com.zhuangxiu.ledger.ui.components.LedgerSegments
 import com.zhuangxiu.ledger.ui.components.MonthlyBarChart
 import com.zhuangxiu.ledger.ui.components.PageHeading
 import com.zhuangxiu.ledger.ui.components.PieChart
-import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
@@ -59,9 +58,8 @@ fun StatsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showRangePicker by remember { mutableStateOf(false) }
     val options = state.options
-    val glass = LedgerTheme.glass
 
-    LiquidGlassBackdrop {
+    LedgerBackground {
         Scaffold(containerColor = Color.Transparent, topBar = header, bottomBar = bottomBar) { padding ->
             Column(
                 Modifier
@@ -80,7 +78,7 @@ fun StatsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     RangePreset.entries.forEach { preset ->
-                        LiquidLensChip(
+                        LedgerChip(
                             selected = options.preset == preset,
                             onClick = {
                                 if (preset == RangePreset.CUSTOM) showRangePicker = true else viewModel.setPreset(preset)
@@ -112,9 +110,8 @@ fun StatsScreen(
                     }
                 }
 
-                // 连续拖拽水滴放大分段器：按阶段 | 按类型
                 val kinds = CategoryKind.entries
-                LiquidLensTrack(
+                LedgerSegments(
                     itemCount = kinds.size,
                     selectedIndex = kinds.indexOf(options.kind).coerceAtLeast(0),
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -126,7 +123,7 @@ fun StatsScreen(
                         "按${kinds[idx].label.takeLast(2)}",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -164,12 +161,12 @@ fun StatsScreen(
             onDismissRequest = { showRangePicker = false },
             shape = RoundedCornerShape(30.dp),
             colors = DatePickerDefaults.colors(
-                containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
             confirmButton = {
                 val start = pickerState.selectedStartDateMillis
                 val end = pickerState.selectedEndDateMillis
-                LiquidGlassButton(
+                LedgerButton(
                     onClick = {
                         viewModel.setCustomRange(Dates.utcMillisToEpochDay(start!!), Dates.utcMillisToEpochDay(end!!))
                         showRangePicker = false
@@ -180,7 +177,7 @@ fun StatsScreen(
                 ) { Text("确定") }
             },
             dismissButton = {
-                LiquidGlassButton(
+                LedgerButton(
                     onClick = { showRangePicker = false },
                     prominent = false,
                     minHeight = 38.dp,

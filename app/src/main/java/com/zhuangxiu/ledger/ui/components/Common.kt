@@ -3,9 +3,7 @@ package com.zhuangxiu.ledger.ui.components
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,9 +57,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -78,9 +74,6 @@ import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
-/**
- * 统一圆角折射卡片：可点击卡片自带手指跟随水滴凸透镜放大交互。
- */
 @Composable
 fun LedgerCard(
     modifier: Modifier = Modifier,
@@ -90,24 +83,20 @@ fun LedgerCard(
 ) {
     val defaultLow = MaterialTheme.colorScheme.surfaceContainerLow
     val variant = if (containerColor == defaultLow || containerColor == MaterialTheme.colorScheme.surface) {
-        GlassVariant.Regular
+        SurfaceTone.Standard
     } else {
-        GlassVariant.Tinted(tint = containerColor, vivid = false)
+        SurfaceTone.Accent(containerColor)
     }
-    LiquidGlassSurface(
+    LedgerPanel(
         modifier = modifier,
         shape = RoundedCornerShape(26.dp),
-        cornerRadius = 26.dp,
         variant = variant,
-        shadowElevation = 10.dp,
-        pressedScale = 0.984f,
-        enableTilt = onClick != null,
         onClick = onClick,
         content = content,
     )
 }
 
-/** 子页面通用骨架：返回按钮采用全局水滴凸透镜圆形按钮 */
+/** 子页面的顶部导航和内容布局。 */
 @Composable
 fun SubPageScaffold(
     title: String,
@@ -117,14 +106,14 @@ fun SubPageScaffold(
     bottomBar: @Composable () -> Unit = {},
     content: @Composable (Modifier) -> Unit,
 ) {
-    LiquidGlassBackdrop {
+    LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                LiquidGlassTopBar(
+                LedgerTopBar(
                     title = { Text(title) },
                     navigationIcon = {
-                        LiquidLensIconButton(onClick = onBack) {
+                        LedgerIconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
                         }
                     },
@@ -152,8 +141,7 @@ fun BudgetProgressBar(usage: BudgetUsage, modifier: Modifier = Modifier) {
         label = "budget-progress",
     )
     val barColor = budgetLevelColor(usage.level)
-    val glass = LedgerTheme.glass
-    val trackColor = if (glass.isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.07f)
+    val trackColor = if (LedgerTheme.isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.07f)
 
     Canvas(
         modifier = modifier
@@ -165,17 +153,7 @@ fun BudgetProgressBar(usage: BudgetUsage, modifier: Modifier = Modifier) {
         drawRoundRect(color = trackColor, cornerRadius = r)
         if (animatedFraction > 0.005f) {
             val fillWidth = (size.width * animatedFraction).coerceAtLeast(size.height)
-            drawRoundRect(
-                brush = Brush.horizontalGradient(listOf(barColor.copy(alpha = 0.82f), barColor), 0f, fillWidth),
-                size = Size(fillWidth, size.height),
-                cornerRadius = r,
-            )
-            drawRoundRect(
-                color = Color.White.copy(alpha = 0.45f),
-                topLeft = Offset(size.height * 0.25f, size.height * 0.16f),
-                size = Size((fillWidth - size.height * 0.5f).coerceAtLeast(2f), size.height * 0.26f),
-                cornerRadius = CornerRadius(size.height / 4f),
-            )
+            drawRoundRect(color = barColor, size = Size(fillWidth, size.height), cornerRadius = r)
         }
     }
 }
@@ -191,7 +169,7 @@ fun StatusChip(status: PaymentStatus, modifier: Modifier = Modifier) {
     Text(
         text = status.label,
         modifier = modifier
-            .liquidGlass(CircleShape, GlassVariant.Tinted(tint), cornerRadius = 12.dp, shadowElevation = 0.dp)
+            .ledgerContainer(CircleShape, SurfaceTone.Accent(tint))
             .padding(horizontal = 10.dp, vertical = 3.dp),
         color = foreground,
         style = MaterialTheme.typography.labelSmall,
@@ -207,13 +185,10 @@ fun ExpenseRow(
     showDate: Boolean = false,
     onLongClick: (() -> Unit)? = null,
 ) {
-    LiquidGlassSurface(
+    LedgerPanel(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        cornerRadius = 20.dp,
-        variant = GlassVariant.Clear,
-        shadowElevation = 0.dp,
-        pressedScale = 0.986f,
+        variant = SurfaceTone.Flat,
         onClick = onClick,
         onLongClick = onLongClick,
         onLongClickLabel = if (onLongClick != null) "更多操作" else null,
@@ -302,7 +277,7 @@ fun EmptyHint(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
         Box(
             Modifier
                 .size(74.dp)
-                .liquidGlass(RoundedCornerShape(24.dp), GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer), cornerRadius = 24.dp, shadowElevation = 6.dp),
+                .ledgerContainer(RoundedCornerShape(24.dp), SurfaceTone.Accent(MaterialTheme.colorScheme.primaryContainer)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
@@ -326,11 +301,11 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: @Composa
 }
 
 @Composable
-fun glassTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = LedgerTheme.glass.elevatedTop.copy(alpha = if (LedgerTheme.glass.isDark) 0.52f else 0.72f),
-    unfocusedContainerColor = LedgerTheme.glass.surfaceTop.copy(alpha = if (LedgerTheme.glass.isDark) 0.36f else 0.56f),
+fun ledgerTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-    unfocusedBorderColor = LedgerTheme.glass.specularBright.copy(alpha = if (LedgerTheme.glass.isDark) 0.28f else 0.65f),
+    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
 )
 
 @Composable
@@ -348,13 +323,11 @@ fun AmountInputDialog(
     val focusRequester = remember { FocusRequester() }
     val cents = Money.parseToCents(text)
     val valid = (cents != null && cents > 0) || (allowEmpty && (text.isBlank() || cents == 0L))
-    val glass = LedgerTheme.glass
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(30.dp),
-        containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.92f),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 0.dp,
-        modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
         title = { Text(title) },
         text = {
             Column {
@@ -369,7 +342,7 @@ fun AmountInputDialog(
                     prefix = { Text("¥") },
                     singleLine = true,
                     shape = RoundedCornerShape(18.dp),
-                    colors = glassTextFieldColors(),
+                    colors = ledgerTextFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -383,7 +356,7 @@ fun AmountInputDialog(
             }
         },
         confirmButton = {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = { onConfirm(cents ?: 0) },
                 enabled = valid,
                 minHeight = 40.dp,
@@ -391,7 +364,7 @@ fun AmountInputDialog(
             ) { Text("确定") }
         },
         dismissButton = {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = onDismiss,
                 prominent = false,
                 minHeight = 40.dp,
@@ -408,9 +381,8 @@ fun PaymentMethodPicker(
     onChange: (PayMethod) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val glass = LedgerTheme.glass
     Box {
-        LiquidGlassButton(
+        LedgerButton(
             onClick = { expanded = true },
             prominent = false,
             minHeight = 40.dp,
@@ -422,7 +394,7 @@ fun PaymentMethodPicker(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             shape = RoundedCornerShape(22.dp),
-            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             PayMethod.entries.forEach { item ->
                 DropdownMenuItem(
@@ -447,13 +419,11 @@ fun TextInputDialog(
 ) {
     var text by remember { mutableStateOf(initial) }
     val focusRequester = remember { FocusRequester() }
-    val glass = LedgerTheme.glass
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(30.dp),
-        containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.92f),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 0.dp,
-        modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
         title = { Text(title) },
         text = {
             OutlinedTextField(
@@ -462,14 +432,14 @@ fun TextInputDialog(
                 label = { Text(label) },
                 singleLine = true,
                 shape = RoundedCornerShape(18.dp),
-                colors = glassTextFieldColors(),
+                colors = ledgerTextFieldColors(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester),
             )
         },
         confirmButton = {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = { onConfirm(text.trim()) },
                 enabled = text.isNotBlank(),
                 minHeight = 40.dp,
@@ -477,7 +447,7 @@ fun TextInputDialog(
             ) { Text("确定") }
         },
         dismissButton = {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = onDismiss,
                 prominent = false,
                 minHeight = 40.dp,
@@ -497,17 +467,15 @@ fun ConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val glass = LedgerTheme.glass
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(30.dp),
-        containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.92f),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 0.dp,
-        modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
         title = { Text(title) },
         text = { Text(text) },
         confirmButton = {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = onConfirm,
                 tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 contentColor = if (destructive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
@@ -518,7 +486,7 @@ fun ConfirmDialog(
             }
         },
         dismissButton = {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = onDismiss,
                 prominent = false,
                 minHeight = 40.dp,
@@ -540,15 +508,14 @@ fun LedgerDatePickerDialog(
         initialSelectedDateMillis = Dates.epochDayToUtcMillis(date),
         yearRange = minOf(year, 1900)..maxOf(year, 2100),
     )
-    val glass = LedgerTheme.glass
     DatePickerDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(30.dp),
         colors = DatePickerDefaults.colors(
-            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ),
         confirmButton = {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = { state.selectedDateMillis?.let { onPick(Dates.utcMillisToEpochDay(it)) } },
                 enabled = state.selectedDateMillis != null,
                 minHeight = 38.dp,
@@ -556,7 +523,7 @@ fun LedgerDatePickerDialog(
             ) { Text("确定") }
         },
         dismissButton = {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = onDismiss,
                 prominent = false,
                 minHeight = 38.dp,
@@ -607,11 +574,10 @@ fun StageBadge(name: String) {
     Box(
         Modifier
             .size(44.dp)
-            .liquidGlass(
+            .ledgerContainer(
                 shape = RoundedCornerShape(15.dp),
-                variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
-                cornerRadius = 15.dp,
-                shadowElevation = 2.dp,
+                variant = SurfaceTone.Accent(MaterialTheme.colorScheme.primaryContainer),
+
             ),
         contentAlignment = Alignment.Center,
     ) {

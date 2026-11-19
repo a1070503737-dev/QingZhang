@@ -25,11 +25,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.zhuangxiu.ledger.ui.components.EmptyHint
-import com.zhuangxiu.ledger.ui.components.GlassVariant
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
-import com.zhuangxiu.ledger.ui.components.liquidGlass
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 
-/** 凭证库（Liquid Glass 版）：冰晶相框网格 */
+/** 凭证库网格 */
 @Composable
 fun GalleryScreen(
     onBack: () -> Unit,
@@ -65,7 +65,7 @@ fun GalleryScreen(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .aspectRatio(1f)
-                            .liquidGlass(RoundedCornerShape(16.dp), GlassVariant.Clear, cornerRadius = 16.dp, shadowElevation = 4.dp)
+                            .ledgerContainer(RoundedCornerShape(16.dp), SurfaceTone.Flat)
                             .clip(RoundedCornerShape(16.dp))
                             .clickable { onViewImage(image.index) },
                     )

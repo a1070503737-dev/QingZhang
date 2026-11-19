@@ -41,9 +41,9 @@ import com.zhuangxiu.ledger.data.db.CategoryKind
 import com.zhuangxiu.ledger.data.repository.CategoryRepository
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
 import com.zhuangxiu.ledger.ui.components.LedgerCard
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
-import com.zhuangxiu.ledger.ui.components.LiquidLensTrack
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerIconButton
+import com.zhuangxiu.ledger.ui.components.LedgerSegments
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.TextInputDialog
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -103,7 +103,7 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CategoriesViewModel = hiltVi
         title = "分类管理",
         onBack = onBack,
         floatingActionButton = {
-            LiquidGlassButton(
+            LedgerButton(
                 onClick = { showAdd = true },
                 minHeight = 52.dp,
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
@@ -116,7 +116,7 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CategoriesViewModel = hiltVi
     ) { modifier ->
         Column(modifier.fillMaxSize()) {
             val entries = CategoryKind.entries
-            LiquidLensTrack(
+            LedgerSegments(
                 itemCount = entries.size,
                 selectedIndex = kind.ordinal,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -128,7 +128,7 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CategoriesViewModel = hiltVi
                     entries[idx].label,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -150,16 +150,16 @@ fun CategoriesScreen(onBack: () -> Unit, viewModel: CategoriesViewModel = hiltVi
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             Text(category.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                            LiquidLensIconButton(onClick = { viewModel.move(category, -1) }, enabled = index > 0, size = 36.dp) {
+                            LedgerIconButton(onClick = { viewModel.move(category, -1) }, enabled = index > 0, size = 36.dp) {
                                 Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = "上移", modifier = Modifier.size(20.dp))
                             }
-                            LiquidLensIconButton(onClick = { viewModel.move(category, 1) }, enabled = index < list.lastIndex, size = 36.dp) {
+                            LedgerIconButton(onClick = { viewModel.move(category, 1) }, enabled = index < list.lastIndex, size = 36.dp) {
                                 Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "下移", modifier = Modifier.size(20.dp))
                             }
-                            LiquidLensIconButton(onClick = { renaming = category }, size = 36.dp) {
+                            LedgerIconButton(onClick = { renaming = category }, size = 36.dp) {
                                 Icon(Icons.Outlined.Edit, contentDescription = "重命名", modifier = Modifier.size(19.dp))
                             }
-                            LiquidLensIconButton(onClick = { deleting = category }, size = 36.dp) {
+                            LedgerIconButton(onClick = { deleting = category }, size = 36.dp) {
                                 Icon(Icons.Outlined.DeleteOutline, contentDescription = "删除", modifier = Modifier.size(19.dp))
                             }
                         }

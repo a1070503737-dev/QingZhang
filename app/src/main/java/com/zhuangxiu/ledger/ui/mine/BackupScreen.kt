@@ -6,8 +6,6 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,12 +48,11 @@ import androidx.lifecycle.viewModelScope
 import com.zhuangxiu.ledger.data.repository.BackupManager
 import com.zhuangxiu.ledger.data.repository.RestoreRestartRequired
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
-import com.zhuangxiu.ledger.ui.components.GlassVariant
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
+import com.zhuangxiu.ledger.ui.components.LedgerButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
-import com.zhuangxiu.ledger.ui.components.liquidGlass
-import com.zhuangxiu.ledger.ui.theme.LedgerTheme
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -122,12 +119,11 @@ class BackupViewModel @Inject constructor(
     }
 }
 
-/** 备份与恢复页（Liquid Glass 版） */
+/** 备份与恢复页 */
 @Composable
 fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val glass = LedgerTheme.glass
     var pendingRestore by remember { mutableStateOf<Uri?>(null) }
 
     val recoveryDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -199,13 +195,12 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
         AlertDialog(
             onDismissRequest = {},
             shape = RoundedCornerShape(30.dp),
-            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.94f),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 0.dp,
-            modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
             title = { Text("需要重启") },
             text = { Text("点击“重启”重新打开数据库。若恢复中断，启动时会自动恢复原数据。") },
             confirmButton = {
-                LiquidGlassButton(
+                LedgerButton(
                     onClick = { restartApp(context) },
                     minHeight = 40.dp,
                     contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
@@ -222,11 +217,10 @@ private fun ActionCard(icon: ImageVector, title: String, subtitle: String, enabl
             Box(
                 Modifier
                     .size(44.dp)
-                    .liquidGlass(
+                    .ledgerContainer(
                         shape = RoundedCornerShape(14.dp),
-                        variant = GlassVariant.Tinted(MaterialTheme.colorScheme.primaryContainer),
-                        cornerRadius = 14.dp,
-                        shadowElevation = 2.dp,
+                        variant = SurfaceTone.Accent(MaterialTheme.colorScheme.primaryContainer),
+
                     ),
                 contentAlignment = Alignment.Center,
             ) {

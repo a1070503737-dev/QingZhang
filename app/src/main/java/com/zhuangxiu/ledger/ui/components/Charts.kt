@@ -25,8 +25,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,7 +32,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -53,31 +50,21 @@ import com.zhuangxiu.ledger.domain.MonthAmount
 import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Money
 
-/**
- * 液态玻璃环形饼图 + 玻璃图例：带弹簧展开动效、中心冰晶透镜与弧面高光反射环。
- */
 @Composable
 fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAmount: Boolean = false) {
     val palette = LedgerTheme.extra.chart
     val total = slices.sumOf { it.cents }
-    val glass = LedgerTheme.glass
-    var revealed by remember { mutableStateOf(IsRobolectricRuntime) }
-    LaunchedEffect(slices) { revealed = true }
-    val revealProgress by animateFloatAsState(
-        targetValue = if (revealed) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessLow),
-        label = "pie-reveal",
-    )
+    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
     Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.Center) {
-            Canvas(Modifier.size(196.dp)) {
-                val stroke = 34.dp.toPx()
+            Canvas(Modifier.size(176.dp)) {
+                val stroke = 24.dp.toPx()
                 val diameter = size.minDimension - stroke
                 val topLeft = Offset((size.width - diameter) / 2, (size.height - diameter) / 2)
-                // 底层微透光玻璃环槽
+
                 drawArc(
-                    color = if (glass.isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f),
+                    color = trackColor,
                     startAngle = 0f,
                     sweepAngle = 360f,
                     useCenter = false,
@@ -89,7 +76,7 @@ fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAm
                 val gapDegrees = if (slices.size > 1) 2.2f else 0f
                 slices.forEachIndexed { index, slice ->
                     val rawSweep = if (total == 0L) 0f else slice.cents.toFloat() / total * 360f
-                    val sweep = (rawSweep * revealProgress - gapDegrees).coerceAtLeast(if (rawSweep > 0f) 1.2f else 0f)
+                    val sweep = (rawSweep - gapDegrees).coerceAtLeast(if (rawSweep > 0f) 1.2f else 0f)
                     val baseColor = palette[index % palette.size]
                     drawArc(
                         color = baseColor,
@@ -100,26 +87,12 @@ fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAm
                         size = Size(diameter, diameter),
                         style = Stroke(width = stroke, cap = StrokeCap.Butt),
                     )
-                    // 外圈水光镜面反射细环
-                    val highlightDiameter = diameter + stroke * 0.62f
-                    val highlightOffset = Offset((size.width - highlightDiameter) / 2, (size.height - highlightDiameter) / 2)
-                    drawArc(
-                        color = Color.White.copy(alpha = 0.36f),
-                        startAngle = start + gapDegrees / 2f,
-                        sweepAngle = sweep,
-                        useCenter = false,
-                        topLeft = highlightOffset,
-                        size = Size(highlightDiameter, highlightDiameter),
-                        style = Stroke(width = 2.dp.toPx()),
-                    )
-                    start += rawSweep * revealProgress
+                    start += rawSweep
                 }
             }
-            // 中心液态透镜圆盘
+
             Column(
-                modifier = Modifier
-                    .size(106.dp)
-                    .liquidGlass(CircleShape, GlassVariant.Elevated, cornerRadius = 53.dp, shadowElevation = 4.dp),
+                modifier = Modifier.size(116.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -137,7 +110,7 @@ fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAm
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .liquidGlass(RoundedCornerShape(14.dp), GlassVariant.Clear, cornerRadius = 14.dp, shadowElevation = 0.dp)
+                        .ledgerContainer(RoundedCornerShape(14.dp), SurfaceTone.Flat)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -168,9 +141,6 @@ fun PieChart(slices: List<CategorySlice>, modifier: Modifier = Modifier, exactAm
     }
 }
 
-/**
- * 液态晶柱月度趋势图：柱体采用垂直冰晶渐变 + 柱顶水滴高光面与弹簧生长动效。
- */
 @Composable
 fun MonthlyBarChart(months: List<MonthAmount>, modifier: Modifier = Modifier) {
     val barColor = MaterialTheme.colorScheme.primary
@@ -181,14 +151,6 @@ fun MonthlyBarChart(months: List<MonthAmount>, modifier: Modifier = Modifier) {
     val max = months.maxOfOrNull { it.cents }?.coerceAtLeast(1) ?: 1
     val scroll = rememberScrollState()
     LaunchedEffect(months.size) { scroll.scrollTo(scroll.maxValue) }
-
-    var revealed by remember { mutableStateOf(IsRobolectricRuntime) }
-    LaunchedEffect(months) { revealed = true }
-    val grow by animateFloatAsState(
-        targetValue = if (revealed) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessLow),
-        label = "bar-grow",
-    )
 
     val slotWidth = 56.dp
     Box(modifier = modifier.fillMaxWidth().horizontalScroll(scroll)) {
@@ -209,7 +171,7 @@ fun MonthlyBarChart(months: List<MonthAmount>, modifier: Modifier = Modifier) {
 
             months.forEachIndexed { index, item ->
                 val centerX = slot * index + slot / 2
-                val barHeight = ((item.cents.toFloat() / max * chartHeight) * grow)
+                val barHeight = (item.cents.toFloat() / max * chartHeight)
                     .coerceAtLeast(if (item.cents > 0) 3.dp.toPx() else 0f)
                 if (barHeight > 0) {
                     val radius = (barWidth / 2.2f).coerceAtMost(barHeight)
@@ -224,19 +186,7 @@ fun MonthlyBarChart(months: List<MonthAmount>, modifier: Modifier = Modifier) {
                         lineTo(left + barWidth, chartBottom)
                         close()
                     }
-                    drawPath(
-                        path = path,
-                        brush = Brush.verticalGradient(
-                            colors = listOf(barColor.copy(alpha = 0.95f), barColor.copy(alpha = 0.52f)),
-                            startY = top,
-                            endY = chartBottom,
-                        ),
-                    )
-                    drawPath(
-                        path = path,
-                        color = Color.White.copy(alpha = 0.42f),
-                        style = Stroke(width = 1.dp.toPx()),
-                    )
+                    drawPath(path, color = barColor)
                     val value = measurer.measure(Money.formatShort(item.cents).removePrefix("¥"), valueStyle)
                     drawText(value, topLeft = Offset(centerX - value.size.width / 2, top - value.size.height - 2.dp.toPx()))
                 }
@@ -253,7 +203,7 @@ fun MonthlyBarChart(months: List<MonthAmount>, modifier: Modifier = Modifier) {
 }
 
 /**
- * 预算与实际花费对比液态能量条。
+ * 预算与实际花费对比。
  */
 @Composable
 fun BudgetCompareChart(items: List<BudgetItem>, modifier: Modifier = Modifier) {
@@ -315,22 +265,12 @@ private fun CompareBar(fraction: Float, color: Color, label: String) {
                 .height(12.dp)
                 .clip(CircleShape),
         ) {
-            drawRoundRect(
-                color = color.copy(alpha = 0.12f),
-                cornerRadius = CornerRadius(size.height / 2),
-            )
-            val width = (size.width * animated).coerceAtLeast(size.height)
-            drawRoundRect(
-                brush = Brush.horizontalGradient(listOf(color.copy(alpha = 0.78f), color)),
-                size = Size(width, size.height),
-                cornerRadius = CornerRadius(size.height / 2),
-            )
-            drawRoundRect(
-                color = Color.White.copy(alpha = 0.35f),
-                topLeft = Offset(size.height * 0.2f, size.height * 0.16f),
-                size = Size((width - size.height * 0.4f).coerceAtLeast(2f), size.height * 0.25f),
-                cornerRadius = CornerRadius(size.height / 4),
-            )
+            val radius = CornerRadius(size.height / 2)
+            drawRoundRect(color.copy(alpha = 0.12f), cornerRadius = radius)
+            if (animated > 0f) {
+                val width = (size.width * animated).coerceAtLeast(size.height)
+                drawRoundRect(color, size = Size(width, size.height), cornerRadius = radius)
+            }
         }
         Spacer(Modifier.width(8.dp))
         Text(

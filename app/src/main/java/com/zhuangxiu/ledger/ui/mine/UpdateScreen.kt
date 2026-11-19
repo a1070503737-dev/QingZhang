@@ -41,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -54,12 +53,12 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.zhuangxiu.ledger.BuildConfig
-import com.zhuangxiu.ledger.ui.components.GlassVariant
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
+import com.zhuangxiu.ledger.ui.components.LedgerButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
-import com.zhuangxiu.ledger.ui.components.glassTextFieldColors
-import com.zhuangxiu.ledger.ui.components.liquidGlass
+import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import com.zhuangxiu.ledger.update.UpdateSource
 import java.util.Locale
 
@@ -165,7 +164,7 @@ fun UpdateContent(
                     Box(
                         Modifier
                             .size(64.dp)
-                            .liquidGlass(RoundedCornerShape(20.dp), GlassVariant.Clear, cornerRadius = 20.dp, shadowElevation = 0.dp),
+                            .ledgerContainer(RoundedCornerShape(20.dp), SurfaceTone.Flat),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(Icons.Outlined.SystemUpdate, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
@@ -206,15 +205,11 @@ fun UpdateContent(
                                         .fillMaxWidth(progress)
                                         .height(10.dp)
                                         .clip(CircleShape)
-                                        .background(
-                                            Brush.horizontalGradient(
-                                                listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.78f), MaterialTheme.colorScheme.primary),
-                                            ),
-                                        ),
+                                        .background(MaterialTheme.colorScheme.primary),
                                 )
                             }
                             Text("${(progress * 100).toInt()}% · ${megabytes(state.downloaded)} / ${megabytes(total)} MB", style = MaterialTheme.typography.bodyMedium)
-                            LiquidGlassButton(
+                            LedgerButton(
                                 onClick = onCancel,
                                 prominent = false,
                                 minHeight = 38.dp,
@@ -223,13 +218,13 @@ fun UpdateContent(
                         }
                         UpdateStage.AVAILABLE -> {
                             Text("安装包 ${megabytes(state.release?.size ?: 0)} MB", style = MaterialTheme.typography.bodyMedium)
-                            LiquidGlassButton(onClick = onDownload, modifier = Modifier.fillMaxWidth()) { Text("下载更新") }
+                            LedgerButton(onClick = onDownload, modifier = Modifier.fillMaxWidth()) { Text("下载更新") }
                         }
                         UpdateStage.READY -> {
                             Text("安装包已校验，可覆盖当前版本并保留账本。", style = MaterialTheme.typography.bodyMedium)
-                            LiquidGlassButton(onClick = onInstall, modifier = Modifier.fillMaxWidth()) { Text("安装更新") }
+                            LedgerButton(onClick = onInstall, modifier = Modifier.fillMaxWidth()) { Text("安装更新") }
                         }
-                        else -> LiquidGlassButton(onClick = onCheck, modifier = Modifier.fillMaxWidth()) { Text("检查新版本") }
+                        else -> LedgerButton(onClick = onCheck, modifier = Modifier.fillMaxWidth()) { Text("检查新版本") }
                     }
                     if (state.stage == UpdateStage.IDLE) {
                         Text("从 GitHub 获取正式发行版，下载后在手机上安装。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -247,12 +242,12 @@ fun UpdateContent(
                 }
             }
             if (state.release != null && !state.busy) {
-                LiquidGlassButton(onClick = onCheck, prominent = false, modifier = Modifier.fillMaxWidth()) {
+                LedgerButton(onClick = onCheck, prominent = false, modifier = Modifier.fillMaxWidth()) {
                     Text("重新检查", color = MaterialTheme.colorScheme.primary)
                 }
             }
             Text("首次安装需允许本应用安装更新，并在 Android 安装界面确认。更新前建议备份账本。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            LiquidGlassButton(onClick = onOpenReleases, prominent = false, modifier = Modifier.fillMaxWidth()) {
+            LedgerButton(onClick = onOpenReleases, prominent = false, modifier = Modifier.fillMaxWidth()) {
                 Text("查看 GitHub 发行版", color = MaterialTheme.colorScheme.primary)
             }
             LedgerCard(Modifier.fillMaxWidth()) {
@@ -267,7 +262,7 @@ fun UpdateContent(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     if (!state.bundledAccess) {
-                        LiquidGlassButton(
+                        LedgerButton(
                             onClick = onConfigureAccess,
                             prominent = false,
                             enabled = !state.busy,
@@ -314,7 +309,7 @@ private fun GitHubAccessScreen(
             LedgerCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("创建 Fine-grained token，只选择 a1070503737-dev/code 仓库，将 Contents 权限设为 Read-only，无需写入权限。")
-                    LiquidGlassButton(
+                    LedgerButton(
                         onClick = onCreateToken,
                         prominent = false,
                         enabled = !state.busy,
@@ -328,7 +323,7 @@ private fun GitHubAccessScreen(
                         label = { Text("GitHub 访问令牌") },
                         singleLine = true,
                         shape = RoundedCornerShape(18.dp),
-                        colors = glassTextFieldColors(),
+                        colors = ledgerTextFieldColors(),
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
@@ -338,10 +333,10 @@ private fun GitHubAccessScreen(
             }
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (state.busy) CircularProgressIndicator(Modifier.size(24.dp))
-            LiquidGlassButton(onClick = { onSave(token) }, enabled = token.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth()) { Text("保存并检查") }
-            LiquidGlassButton(onClick = onDismiss, prominent = false, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("取消") }
+            LedgerButton(onClick = { onSave(token) }, enabled = token.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth()) { Text("保存并检查") }
+            LedgerButton(onClick = onDismiss, prominent = false, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("取消") }
             if (state.accessConfigured) {
-                LiquidGlassButton(onClick = onClear, prominent = false, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                LedgerButton(onClick = onClear, prominent = false, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
                     Text("移除本机访问设置", color = MaterialTheme.colorScheme.error)
                 }
             }

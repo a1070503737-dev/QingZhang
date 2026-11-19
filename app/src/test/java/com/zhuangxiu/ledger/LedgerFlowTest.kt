@@ -138,7 +138,7 @@ class LedgerFlowTest {
         awaitText("本月支出")
         capture("stats")
         compose.onNodeWithContentDescription("设置").performClick()
-        awaitText("认真生活，轻松记账")
+        awaitText("数据与备份")
         capture("mine")
         compose.onNodeWithText("检查更新").performScrollTo().performClick()
         awaitText("当前版本 ${BuildConfig.VERSION_NAME}")

@@ -3,9 +3,7 @@ package com.zhuangxiu.ledger.ui.edit
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,21 +66,20 @@ import coil3.compose.AsyncImage
 import com.zhuangxiu.ledger.data.db.CategoryEntity
 import com.zhuangxiu.ledger.data.db.PaymentStatus
 import com.zhuangxiu.ledger.ui.components.AmountKeypad
-import com.zhuangxiu.ledger.ui.components.GlassVariant
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.LedgerDatePickerDialog
-import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidGlassSurface
-import com.zhuangxiu.ledger.ui.components.LiquidGlassTopBar
-import com.zhuangxiu.ledger.ui.components.LiquidLensChip
-import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
+import com.zhuangxiu.ledger.ui.components.LedgerBackground
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerPanel
+import com.zhuangxiu.ledger.ui.components.LedgerTopBar
+import com.zhuangxiu.ledger.ui.components.LedgerChip
+import com.zhuangxiu.ledger.ui.components.LedgerIconButton
 import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
 import com.zhuangxiu.ledger.ui.components.amountOperationHint
 import com.zhuangxiu.ledger.ui.components.applyAmountKey
-import com.zhuangxiu.ledger.ui.components.glassTextFieldColors
-import com.zhuangxiu.ledger.ui.components.liquidGlass
-import com.zhuangxiu.ledger.ui.theme.LedgerTheme
+import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
@@ -95,7 +92,6 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
     val snackbar = remember { SnackbarHostState() }
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    val glass = LedgerTheme.glass
     var amountField by rememberSaveable { mutableStateOf<AmountField?>(null) }
     var amountDraft by rememberSaveable { mutableStateOf("") }
     val openAmount: (AmountField) -> Unit = { field ->
@@ -127,14 +123,14 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
         }
     }
 
-    LiquidGlassBackdrop {
+    LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                LiquidGlassTopBar(
+                LedgerTopBar(
                     title = { Text(if (state.isNew) "记装修账" else "编辑装修账单") },
                     navigationIcon = {
-                        LiquidLensIconButton(onClick = onBack) {
+                        LedgerIconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
                         }
                     },
@@ -142,7 +138,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
             },
             bottomBar = {
                 if (!state.loading && state.bookName != null) {
-                    LiquidGlassButton(
+                    LedgerButton(
                         onClick = viewModel::save,
                         enabled = !state.saving,
                         minHeight = 52.dp,
@@ -195,7 +191,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                     FormSection("付款状态") {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             PaymentStatus.entries.forEach { status ->
-                                LiquidLensChip(
+                                LedgerChip(
                                     selected = state.status == status,
                                     onClick = { viewModel.setStatus(status) },
                                     label = { Text(status.label) },
@@ -265,7 +261,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                     label = { Text("商家 / 工人") },
                     singleLine = true,
                     shape = RoundedCornerShape(18.dp),
-                    colors = glassTextFieldColors(),
+                    colors = ledgerTextFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -275,7 +271,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                     minLines = 2,
                     maxLines = 5,
                     shape = RoundedCornerShape(18.dp),
-                    colors = glassTextFieldColors(),
+                    colors = ledgerTextFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
 
@@ -289,7 +285,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                                 Box(
                                     Modifier
                                         .size(84.dp)
-                                        .liquidGlass(RoundedCornerShape(16.dp), GlassVariant.Clear, cornerRadius = 16.dp, shadowElevation = 4.dp),
+                                        .ledgerContainer(RoundedCornerShape(16.dp), SurfaceTone.Flat),
                                 ) {
                                     AsyncImage(
                                         model = viewModel.imageFile(image.fileName),
@@ -344,9 +340,8 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
         AlertDialog(
             onDismissRequest = close,
             shape = RoundedCornerShape(30.dp),
-            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.90f else 0.94f),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 0.dp,
-            modifier = Modifier.border(BorderStroke(1.dp, glass.specularBright), RoundedCornerShape(30.dp)),
             title = { Text(if (isTotal) "输入装修总价" else paidAmountLabel(state.status)) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -363,7 +358,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                 }
             },
             confirmButton = {
-                LiquidGlassButton(
+                LedgerButton(
                     onClick = close,
                     enabled = validAmount,
                     minHeight = 40.dp,
@@ -421,7 +416,7 @@ private fun FormSection(title: String, content: @Composable () -> Unit) {
 private fun CategoryChips(categories: List<CategoryEntity>, selectedId: Long?, onSelect: (Long) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         categories.forEach { category ->
-            LiquidLensChip(
+            LedgerChip(
                 selected = category.id == selectedId,
                 onClick = { onSelect(category.id) },
                 label = { Text(category.name) },
@@ -438,13 +433,10 @@ private fun PickerRow(
     onClick: () -> Unit,
     onClear: (() -> Unit)? = null,
 ) {
-    LiquidGlassSurface(
+    LedgerPanel(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        cornerRadius = 18.dp,
-        variant = GlassVariant.Regular,
-        shadowElevation = 3.dp,
-        pressedScale = 0.984f,
+        variant = SurfaceTone.Standard,
         onClick = onClick,
     ) {
         Row(
@@ -459,7 +451,7 @@ private fun PickerRow(
             Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (onClear != null) {
                 Spacer(Modifier.width(8.dp))
-                LiquidLensIconButton(onClick = onClear, size = 28.dp) {
+                LedgerIconButton(onClick = onClear, size = 28.dp) {
                     Icon(Icons.Outlined.Close, contentDescription = "清除", modifier = Modifier.size(16.dp))
                 }
             }
@@ -469,11 +461,10 @@ private fun PickerRow(
 
 @Composable
 private fun AddImageTile(icon: ImageVector, label: String, onClick: () -> Unit) {
-    LiquidGlassButton(
+    LedgerButton(
         onClick = onClick,
         prominent = false,
         shape = RoundedCornerShape(18.dp),
-        cornerRadius = 18.dp,
         minHeight = 84.dp,
         contentPadding = PaddingValues(12.dp),
         modifier = Modifier.size(84.dp),

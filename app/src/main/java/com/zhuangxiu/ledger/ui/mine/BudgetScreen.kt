@@ -88,7 +88,7 @@ class BudgetViewModel @Inject constructor(
     }
 }
 
-/** 预算设置页（Liquid Glass 版） */
+/** 预算设置页 */
 @Composable
 fun BudgetScreen(onBack: () -> Unit, viewModel: BudgetViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()

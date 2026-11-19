@@ -1,34 +1,38 @@
 package com.zhuangxiu.ledger.ui.theme
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** 浅色冰晶与纯黑深色 Liquid Glass 主题。 */
+/** 系统动态配色不可用时的 Material 3 配色。 */
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF2563EB),            // 光学冰晶蓝
+    primary = Color(0xFF3E59AB),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFDCE8FF),
-    onPrimaryContainer = Color(0xFF0D275C),
-    secondary = Color(0xFF476282),
+    primaryContainer = Color(0xFFDEE5FF),
+    onPrimaryContainer = Color(0xFF10266D),
+    secondary = Color(0xFF565E78),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFDCE6F5),
-    onSecondaryContainer = Color(0xFF182A44),
-    tertiary = Color(0xFF128061),           // 翡翠液态绿
+    secondaryContainer = Color(0xFFE1E5FA),
+    onSecondaryContainer = Color(0xFF1B253A),
+    tertiary = Color(0xFF128061),
     onTertiary = Color(0xFFFFFFFF),
     tertiaryContainer = Color(0xFFD6F3E8),
     onTertiaryContainer = Color(0xFF0A382A),
@@ -36,26 +40,26 @@ private val LightColors = lightColorScheme(
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFFFDAD6),
     onErrorContainer = Color(0xFF410002),
-    background = Color(0xFFEFF4FC),
+    background = Color(0xFFF9F9FF),
     onBackground = Color(0xFF111C2D),
-    surface = Color(0xFFF4F8FF),
+    surface = Color(0xFFF9F9FF),
     onSurface = Color(0xFF111C2D),
     surfaceVariant = Color(0xFFDFE8F5),
     onSurfaceVariant = Color(0xFF4E5D75),
     outline = Color(0xFF7B8CA6),
     outlineVariant = Color(0xFFCFD9EA),
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF7FAFF),
-    surfaceContainer = Color(0xFFEAF1FB),
-    surfaceContainerHigh = Color(0xFFE1EBF8),
-    surfaceContainerHighest = Color(0xFFD6E3F4),
+    surfaceContainerLow = Color(0xFFF1F2FA),
+    surfaceContainer = Color(0xFFECEEF6),
+    surfaceContainerHigh = Color(0xFFE5E7F1),
+    surfaceContainerHighest = Color(0xFFDEE1EC),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFF2F2F2),
-    onPrimary = Color.Black,
-    primaryContainer = Color(0xFF262626),
-    onPrimaryContainer = Color(0xFFF5F5F5),
+    primary = Color(0xFFBAC7FF),
+    onPrimary = Color(0xFF1B327A),
+    primaryContainer = Color(0xFF2D438F),
+    onPrimaryContainer = Color(0xFFDEE5FF),
     inversePrimary = Color(0xFF555555),
     secondary = Color(0xFFCCCCCC),
     onSecondary = Color(0xFF252525),
@@ -89,7 +93,6 @@ private val DarkColors = darkColorScheme(
     surfaceContainerHighest = Color(0xFF2C2C2C),
 )
 
-/** Liquid Glass 同心大曲率圆角几何规范 */
 private val LedgerShapes = Shapes(
     extraSmall = RoundedCornerShape(12.dp),
     small = RoundedCornerShape(16.dp),
@@ -120,29 +123,9 @@ data class ExtraColors(
     val chart: List<Color>,
 )
 
-/** Liquid Glass 光学材质参数令牌 */
-data class LiquidGlassPalette(
-    val isDark: Boolean,
-    val surfaceTop: Color,
-    val surfaceBottom: Color,
-    val elevatedTop: Color,
-    val elevatedBottom: Color,
-    val dockTop: Color,
-    val dockBottom: Color,
-    val specularBright: Color,
-    val specularMid: Color,
-    val specularCounter: Color,
-    val innerGlow: Color,
-    val ambientShadow: Color,
-    val auraPrimary: Color,
-    val auraSecondary: Color,
-    val auraTertiary: Color,
-    val auraWarm: Color,
-)
-
 private val LightExtra = ExtraColors(
     warning = Color(0xFFD97706),
-    success = Color(0xFF0D8A5E),
+    success = Color(0xFF076447),
     chart = listOf(
         Color(0xFF2563EB), Color(0xFF0EA5E9), Color(0xFF10B981), Color(0xFFF59E0B), Color(0xFF8B5CF6),
         Color(0xFFEC4899), Color(0xFF14B8A6), Color(0xFF6366F1), Color(0xFFF97316), Color(0xFF64748B),
@@ -158,72 +141,37 @@ private val DarkExtra = ExtraColors(
     ),
 )
 
-private val LightGlassPalette = LiquidGlassPalette(
-    isDark = false,
-    surfaceTop = Color(0xBDFFFFFF),        // 74% 纯白折射层
-    surfaceBottom = Color(0x8AF2F7FF),     // 54% 冰蓝透射层
-    elevatedTop = Color(0xDBFFFFFF),       // 86% 悬浮高亮层
-    elevatedBottom = Color(0xB8EEF5FF),    // 72% 悬浮底透层
-    dockTop = Color(0xD6FFFFFF),           // 84% 液态胶囊顶层
-    dockBottom = Color(0xADEAF3FF),        // 68% 液态胶囊底层
-    specularBright = Color(0xF2FFFFFF),    // 左上高光反射边缘
-    specularMid = Color(0x3860A5FA),       // 棱镜微色散过渡
-    specularCounter = Color(0x99FFFFFF),   // 右下反向菲涅尔亮边
-    innerGlow = Color(0x75FFFFFF),
-    ambientShadow = Color(0x221E40AF),
-    auraPrimary = Color(0x4760A5FA),       // 天青光斑
-    auraSecondary = Color(0x3834D399),     // 薄荷极光
-    auraTertiary = Color(0x33A78BFA),      // 鸢尾紫雾
-    auraWarm = Color(0x2EFBBF24),          // 暖金微光
-)
-
-private val DarkGlassPalette = LiquidGlassPalette(
-    isDark = true,
-    surfaceTop = Color(0xC2262626),
-    surfaceBottom = Color(0xC2101010),
-    elevatedTop = Color(0xED303030),
-    elevatedBottom = Color(0xDD161616),
-    dockTop = Color(0xDC282828),
-    dockBottom = Color(0xDA111111),
-    specularBright = Color(0x70FFFFFF),
-    specularMid = Color(0x30C2C2C2),
-    specularCounter = Color(0x3CFFFFFF),
-    innerGlow = Color(0x1CFFFFFF),
-    ambientShadow = Color(0x66000000),
-    auraPrimary = Color.Transparent,
-    auraSecondary = Color.Transparent,
-    auraTertiary = Color.Transparent,
-    auraWarm = Color.Transparent,
-)
-
 private val LocalExtraColors = staticCompositionLocalOf { LightExtra }
-private val LocalLiquidGlassPalette = staticCompositionLocalOf { LightGlassPalette }
+private val LocalDarkTheme = staticCompositionLocalOf { false }
 
-/** 取补充颜色与液态玻璃光学令牌：`LedgerTheme.extra` / `LedgerTheme.glass` */
 object LedgerTheme {
     val extra: ExtraColors
         @Composable @ReadOnlyComposable get() = LocalExtraColors.current
 
-    val glass: LiquidGlassPalette
-        @Composable @ReadOnlyComposable get() = LocalLiquidGlassPalette.current
+    val isDark: Boolean
+        @Composable @ReadOnlyComposable get() = LocalDarkTheme.current
 }
 
 @Composable
 fun RenovationLedgerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val colors = if (darkTheme) DarkColors else LightColors
+    val context = LocalContext.current
+    val colors = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (darkTheme) dynamicDarkColorScheme(context).copy(background = Color.Black, surfaceContainerLowest = Color.Black)
+        else dynamicLightColorScheme(context)
+    } else if (darkTheme) {
+        DarkColors
+    } else {
+        LightColors
+    }
     CompositionLocalProvider(
         LocalExtraColors provides if (darkTheme) DarkExtra else LightExtra,
-        LocalLiquidGlassPalette provides if (darkTheme) DarkGlassPalette else LightGlassPalette,
+        LocalDarkTheme provides darkTheme,
         LocalContentColor provides colors.onSurface,
     ) {
-        MaterialTheme(
-            colorScheme = colors,
-            shapes = LedgerShapes,
-            typography = LedgerTypography,
-            content = content,
-        )
+        MaterialTheme(colorScheme = colors, shapes = LedgerShapes, typography = LedgerTypography, content = content)
     }
 }

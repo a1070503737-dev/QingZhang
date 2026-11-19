@@ -109,16 +109,16 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                         else -> "数字键$key"
                     }
                     val variant = if (key == "+" || key == "−" || key == "=" || key == "⌫") {
-                        GlassVariant.Tinted(MaterialTheme.colorScheme.secondaryContainer)
+                        SurfaceTone.Accent(MaterialTheme.colorScheme.secondaryContainer)
                     } else {
-                        GlassVariant.Elevated
+                        SurfaceTone.Raised
                     }
                     Box(
                         modifier = Modifier
                             .weight(if (key == "0") 2f else 1f)
                             .heightIn(min = 50.dp)
                             .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
-                            .liquidGlass(RoundedCornerShape(18.dp), variant, cornerRadius = 18.dp, shadowElevation = 3.dp)
+                            .ledgerContainer(RoundedCornerShape(18.dp), variant)
                             .drawBehind { if (enabled && pressedKey == key) drawRect(pressTint) }
                             .clickable(
                                 interactionSource = null,

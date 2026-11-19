@@ -149,9 +149,14 @@ class DailyScreenTest {
             }
         } }
         compose.onNodeWithText("交通").performScrollTo().performClick()
+        capture("qingzhang-quick-small-large-text")
+        val key = compose.onNodeWithContentDescription("数字键1", useUnmergedTree = true)
+        val keyBounds = key.fetchSemanticsNode().boundsInRoot
+        val date = compose.onNodeWithContentDescription("记账日期").performScrollTo().assertIsDisplayed()
+        assertTrue(date.fetchSemanticsNode().boundsInRoot.bottom <= keyBounds.top)
+        assertEquals(keyBounds, key.fetchSemanticsNode().boundsInRoot)
         compose.onNodeWithContentDescription("保存日常账目").assertIsDisplayed().performClick()
         assertTrue(saved)
-        capture("qingzhang-quick-small-large-text")
     }
     @Test fun amountUsesOnlyCustomNumberPadAndNotesCanStillBeTyped() {
         compose.setContent { RenovationLedgerTheme {

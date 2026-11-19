@@ -73,17 +73,16 @@ import com.zhuangxiu.ledger.ui.components.AmountInputDialog
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
 import com.zhuangxiu.ledger.ui.components.EmptyHint
 import com.zhuangxiu.ledger.ui.components.ExpenseRow
-import com.zhuangxiu.ledger.ui.components.GlassVariant
-import com.zhuangxiu.ledger.ui.components.LiquidGlassBackdrop
-import com.zhuangxiu.ledger.ui.components.LiquidGlassButton
-import com.zhuangxiu.ledger.ui.components.LiquidLensChip
-import com.zhuangxiu.ledger.ui.components.LiquidLensIconButton
+import com.zhuangxiu.ledger.ui.components.SurfaceTone
+import com.zhuangxiu.ledger.ui.components.LedgerBackground
+import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerChip
+import com.zhuangxiu.ledger.ui.components.LedgerIconButton
 import com.zhuangxiu.ledger.ui.components.LoadingHint
 import com.zhuangxiu.ledger.ui.components.PageHeading
 import com.zhuangxiu.ledger.ui.components.StatusChip
-import com.zhuangxiu.ledger.ui.components.glassTextFieldColors
-import com.zhuangxiu.ledger.ui.components.liquidGlass
-import com.zhuangxiu.ledger.ui.theme.LedgerTheme
+import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
+import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import com.zhuangxiu.ledger.util.Dates
 import com.zhuangxiu.ledger.util.Money
 
@@ -107,13 +106,13 @@ fun BillsScreen(
             viewModel.events.collect { snackbar.showSnackbar(it) }
         }
     }
-    LiquidGlassBackdrop {
+    LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = bottomBar,
             snackbarHost = { SnackbarHost(snackbar) },
             floatingActionButton = {
-                LiquidGlassButton(
+                LedgerButton(
                     onClick = onAdd,
                     minHeight = 56.dp,
                     contentPadding = PaddingValues(16.dp),
@@ -136,14 +135,14 @@ fun BillsScreen(
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                     trailingIcon = {
                         if (state.filter.query.isNotEmpty()) {
-                            LiquidLensIconButton(onClick = { viewModel.setQuery("") }, size = 32.dp) {
+                            LedgerIconButton(onClick = { viewModel.setQuery("") }, size = 32.dp) {
                                 Icon(Icons.Outlined.Close, contentDescription = "清空", modifier = Modifier.size(16.dp))
                             }
                         }
                     },
                     singleLine = true,
                     shape = CircleShape,
-                    colors = glassTextFieldColors(),
+                    colors = ledgerTextFieldColors(),
                 )
                 Row(
                     Modifier
@@ -153,7 +152,7 @@ fun BillsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    LiquidLensChip(
+                    LedgerChip(
                         selected = state.filter.pendingOnly,
                         onClick = { viewModel.setPendingOnly(!state.filter.pendingOnly) },
                         label = { Text("仅看待付") },
@@ -177,7 +176,7 @@ fun BillsScreen(
                         onSelect = viewModel::setStatus,
                     )
                     if (state.filter.isActive) {
-                        LiquidGlassButton(
+                        LedgerButton(
                             onClick = viewModel::clearFilter,
                             prominent = false,
                             minHeight = 36.dp,
@@ -206,7 +205,7 @@ fun BillsScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 4.dp)
-                                    .liquidGlass(CircleShape, GlassVariant.Elevated, cornerRadius = 18.dp, shadowElevation = 4.dp)
+                                    .ledgerContainer(CircleShape, SurfaceTone.Raised)
                                     .padding(horizontal = 16.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -295,11 +294,10 @@ private fun ExpenseActionSheet(
     onDismiss: () -> Unit,
     onAction: (ExpenseAction) -> Unit,
 ) {
-    val glass = LedgerTheme.glass
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-        containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 0.dp,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
@@ -404,7 +402,7 @@ private fun SwipeToDeleteRow(
             item = item,
             onClick = onClick,
             onLongClick = onLongClick,
-            modifier = Modifier.liquidGlass(RoundedCornerShape(22.dp), GlassVariant.Elevated, cornerRadius = 22.dp, shadowElevation = 4.dp),
+            modifier = Modifier.ledgerContainer(RoundedCornerShape(22.dp), SurfaceTone.Raised),
         )
     }
 }
@@ -439,9 +437,8 @@ private fun <T> FilterDropdown(
     onSelect: (T?) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val glass = LedgerTheme.glass
     Box {
-        LiquidLensChip(
+        LedgerChip(
             selected = selectedLabel != null,
             onClick = { expanded = true },
             label = { Text(selectedLabel ?: label) },
@@ -451,7 +448,7 @@ private fun <T> FilterDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             shape = RoundedCornerShape(22.dp),
-            containerColor = glass.elevatedTop.copy(alpha = if (glass.isDark) 0.92f else 0.95f),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             DropdownMenuItem(
                 text = { Text("全部") },
