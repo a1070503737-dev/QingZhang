@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.3.8",
+  "versionCode": 23,
+  "notes": "# 轻账 1.3.8\n\n- 全面改用 Pixel 风格的 Material 3 界面，采用实色卡片和全宽底部导航。Android 12 及以上可跟随系统动态配色，深色模式使用纯黑背景。\n- 首页突出月度收支和结余，统计、账本和设置统一布局。\n- 「记一笔」缩短操作路径，数字键盘固定在底部，继续支持加、减、等于。\n- 可从正式版 1.3.7 覆盖更新，也可在「设置 → 检查更新」下载。",
+  "apk": {
+    "fileName": "renovation-ledger-1.3.8-signed.apk",
+    "size": 3106576,
+    "sha256": "78d4a6f5a966b88d6b9e79357cec11d849852f5b3bede313c03177c827e6bff5"
+  }
+}
