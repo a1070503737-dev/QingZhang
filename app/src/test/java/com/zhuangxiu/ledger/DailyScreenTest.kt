@@ -251,7 +251,7 @@ class DailyScreenTest {
         }
         val image = compose.onRoot().captureToImage().asAndroidBitmap()
         val stats = compose.onNodeWithText("统计").fetchSemanticsNode().boundsInRoot
-        val y = (stats.top - stats.height).toInt()
+        val y = stats.center.y.toInt()
         val left = image.getPixel(image.width * 5 / 12, y)
         val right = image.getPixel(image.width * 7 / 12, y)
         assertTrue(android.graphics.Color.red(left) > android.graphics.Color.red(right))
