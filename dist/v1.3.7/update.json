@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.3.7",
+  "versionCode": 22,
+  "notes": "# 轻账 1.3.7\n\n- 从鲨鱼记账导入时，可一次选择多份 CSV 或 XLSX 文件。核对合并预览后，一次确认写入同一个账本。\n- 每份文件可单独调整工作表和列映射。内容完全相同的文件自动跳过，跨文件的疑似重复账目和无法读取的文件都会列出。\n- 沿用 1.3.6 的应用签名，可在「设置 → 检查更新」下载安装。",
+  "apk": {
+    "fileName": "renovation-ledger-1.3.7-signed.apk",
+    "size": 3106576,
+    "sha256": "9522b683a5c74ce83a5e9a60783987dce5296a6b6014b19d46ab6c2b0e4e87a6"
+  }
+}
