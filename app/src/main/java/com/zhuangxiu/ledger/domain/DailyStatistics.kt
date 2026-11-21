@@ -16,14 +16,15 @@ data class DailySummary(
 
 /** 只汇总实际交易。装修付款由 Repository 投影为实际支出，退款作为收入计一次。 */
 object DailyStatistics {
+    internal fun totals(rows: List<DailyEntryEntity>): DailyTotals = rows.fold(DailyTotals()) { acc, row ->
+        require(row.amountCents > 0)
+        if (row.kind == EntryKind.INCOME) acc.copy(income = Math.addExact(acc.income, row.amountCents))
+        else acc.copy(expense = Math.addExact(acc.expense, row.amountCents))
+    }
+
     fun calculate(records: List<DailyEntryEntity>, bookId: Long, month: YearMonth): DailySummary {
         val all = records.filter { bookId == 0L || it.bookId == bookId }
         fun inMonth(m: YearMonth) = all.filter { it.day >= m.atDay(1).toEpochDay() && it.day < m.plusMonths(1).atDay(1).toEpochDay() }
-        fun totals(rows: List<DailyEntryEntity>): DailyTotals = rows.fold(DailyTotals()) { acc, row ->
-            require(row.amountCents > 0)
-            if (row.kind == EntryKind.INCOME) acc.copy(income = Math.addExact(acc.income, row.amountCents))
-            else acc.copy(expense = Math.addExact(acc.expense, row.amountCents))
-        }
         val selected = inMonth(month).sortedWith(compareByDescending<DailyEntryEntity> { it.day }.thenByDescending { it.minute }.thenByDescending { it.id })
         val categories = selected.filter { it.kind == EntryKind.EXPENSE }.groupBy { it.displayCategory }
             .map { (label, rows) -> label to totals(rows).expense }

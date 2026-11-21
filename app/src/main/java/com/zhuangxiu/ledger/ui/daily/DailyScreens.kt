@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -96,6 +97,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -111,6 +113,7 @@ import com.zhuangxiu.ledger.data.db.EntryKind
 import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.domain.CategorySlice
 import com.zhuangxiu.ledger.domain.DailyMonth
+import com.zhuangxiu.ledger.domain.DailyStatistics
 import com.zhuangxiu.ledger.domain.DailyTotals
 import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
@@ -435,11 +438,12 @@ fun DailyHomeScreen(
                             },
                         )
                     }
-                    val entries = state.summary.entries.filter {
-                        query.isBlank() ||
-                            "${it.displayCategory} ${it.note} ${it.displayPayment} ${it.sourceCategory.orEmpty()} ${Money.toInput(it.amountCents)}".contains(query.trim(), true)
-                    }
-                    if (entries.isEmpty()) {
+                    val term = query.trim()
+                    val days = state.summary.entries.filter {
+                        term.isEmpty() ||
+                            "${it.displayCategory} ${it.note} ${it.displayPayment} ${it.sourceCategory.orEmpty()} ${Money.toInput(it.amountCents)}".contains(term, true)
+                    }.groupBy { it.day }
+                    if (days.isEmpty()) {
                         item {
                             LedgerPanel(
                                 modifier = Modifier.fillMaxWidth(),
@@ -465,10 +469,39 @@ fun DailyHomeScreen(
                             }
                         }
                     }
-                    items(entries, key = { it.id }) { entry ->
-                        DailyEntryRow(entry, bookNames[entry.bookId], if (readOnly) null else ({ onEdit(entry.id) }))
+                    days.forEach { (day, entries) ->
+                        item(key = "day-$day", contentType = "day-summary") {
+                            DailyGroupHeader(day, DailyStatistics.totals(entries))
+                        }
+                        items(entries, key = { "entry-${it.id}" }, contentType = { "entry" }) { entry ->
+                            DailyEntryRow(entry, bookNames[entry.bookId], if (readOnly) null else ({ onEdit(entry.id) }))
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyGroupHeader(day: Long, totals: DailyTotals) {
+    val colors = MaterialTheme.colorScheme
+    val amounts = LedgerTheme.extra
+    val style = MaterialTheme.typography.bodySmall
+    Column(
+        Modifier.fillMaxWidth().semantics(mergeDescendants = true) { heading() },
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        HorizontalDivider(color = colors.outlineVariant)
+        FlowRow(
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(LocalDate.ofEpochDay(day).toString(), style = style, color = colors.onSurfaceVariant)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("支出 ${Money.format(totals.expense)}", style = style, color = amounts.expense)
+                Text("收入 ${Money.format(totals.income)}", style = style, color = amounts.income)
             }
         }
     }

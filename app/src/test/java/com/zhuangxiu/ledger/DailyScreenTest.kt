@@ -59,6 +59,47 @@ class DailyScreenTest {
         capture("qingzhang-home-dark")
     }
 
+    @Test @Config(qualifiers = "w320dp-h740dp-xhdpi")
+    fun homeGroupsEntriesByDayAndTotalsTheVisibleRows() {
+        val month = YearMonth.now()
+        val recent = month.atDay(16)
+        val earlier = recent.minusDays(1)
+        val book = BookEntity(1, "生活账本", BookKind.DAILY)
+        val rows = listOf(
+            DailyEntryEntity("older", book.id, 123, EntryKind.EXPENSE, DailyCategory.SHOPPING, earlier.toEpochDay(), 660, PayMethod.ALIPAY),
+            DailyEntryEntity("lunch", book.id, 1204, EntryKind.EXPENSE, DailyCategory.FOOD, recent.toEpochDay(), 720, PayMethod.ALIPAY, note = "午餐"),
+            DailyEntryEntity("travel", book.id, 896, EntryKind.EXPENSE, DailyCategory.TRANSPORT, recent.toEpochDay(), 830, PayMethod.CASH),
+            DailyEntryEntity("salary", book.id, 12345, EntryKind.INCOME, DailyCategory.SALARY, recent.toEpochDay(), 840, PayMethod.CASH),
+        )
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 1.3f)) {
+                RenovationLedgerTheme {
+                    DailyHomeScreen(
+                        DailyState(month, DailyStatistics.calculate(rows, book.id, month)),
+                        { BookHeader(BookState(listOf(book), book), {}, {}) },
+                        {}, {}, {}, {}, {},
+                    )
+                }
+            }
+        }
+        val list = compose.onNode(hasScrollToIndexAction())
+        val recentSummary = hasText(recent.toString()) and hasText("支出 ¥21.00") and hasText("收入 ¥123.45")
+        val earlierSummary = hasText(earlier.toString()) and hasText("支出 ¥1.23") and hasText("收入 ¥0.00")
+        list.performScrollToNode(earlierSummary)
+        compose.onNode(earlierSummary).assertIsDisplayed()
+        list.performScrollToNode(recentSummary)
+        compose.onNode(recentSummary).assertIsDisplayed()
+        capture("qingzhang-daily-group-totals")
+
+        val search = hasContentDescription("搜索本月账目、分类或备注")
+        list.performScrollToNode(search)
+        compose.onNode(search).performTextInput("午餐")
+        val filtered = hasText(recent.toString()) and hasText("支出 ¥12.04") and hasText("收入 ¥0.00")
+        list.performScrollToNode(filtered)
+        compose.onNode(filtered).assertIsDisplayed()
+        compose.onNode(earlierSummary).assertDoesNotExist()
+    }
+
     @Test fun homeUsesRedIncomeGreenExpenseAndBalanceColorBySign() {
         val month = YearMonth.now()
         val day = month.atDay(1).toEpochDay()
