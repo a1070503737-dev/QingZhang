@@ -81,6 +81,51 @@ class GoogleDriveBackupTest {
         assertEquals("www.googleapis.com", attempts.single().host)
     }
 
+    @Test fun cleanupMovesAllOlderPagesToTrashAndLeavesTheVerifiedUploadAndNewerFiles() = runTest {
+        val calls = mutableListOf<Reply>()
+        val drive = GoogleDriveFiles { url ->
+            val response = when {
+                url.path.endsWith("/files/file-a") -> Reply(url, latestMetadata())
+                url.query.contains("pageToken=next") -> Reply(url, """{"files":[{"id":"old-b","createdTime":"2026-11-20T12:00:00Z"}]}""")
+                url.path.endsWith("/files") -> Reply(url, """
+                    {"nextPageToken":"next","files":[
+                      {"id":"old-a","createdTime":"2026-11-21T10:00:00Z"},
+                      {"id":"file-a","createdTime":"2026-11-21T12:00:00Z"},
+                      {"id":"newer","createdTime":"2026-11-21T13:00:00Z"}]}
+                """)
+                else -> Reply(url, """{"trashed":true}""")
+            }
+            calls.add(response)
+            response
+        }
+        drive.trashOlderBackups("fake-test-token", uploadedSnapshot())
+        val writes = calls.filter { it.requestMethod == "POST" }
+        assertEquals(listOf("old-a", "old-b"), writes.map { it.url.path.substringAfterLast('/') })
+        assertTrue(calls.take(2).all { it.url.query.contains("qingzhangBackup") && it.url.query.contains("owners") })
+        assertTrue(writes.all { it.getRequestProperty("X-HTTP-Method-Override") == "PATCH" })
+        assertTrue(writes.all { JSONObject(it.sent.toString(Charsets.UTF_8.name())).getBoolean("trashed") })
+    }
+
+    @Test fun cleanupStopsBeforeAnyWriteIfLatestBackupCannotBeVerified() = runTest {
+        val calls = mutableListOf<Reply>()
+        val drive = GoogleDriveFiles { url ->
+            val response = if (url.path.endsWith("/files")) {
+                Reply(url, """{"files":[{"id":"old","createdTime":"2026-11-20T12:00:00Z"}]}""")
+            } else Reply(url, latestMetadata().replace("900150983cd24fb0d6963f7d28e17f72", "0".repeat(32)))
+            calls.add(response)
+            response
+        }
+        assertTrue(runCatching { drive.trashOlderBackups("fake-test-token", uploadedSnapshot()) }.exceptionOrNull() is IOException)
+        assertEquals(listOf("GET", "GET"), calls.map { it.requestMethod })
+    }
+
+    private fun uploadedSnapshot() = DriveSnapshot(
+        "file-a", "ledger.zip", Instant.parse("2026-11-21T12:00:00Z"), 3, "900150983cd24fb0d6963f7d28e17f72",
+    )
+
+    private fun latestMetadata() = JSONObject(metadata).put("trashed", false).put("ownedByMe", true)
+        .put("mimeType", "application/zip").put("appProperties", JSONObject().put("qingzhangBackup", "1")).toString()
+
     private class Reply(url: URL, private val body: String, private val location: String? = null) : HttpURLConnection(url) {
         val sent = ByteArrayOutputStream()
         override fun connect() = Unit

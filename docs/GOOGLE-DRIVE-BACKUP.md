@@ -10,4 +10,6 @@
 
 备份频率关闭时只执行用户主动安排的上传。每天及每周的计划由 WorkManager 在联网并获得系统运行机会时执行。备份以单独的 ZIP 文件存入用户的 Drive。应用内列出最近 30 份，其他备份仍可从 Drive 选择并手动恢复。恢复会替换本机账本，并保存现有恢复机制提供的安全副本。
 
+启用「只保留最新一份」后，下一次自动或手动备份上传和校验成功时，应用会将此账号先前由轻账上传的旧备份移到 Google Drive 回收站。
+
 [Android Google 授权文档](https://developer.android.com/identity/authorization) · [Google Drive 权限范围](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)

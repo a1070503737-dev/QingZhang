@@ -42,11 +42,60 @@ internal class GoogleDriveFiles(
     }
 
     suspend fun snapshots(token: String): List<DriveSnapshot> = withContext(Dispatchers.IO) {
-        val query = "trashed = false and mimeType = 'application/zip' and appProperties has { key='$MARKER' and value='1' }"
         val fields = encode("files($FILE_FIELDS)")
-        request("$API/files?q=${encode(query)}&orderBy=createdTime%20desc&pageSize=$LIST_LIMIT&fields=$fields", token) {
+        request("$API/files?q=${encode(BACKUPS_QUERY)}&orderBy=createdTime%20desc&pageSize=$LIST_LIMIT&fields=$fields", token) {
             val files = responseJson().getJSONArray("files")
             (0 until files.length()).map { snapshot(files.getJSONObject(it)) }
+        }
+    }
+
+    /** Collect every page before changing Drive's list. A newer concurrent upload is never eligible. */
+    suspend fun trashOlderBackups(token: String, uploaded: DriveSnapshot) = withContext(Dispatchers.IO) {
+        val query = "$BACKUPS_QUERY and 'me' in owners and createdTime < '${uploaded.createdAt}'"
+        val fields = encode("nextPageToken,files(id,createdTime)")
+        val olderIds = linkedSetOf<String>()
+        var pageToken = ""
+        do {
+            currentCoroutineContext().ensureActive()
+            val cursor = if (pageToken.isEmpty()) "" else "&pageToken=${encode(pageToken)}"
+            val page = request("$API/files?q=${encode(query)}&pageSize=100&fields=$fields$cursor", token) {
+                responseJson()
+            }
+            val files = page.getJSONArray("files")
+            for (index in 0 until files.length()) {
+                val file = files.getJSONObject(index)
+                val id = file.getString("id")
+                if (id != uploaded.id && Instant.parse(file.getString("createdTime")) < uploaded.createdAt) {
+                    olderIds.add(id)
+                }
+            }
+            pageToken = page.optString("nextPageToken")
+        } while (pageToken.isNotEmpty())
+        if (olderIds.isEmpty()) return@withContext
+
+        val latestFields = encode("$FILE_FIELDS,trashed,ownedByMe,mimeType,appProperties")
+        request("$API/files/${encode(uploaded.id)}?fields=$latestFields", token) {
+            val file = responseJson()
+            val latest = snapshot(file)
+            if (file.getBoolean("trashed") || !file.optBoolean("ownedByMe") || file.optString("mimeType") != ZIP_MIME ||
+                file.optJSONObject("appProperties")?.optString(MARKER) != "1" ||
+                latest.id != uploaded.id || latest.size != uploaded.size || latest.checksum != uploaded.checksum
+            ) throw IOException("无法确认最新备份仍可用")
+        }
+
+        val body = JSONObject().put("trashed", true).toString().toByteArray(Charsets.UTF_8)
+        for (id in olderIds) {
+            currentCoroutineContext().ensureActive()
+            request("$API/files/${encode(id)}?fields=id,trashed", token, "POST") {
+                setRequestProperty("X-HTTP-Method-Override", "PATCH")
+                setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                doOutput = true
+                setFixedLengthStreamingMode(body.size)
+                outputStream.use { it.write(body) }
+                if (responseCode != 404 && !responseJson().getBoolean("trashed")) {
+                    throw IOException("Google Drive 未将旧备份移到回收站")
+                }
+            }
         }
     }
 
@@ -172,6 +221,7 @@ internal class GoogleDriveFiles(
         private const val FILE_FIELDS = "id,name,createdTime,size,md5Checksum"
         private const val MARKER = "qingzhangBackup"
         private const val ZIP_MIME = "application/zip"
+        private const val BACKUPS_QUERY = "trashed = false and mimeType = '$ZIP_MIME' and appProperties has { key='$MARKER' and value='1' }"
         private val CHECKSUM = Regex("[a-f0-9]{32}")
 
         private fun encode(value: String): String = URLEncoder.encode(value, Charsets.UTF_8.name()).replace("+", "%20")

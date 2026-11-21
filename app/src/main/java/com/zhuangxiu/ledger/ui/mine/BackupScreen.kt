@@ -38,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -130,6 +131,7 @@ internal class BackupViewModel @Inject constructor(
     fun completeAuthorization(data: Intent) = runDrive { drive.connect(drive.finishResolution(data)) }
     fun disconnectDrive() = runDrive { drive.disconnect() }
     fun setDriveInterval(days: Int) = runDrive { drive.setInterval(days) }
+    fun keepLatestDriveBackup(enabled: Boolean) = runDrive { drive.setKeepLatest(enabled) }
     fun uploadToDrive() = runDrive {
         drive.backupNow()
         _uiState.update { it.copy(message = "已安排备份，联网后上传。完成时间会显示在 Google Drive 备份区域。") }
@@ -311,6 +313,7 @@ internal fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltV
 
 @Composable
 private fun DriveBackupCard(status: DriveBackupStatus, busy: Boolean, model: BackupViewModel) {
+    var confirmKeepLatest by rememberSaveable { mutableStateOf(false) }
     LedgerCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Google Drive 备份", style = MaterialTheme.typography.titleMedium)
@@ -333,6 +336,15 @@ private fun DriveBackupCard(status: DriveBackupStatus, busy: Boolean, model: Bac
                         )
                     }
                 }
+                LedgerChip(
+                    selected = status.keepLatest,
+                    enabled = !busy,
+                    onClick = {
+                        if (status.keepLatest) model.keepLatestDriveBackup(false)
+                        else confirmKeepLatest = true
+                    },
+                    label = { Text("只保留最新一份") },
+                )
                 Text(
                     status.lastUploaded?.let { "最近成功备份：${it.displayTime()}" } ?: "还没有上传过备份",
                     style = MaterialTheme.typography.bodySmall,
@@ -346,6 +358,18 @@ private fun DriveBackupCard(status: DriveBackupStatus, busy: Boolean, model: Bac
                 }
             }
         }
+    }
+    if (confirmKeepLatest && status.account != null) {
+        ConfirmDialog(
+            title = "只保留最新一份云端备份？",
+            text = "下一份备份上传并校验通过后，此账号先前由轻账上传的云端备份会移到 Google Drive 回收站。",
+            confirmLabel = "启用",
+            onConfirm = {
+                confirmKeepLatest = false
+                model.keepLatestDriveBackup(true)
+            },
+            onDismiss = { confirmKeepLatest = false },
+        )
     }
 }
 

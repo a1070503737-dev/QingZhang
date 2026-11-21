@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -34,6 +35,7 @@ internal data class DriveBackupStatus(
     val intervalDays: Int = 0,
     val lastUploaded: Instant? = null,
     val issue: String? = null,
+    val keepLatest: Boolean = false,
 )
 
 internal class DriveAuthorizationRequired : IOException("请重新授权已连接的 Google 账号")
@@ -54,6 +56,7 @@ internal class DriveBackup @Inject constructor(
             prefs[INTERVAL]?.takeIf { it in VALID_INTERVALS } ?: 0,
             prefs[LAST_UPLOADED]?.let(Instant::ofEpochMilli),
             prefs[ISSUE],
+            prefs[KEEP_LATEST] ?: false,
         )
     }
 
@@ -67,6 +70,7 @@ internal class DriveBackup @Inject constructor(
             if (prefs[ACCOUNT_ID] != account.id) {
                 prefs.remove(LAST_UPLOADED)
                 prefs.remove(INTERVAL)
+                prefs.remove(KEEP_LATEST)
             }
             prefs[ACCOUNT_ID] = account.id
             prefs[ACCOUNT_EMAIL] = account.email
@@ -81,6 +85,7 @@ internal class DriveBackup @Inject constructor(
             prefs.remove(INTERVAL)
             prefs.remove(LAST_UPLOADED)
             prefs.remove(ISSUE)
+            prefs.remove(KEEP_LATEST)
         }
         DriveBackupWorker.cancelAll(context)
     }
@@ -94,6 +99,11 @@ internal class DriveBackup @Inject constructor(
 
     fun backupNow() = DriveBackupWorker.enqueueNow(context)
 
+    suspend fun setKeepLatest(enabled: Boolean) = operations.withLock {
+        if (status.first().account == null) throw DriveAuthorizationRequired()
+        dataStore.edit { it[KEEP_LATEST] = enabled }
+    }
+
     suspend fun runBackup(automatic: Boolean) = operations.withLock {
         val config = status.first()
         val account = config.account ?: return@withLock
@@ -101,15 +111,24 @@ internal class DriveBackup @Inject constructor(
         try {
             withAccount(account) { token ->
                 val zip = backups.createBackupFile()
-                try {
+                val uploaded = try {
                     drive.upload(token, zip)
                 } finally {
                     zip.delete()
                 }
-            }
-            dataStore.edit { prefs ->
-                prefs[LAST_UPLOADED] = Instant.now().toEpochMilli()
-                prefs.remove(ISSUE)
+                dataStore.edit { prefs ->
+                    prefs[LAST_UPLOADED] = uploaded.createdAt.toEpochMilli()
+                    prefs.remove(ISSUE)
+                }
+                if (config.keepLatest) {
+                    try {
+                        drive.trashOlderBackups(token, uploaded)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        dataStore.edit { it[ISSUE] = "新备份已保存，部分旧备份未清理。下次成功备份后会重试。" }
+                    }
+                }
             }
         } catch (error: CancellationException) {
             throw error
@@ -166,6 +185,7 @@ internal class DriveBackup @Inject constructor(
         val INTERVAL = intPreferencesKey("drive_backup_interval_days")
         val LAST_UPLOADED = longPreferencesKey("drive_backup_last_uploaded")
         val ISSUE = stringPreferencesKey("drive_backup_issue")
+        val KEEP_LATEST = booleanPreferencesKey("drive_backup_keep_latest")
         val VALID_INTERVALS = setOf(0, 1, 7)
     }
 }
