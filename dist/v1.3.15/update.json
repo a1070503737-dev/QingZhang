@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.3.15",
+  "versionCode": 30,
+  "notes": "# 轻账 1.3.15\n\n- 「备份与恢复 → Google Drive 备份」新增「只保留最新一份」开关，初始为关闭。\n- 开启后，新的手动或自动备份上传并校验成功，再把此账号此前由轻账上传的旧备份移到 Google Drive 回收站。",
+  "apk": {
+    "fileName": "renovation-ledger-1.3.15-signed.apk",
+    "size": 3382096,
+    "sha256": "0b9edf76a5ea81308463a2108d4f99562a870a10502626edc0bd63fd3ac170bf"
+  }
+}
