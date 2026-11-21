@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -31,8 +32,12 @@ class BackupManager @Inject constructor(
         val dir = File(context.cacheDir, "backups").apply { mkdirs() }
         val output = File(dir, defaultFileName())
         val snapshot = snapshot()
-        try { output.outputStream().use { BackupZip.zip(File(snapshot, BackupZip.DB_ENTRY), File(snapshot, BackupZip.RECEIPTS_DIR), it) } }
-        finally { snapshot.deleteRecursively() }
+        try {
+            output.outputStream().use { BackupZip.zip(File(snapshot, BackupZip.DB_ENTRY), File(snapshot, BackupZip.RECEIPTS_DIR), it) }
+        } catch (error: Exception) {
+            output.delete()
+            throw error
+        } finally { snapshot.deleteRecursively() }
         output
     } }
 
@@ -71,13 +76,19 @@ class BackupManager @Inject constructor(
         } catch (e: Exception) { dir.deleteRecursively(); throw e }
     }
 
+    suspend fun restoreFrom(uri: Uri) = restore {
+        context.contentResolver.openInputStream(uri) ?: throw IOException("无法读取所选文件")
+    }
+
+    internal suspend fun restoreFrom(file: File) = restore { file.inputStream() }
+
     /** v1 备份只恢复装修，保留当前生活账本；v2 备份恢复所有账本。替换前保留可导出的安全副本。 */
-    suspend fun restoreFrom(uri: Uri) = withContext(Dispatchers.IO) { mutex.withLock {
+    private suspend fun restore(openInput: () -> InputStream) = withContext(Dispatchers.IO) { mutex.withLock {
         val temp = File.createTempFile("ledger-restore-", "", context.cacheDir).apply { delete(); mkdirs() }
         var before: File? = null
         var closed = false
         try {
-            (context.contentResolver.openInputStream(uri) ?: throw IOException("无法读取所选文件")).use { BackupZip.unzip(it, temp) }
+            openInput().use { BackupZip.unzip(it, temp) }
             if (!BackupZip.isValidBackup(temp)) throw IOException("这不是有效的轻账或装修记账备份")
             val current = db.openHelper.readableDatabase
             val identity = current.query("SELECT identity_hash FROM room_master_table WHERE id = 42").use {

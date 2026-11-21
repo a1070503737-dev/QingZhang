@@ -7,7 +7,7 @@
         android:name="android.hardware.camera"
         android:required="false" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- 仅用于用户主动检查并下载安装更新；账本仍保存在本机。 -->
+    <!-- 应用更新及用户授权后启用的 Google Drive 备份。 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Android 13+ 发送本地通知需要的权限 -->

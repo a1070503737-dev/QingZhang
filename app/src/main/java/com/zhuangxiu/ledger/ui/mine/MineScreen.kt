@@ -45,7 +45,7 @@ private data class MineEntry(val icon: ImageVector, val title: String, val subti
 
 private val DATA_ENTRIES = listOf(
     MineEntry(Icons.Outlined.FileOpen, "数据导入", "预览并合并鲨鱼记账账单", Routes.IMPORT),
-    MineEntry(Icons.Outlined.SettingsBackupRestore, "备份与恢复", "创建 ZIP 备份或覆盖恢复", Routes.BACKUP),
+    MineEntry(Icons.Outlined.SettingsBackupRestore, "备份与恢复", "ZIP 备份、Google Drive 自动备份和恢复", Routes.BACKUP),
 )
 
 private val RENOVATION_ENTRIES = listOf(
@@ -87,7 +87,7 @@ fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit, 
                 SettingsSection("装修账本", RENOVATION_ENTRIES, onNavigate)
                 SettingsSection("应用", APP_ENTRIES, onNavigate)
                 Text(
-                    "账本保存在本机。换机或重装前可导出备份。",
+                    "账本默认保存在本机。可导出备份，或自行开启 Google Drive 自动备份。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 12.dp),

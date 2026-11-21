@@ -24,8 +24,8 @@ android {
         applicationId = "com.zhuangxiu.ledger"
         minSdk = 26
         targetSdk = 37
-        versionCode = 28
-        versionName = "1.3.13"
+        versionCode = 29
+        versionName = "1.3.14"
         buildConfigField("String", "BUNDLED_GITHUB_TOKEN", "\"\"")
     }
 
@@ -104,6 +104,8 @@ dependencies {
     // DataStore 设置项 / WorkManager 提醒
     implementation(libs.datastore.preferences)
     implementation(libs.work.runtime)
+    implementation(libs.google.auth)
+    implementation(libs.coroutines.play.services)
 
     // CameraX 拍照 / Coil 图片加载
     implementation(libs.camerax.core)

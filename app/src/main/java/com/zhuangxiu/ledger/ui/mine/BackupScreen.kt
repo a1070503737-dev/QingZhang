@@ -1,19 +1,23 @@
 package com.zhuangxiu.ledger.ui.mine
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,36 +51,50 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.zhuangxiu.ledger.data.repository.BackupManager
 import com.zhuangxiu.ledger.data.repository.RestoreRestartRequired
+import com.zhuangxiu.ledger.drive.DriveBackup
+import com.zhuangxiu.ledger.drive.DriveBackupStatus
+import com.zhuangxiu.ledger.drive.DriveSnapshot
+import com.zhuangxiu.ledger.drive.GoogleDriveFiles
+import com.zhuangxiu.ledger.drive.driveIssue
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
 import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.LedgerButton
+import com.zhuangxiu.ledger.ui.components.LedgerChip
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import kotlin.system.exitProcess
 
-data class BackupUiState(
+internal data class BackupUiState(
     val busy: Boolean = false,
     val message: String? = null,
     val shareFile: File? = null,
     val restored: Boolean = false,
+    val authorization: IntentSenderRequest? = null,
+    val driveFiles: List<DriveSnapshot>? = null,
 )
 
 @HiltViewModel
-class BackupViewModel @Inject constructor(
+internal class BackupViewModel @Inject constructor(
     private val backupManager: BackupManager,
+    private val drive: DriveBackup,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BackupUiState())
     val uiState: StateFlow<BackupUiState> = _uiState.asStateFlow()
+    val driveStatus = drive.status
 
     fun defaultFileName(): String = backupManager.defaultFileName()
     fun exportRecoveryTo(uri: Uri) = runBusy {
@@ -99,19 +117,53 @@ class BackupViewModel @Inject constructor(
         _uiState.update { it.copy(restored = true) }
     }
 
+    fun connectDrive() = runDrive {
+        val result = drive.requestAuthorization()
+        if (result.hasResolution()) {
+            val request = IntentSenderRequest.Builder(requireNotNull(result.pendingIntent)).build()
+            _uiState.update { it.copy(authorization = request) }
+        } else {
+            drive.connect(result)
+        }
+    }
+    fun onAuthorizationLaunched() = _uiState.update { it.copy(authorization = null) }
+    fun completeAuthorization(data: Intent) = runDrive { drive.connect(drive.finishResolution(data)) }
+    fun disconnectDrive() = runDrive { drive.disconnect() }
+    fun setDriveInterval(days: Int) = runDrive { drive.setInterval(days) }
+    fun uploadToDrive() = runDrive {
+        drive.backupNow()
+        _uiState.update { it.copy(message = "已安排备份，联网后上传。完成时间会显示在 Google Drive 备份区域。") }
+    }
+    fun listDriveBackups() = runDrive {
+        val files = drive.list()
+        _uiState.update { it.copy(driveFiles = files) }
+    }
+    fun dismissDriveFiles() = _uiState.update { it.copy(driveFiles = null) }
+    fun restoreDriveBackup(file: DriveSnapshot) = runDrive {
+        drive.restore(file)
+        _uiState.update { it.copy(restored = true) }
+    }
+
     fun onShareHandled() = _uiState.update { it.copy(shareFile = null) }
     fun clearMessage() = _uiState.update { it.copy(message = null) }
 
-    private fun runBusy(block: suspend () -> Unit) {
+    private fun runDrive(block: suspend () -> Unit) = runBusy(::driveIssue, block)
+
+    private fun runBusy(
+        failureMessage: (Exception) -> String = { "操作失败：${it.message ?: "未知错误"}" },
+        block: suspend () -> Unit,
+    ) {
         if (_uiState.value.busy) return
         _uiState.update { it.copy(busy = true) }
         viewModelScope.launch {
             try {
                 block()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: RestoreRestartRequired) {
                 _uiState.update { it.copy(restored = true, message = e.message) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(message = "操作失败：${e.message ?: "未知错误"}") }
+                _uiState.update { it.copy(message = failureMessage(e)) }
             } finally {
                 _uiState.update { it.copy(busy = false) }
             }
@@ -121,10 +173,12 @@ class BackupViewModel @Inject constructor(
 
 /** 备份与恢复页 */
 @Composable
-fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel()) {
+internal fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val drive by viewModel.driveStatus.collectAsStateWithLifecycle(initialValue = DriveBackupStatus())
     val context = LocalContext.current
     var pendingRestore by remember { mutableStateOf<Uri?>(null) }
+    var pendingDriveRestore by remember { mutableStateOf<DriveSnapshot?>(null) }
 
     val recoveryDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) viewModel.exportRecoveryTo(uri)
@@ -134,6 +188,16 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
     }
     val openDocument = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) pendingRestore = uri
+    }
+    val authorize = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) result.data?.let(viewModel::completeAuthorization)
+    }
+
+    LaunchedEffect(state.authorization) {
+        state.authorization?.let { request ->
+            viewModel.onAuthorizationLaunched()
+            authorize.launch(request)
+        }
     }
 
     LaunchedEffect(state.shareFile) {
@@ -170,22 +234,57 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
                 ActionCard(Icons.Outlined.Restore, "从备份恢复", "选择备份文件，覆盖当前的全部数据", !state.busy) {
                     openDocument.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
                 }
+                DriveBackupCard(drive, state.busy, viewModel)
             }
             if (state.busy) CircularProgressIndicator(Modifier.align(Alignment.Center))
         }
     }
 
-    pendingRestore?.let { uri ->
+    val localRestore = pendingRestore
+    val cloudRestore = pendingDriveRestore
+    if (localRestore != null || cloudRestore != null) {
         ConfirmDialog(
             title = "从备份恢复？",
-            text = "新版备份会替换全部账本；旧版装修备份仅替换装修数据，保留当前生活账目。恢复前自动保存安全副本，可在本页导出找回。完成后需要重启应用。",
+            text = if (cloudRestore != null) {
+                "将使用 Google Drive 中的「${cloudRestore.name}」替换本机账本和凭证。恢复前会保存安全副本，完成后需要重启应用。"
+            } else {
+                "新版备份会替换全部账本；旧版装修备份仅替换装修数据，保留当前生活账目。恢复前自动保存安全副本，可在本页导出找回。完成后需要重启应用。"
+            },
             confirmLabel = "恢复",
             destructive = true,
             onConfirm = {
-                viewModel.restoreFrom(uri)
+                if (cloudRestore != null) viewModel.restoreDriveBackup(cloudRestore)
+                else localRestore?.let(viewModel::restoreFrom)
                 pendingRestore = null
+                pendingDriveRestore = null
             },
-            onDismiss = { pendingRestore = null },
+            onDismiss = { pendingRestore = null; pendingDriveRestore = null },
+        )
+    }
+    state.driveFiles?.let { files ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissDriveFiles,
+            title = { Text("从 Google Drive 恢复") },
+            text = {
+                if (files.isEmpty()) Text("这个 Google 账号里还没有轻账备份")
+                else Column(
+                    Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("最近 ${GoogleDriveFiles.LIST_LIMIT} 份备份", style = MaterialTheme.typography.bodySmall)
+                    files.forEach { file ->
+                        LedgerButton(
+                            onClick = {
+                                viewModel.dismissDriveFiles()
+                                pendingDriveRestore = file
+                            },
+                            prominent = false,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(file.createdAt.displayTime()) }
+                    }
+                }
+            },
+            confirmButton = { LedgerButton(onClick = viewModel::dismissDriveFiles, prominent = false) { Text("取消") } },
         )
     }
     state.message?.let {
@@ -209,6 +308,48 @@ fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel(
         )
     }
 }
+
+@Composable
+private fun DriveBackupCard(status: DriveBackupStatus, busy: Boolean, model: BackupViewModel) {
+    LedgerCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Google Drive 备份", style = MaterialTheme.typography.titleMedium)
+            if (status.account == null) {
+                Text(
+                    "授权后可定期将账本和凭证照片打包上传到你的 Google Drive，也可在换机时选一份恢复。",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                LedgerButton(onClick = model::connectDrive, enabled = !busy) { Text("连接 Google Drive") }
+            } else {
+                Text(status.account.email, style = MaterialTheme.typography.bodySmall)
+                Text("自动备份频率", style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(0 to "关闭", 1 to "每天", 7 to "每周").forEach { (days, label) ->
+                        LedgerChip(
+                            selected = status.intervalDays == days,
+                            enabled = !busy,
+                            onClick = { model.setDriveInterval(days) },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+                Text(
+                    status.lastUploaded?.let { "最近成功备份：${it.displayTime()}" } ?: "还没有上传过备份",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                status.issue?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LedgerButton(onClick = model::uploadToDrive, enabled = !busy, prominent = false) { Text("立即备份") }
+                    LedgerButton(onClick = model::listDriveBackups, enabled = !busy, prominent = false) { Text("查看云端备份") }
+                    if (status.issue != null) LedgerButton(onClick = model::connectDrive, enabled = !busy, prominent = false) { Text("重新授权") }
+                    LedgerButton(onClick = model::disconnectDrive, enabled = !busy, prominent = false) { Text("断开连接") }
+                }
+            }
+        }
+    }
+}
+
+private fun Instant.displayTime(): String = atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
 
 @Composable
 private fun ActionCard(icon: ImageVector, title: String, subtitle: String, enabled: Boolean, onClick: () -> Unit) {
