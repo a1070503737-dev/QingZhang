@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.3.13",
+  "versionCode": 28,
+  "notes": "# 轻账 1.3.13\n\n- 首页「本月明细」按日期分隔，每天的账单上方用小字显示当日支出和收入。搜索时，小结按显示的账单计算。",
+  "apk": {
+    "fileName": "renovation-ledger-1.3.13-signed.apk",
+    "size": 3127392,
+    "sha256": "18beafb82c74b9b6c446187fb93b02bbe81d1b84c2484b203d196a2032890520"
+  }
+}
