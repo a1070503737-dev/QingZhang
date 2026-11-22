@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PieChartOutline
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -78,10 +79,11 @@ internal val TABS = listOf(
     Tab(Routes.HOME, "首页", Icons.Outlined.Home),
     Tab(Routes.STATS, "统计", Icons.Outlined.PieChartOutline),
     Tab(Routes.BOOKS, "账本", Icons.Outlined.AccountBalanceWallet),
+    Tab(Routes.MINE, "设置", Icons.Outlined.Settings),
 )
 
 internal fun tabIndexOf(route: String?): Int = TABS.indexOfFirst { it.route == route }
-internal fun isTabHost(route: String?): Boolean = route == Routes.HOME || route == Routes.STATS || route == Routes.BOOKS
+internal fun isTabHost(route: String?): Boolean = tabIndexOf(route) >= 0
 internal const val RequestedTabKey = "requestedTab"
 internal val DockHeight = 66.dp
 internal val DockBottomGap = 10.dp

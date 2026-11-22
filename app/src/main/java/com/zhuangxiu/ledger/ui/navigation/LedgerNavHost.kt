@@ -104,7 +104,7 @@ internal fun LedgerNavHost(
     val currentRoute = backStackEntry?.destination?.route
 
     val header: @Composable () -> Unit = {
-        BookHeader(bookState, dailyViewModel::select) { navController.navigate(Routes.MINE) }
+        BookHeader(bookState, dailyViewModel::select)
     }
     val switchTab: (String) -> Unit = { route ->
         val primary = if (isTabHost(currentRoute)) {
@@ -311,11 +311,14 @@ internal fun LedgerNavHost(
                                         openTab(Routes.HOME)
                                     },
                                     onSave = dailyViewModel::saveBook,
-                                    onSettings = { navController.navigate(Routes.MINE) },
                                     onClearError = dailyViewModel::clearError,
                                     onEditingChange = onEditingBook,
                                 )
                             }
+                            Routes.MINE -> MineScreen(
+                                bottomBar = dockSpacer,
+                                onNavigate = { navController.navigate(it) },
+                            )
                         }
                     }
                 }
@@ -379,13 +382,6 @@ internal fun LedgerNavHost(
                         onCopyExpense = { navController.navigate(Routes.edit(copyFrom = it, bookId = bookId)) },
                     )
                 }
-            }
-            composable(Routes.MINE) {
-                MineScreen(
-                    onBack = back,
-                    bottomBar = {},
-                    onNavigate = { navController.navigate(it) },
-                )
             }
             composable(
                 Routes.EDIT,

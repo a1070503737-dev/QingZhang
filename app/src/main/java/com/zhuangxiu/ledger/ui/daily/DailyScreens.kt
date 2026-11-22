@@ -62,7 +62,6 @@ import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.WorkOutline
@@ -164,7 +163,7 @@ fun PayMethod.icon(): ImageVector = when (this) {
 }
 
 @Composable
-fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Unit) {
+fun BookHeader(state: BookState, onSelect: (Long) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     LedgerTopBar(
         title = {
@@ -226,11 +225,6 @@ fun BookHeader(state: BookState, onSelect: (Long) -> Unit, onSettings: () -> Uni
                         }
                     }
                 }
-            }
-        },
-        actions = {
-            LedgerIconButton(onClick = onSettings) {
-                Icon(Icons.Outlined.Settings, "设置")
             }
         },
     )
@@ -1303,7 +1297,6 @@ fun BooksScreen(
     bottomBar: @Composable () -> Unit,
     onSelect: (Long) -> Unit,
     onSave: (BookEntity, () -> Unit) -> Unit,
-    onSettings: () -> Unit,
     onClearError: () -> Unit,
     onEditingChange: (Boolean) -> Unit = {},
 ) {
@@ -1326,14 +1319,7 @@ fun BooksScreen(
             Scaffold(
                 containerColor = Color.Transparent,
                 topBar = {
-                    LedgerTopBar(
-                        title = { Text("我的账本") },
-                        actions = {
-                            LedgerIconButton(onClick = onSettings) {
-                                Icon(Icons.Outlined.Settings, "设置")
-                            }
-                        },
-                    )
+                    LedgerTopBar(title = { Text("我的账本") })
                 },
                 bottomBar = bottomBar,
             ) { padding ->

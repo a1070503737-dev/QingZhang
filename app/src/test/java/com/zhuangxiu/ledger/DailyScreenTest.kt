@@ -58,7 +58,7 @@ class DailyScreenTest {
         val rows = listOf(DailyEntryEntity("1", 1, 19900, EntryKind.EXPENSE, DailyCategory.SHOPPING, month.atDay(1).toEpochDay(), 660, PayMethod.ALIPAY))
         compose.setContent { RenovationLedgerTheme(darkTheme = true) {
             DailyHomeScreen(DailyState(month, DailyStatistics.calculate(rows, 1, month)),
-                { BookHeader(BookState(listOf(BookEntity(1, "生活账本", BookKind.DAILY)), BookEntity(1, "生活账本", BookKind.DAILY)), {}, {}) },
+                { BookHeader(BookState(listOf(BookEntity(1, "生活账本", BookKind.DAILY)), BookEntity(1, "生活账本", BookKind.DAILY)), {}) },
                 { LedgerBottomBar(Routes.HOME, {}) }, {}, {}, {}, {})
         } }
         compose.onNodeWithContentDescription("本月支出 ¥199.00").assertIsDisplayed()
@@ -82,7 +82,7 @@ class DailyScreenTest {
                 RenovationLedgerTheme {
                     DailyHomeScreen(
                         DailyState(month, DailyStatistics.calculate(rows, book.id, month)),
-                        { BookHeader(BookState(listOf(book), book), {}, {}) },
+                        { BookHeader(BookState(listOf(book), book), {}) },
                         {}, {}, {}, {}, {},
                     )
                 }
@@ -117,7 +117,7 @@ class DailyScreenTest {
             RenovationLedgerTheme(dynamicColor = false) {
                 DailyHomeScreen(
                     DailyState(month, DailyStatistics.calculate(rows, book.id, month)),
-                    { BookHeader(BookState(listOf(book), book), {}, {}) },
+                    { BookHeader(BookState(listOf(book), book), {}) },
                     { LedgerBottomBar(Routes.HOME, {}) }, {}, {}, {}, {},
                 )
             }
@@ -148,7 +148,7 @@ class DailyScreenTest {
             RenovationLedgerTheme(darkTheme = true) {
                 DailyHomeScreen(
                     DailyState(month, DailyStatistics.calculate(emptyList(), book.id, month)),
-                    { BookHeader(BookState(listOf(book), book), {}, {}) },
+                    { BookHeader(BookState(listOf(book), book), {}) },
                     { LedgerBottomBar(Routes.HOME, {}) },
                     {}, {}, {}, {},
                 )
@@ -173,7 +173,7 @@ class DailyScreenTest {
                     var month by remember { mutableStateOf(current) }
                     DailyHomeScreen(
                         DailyState(month, DailyStatistics.calculate(emptyList(), book.id, month)),
-                        { BookHeader(BookState(listOf(book), book), {}, {}) },
+                        { BookHeader(BookState(listOf(book), book), {}) },
                         { LedgerBottomBar(Routes.HOME, {}) },
                         { month = month.plusMonths(it) }, { month = current }, { added = true }, {},
                     )
@@ -185,7 +185,8 @@ class DailyScreenTest {
         previous.assertWidthIsEqualTo(48.dp).assertHeightIsEqualTo(48.dp)
         next.assertWidthIsEqualTo(48.dp).assertHeightIsEqualTo(48.dp)
         assertTrue(previous.fetchSemanticsNode().boundsInRoot.right <= next.fetchSemanticsNode().boundsInRoot.left)
-        compose.onNodeWithContentDescription("设置").assertWidthIsEqualTo(48.dp).assertHeightIsEqualTo(48.dp)
+        compose.onNodeWithContentDescription("设置").assertDoesNotExist()
+        compose.onNodeWithText("设置").assertIsDisplayed().assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp)
         compose.onNodeWithText("本月").assertDoesNotExist()
         previous.performTouchInput { click(Offset(2f, center.y)) }
         compose.onNodeWithText("本月").assertIsDisplayed().performClick()
@@ -212,7 +213,7 @@ class DailyScreenTest {
         compose.setContent {
             RenovationLedgerTheme {
                 val state = DailyState(month, DailyStatistics.calculate(emptyList(), book.id, month))
-                val header: @Composable () -> Unit = { BookHeader(BookState(listOf(book), book), {}, {}) }
+                val header: @Composable () -> Unit = { BookHeader(BookState(listOf(book), book), {}) }
                 val changeMonth: (Long) -> Unit = { delta ->
                     deltas.add(delta)
                     month = month.plusMonths(delta)

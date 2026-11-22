@@ -3,10 +3,13 @@ package com.zhuangxiu.ledger
 import android.graphics.Bitmap
 import android.app.Activity
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.view.WindowManager
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import org.junit.Rule
@@ -27,6 +30,10 @@ import java.io.File
 class LedgerFlowTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
+    private val settingsTab get() = compose.onNode(
+        hasText("设置") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+    )
+
     private fun awaitText(text: String) {
         compose.waitUntil(15_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
     }
@@ -39,7 +46,7 @@ class LedgerFlowTest {
 
     @Test fun importMultipleDocumentsRequiresConfirmationAndRefreshesHome() {
         awaitText("生活账本")
-        compose.onNodeWithContentDescription("设置").performClick()
+        settingsTab.performClick()
         compose.onNodeWithText("数据导入").performScrollTo().performClick()
         awaitText("从鲨鱼记账导入")
         compose.onNodeWithText("选择 CSV 或 XLSX 文件").performClick()
@@ -75,7 +82,8 @@ class LedgerFlowTest {
         list.performScrollToIndex(0)
         awaitText("成功 2 笔 · 跳过 0 笔 · 解析失败 0 笔")
         compose.onNodeWithContentDescription("返回").performClick()
-        compose.onNodeWithContentDescription("返回").performClick()
+        settingsTab.assertIsSelected()
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.waitUntil(15_000) {
             compose.onAllNodesWithContentDescription("本月支出 ¥15.00").fetchSemanticsNodes().isNotEmpty()
         }
@@ -83,11 +91,42 @@ class LedgerFlowTest {
 
     @Test fun backupCanBeReachedFromSettings() {
         awaitText("生活账本")
-        compose.onNodeWithContentDescription("设置").performClick()
+        settingsTab.performClick().assertIsSelected()
         compose.onNodeWithText("备份与恢复").performScrollTo().performClick()
         awaitText("保存备份到本地")
         compose.onNodeWithText("从备份恢复").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("导出恢复前安全副本").assertExists()
+        compose.onNodeWithContentDescription("返回").performClick()
+        settingsTab.assertIsSelected()
+    }
+
+    @Test fun feedbackOpensAnEmailDraftAndCanCopyTheAddressWithoutAMailApp() {
+        awaitText("生活账本")
+        settingsTab.performClick().assertIsSelected()
+        val feedback = compose.onNodeWithText("意见反馈").performScrollTo().assertIsDisplayed()
+        val shadow = Shadows.shadowOf(compose.activity)
+        compose.runOnIdle { while (shadow.nextStartedActivity != null) { } }
+        feedback.performClick()
+        compose.runOnIdle {
+            val draft = requireNotNull(shadow.nextStartedActivity)
+            assertEquals(Intent.ACTION_SENDTO, draft.action)
+            assertEquals("mailto:a1070503737@gmail.com", draft.dataString)
+            assertEquals("轻账使用反馈", draft.getStringExtra(Intent.EXTRA_SUBJECT))
+        }
+
+        val application = Shadows.shadowOf(compose.activity.application)
+        compose.runOnIdle { application.checkActivities(true) }
+        try {
+            feedback.performClick()
+            compose.onNodeWithText("a1070503737@gmail.com", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("复制邮箱").performClick()
+            compose.runOnIdle {
+                val clipboard = requireNotNull(compose.activity.getSystemService(ClipboardManager::class.java))
+                assertEquals("a1070503737@gmail.com", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+            }
+        } finally {
+            compose.runOnIdle { application.checkActivities(false) }
+        }
     }
 
     @Test fun recordRenovationDepositFromHomeThenOpenPendingAndNavigateTabs() {
@@ -137,7 +176,7 @@ class LedgerFlowTest {
         compose.onNodeWithText("统计").performClick()
         awaitText("本月支出")
         capture("stats")
-        compose.onNodeWithContentDescription("设置").performClick()
+        settingsTab.performClick().assertIsSelected()
         awaitText("数据与备份")
         capture("mine")
         compose.onNodeWithText("检查更新").performScrollTo().performClick()
