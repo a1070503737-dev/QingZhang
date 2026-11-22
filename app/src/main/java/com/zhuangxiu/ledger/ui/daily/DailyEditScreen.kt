@@ -120,6 +120,7 @@ fun DailyEditContent(
     val context = LocalContext.current
     var categoriesOpen by remember { mutableStateOf(false) }
     var paymentOpen by remember { mutableStateOf(false) }
+    val calculationPending = hasAmountOperation(state.amount)
     val finishNote = {
         keyboard?.hide()
         focusManager.clearFocus()
@@ -142,21 +143,36 @@ fun DailyEditContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     if (!noteFocused) {
-                        AmountKeypad(enabled = !state.busy) { key ->
+                        AmountKeypad(enabled = !state.busy, showEquals = false) { key ->
                             onChange { old -> old.copy(amount = applyAmountKey(old.amount, key)) }
                         }
                     }
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    val actionEnabled = if (calculationPending) {
+                        applyAmountKey(state.amount, "=") != state.amount
+                    } else {
+                        state.valid
+                    }
                     LedgerButton(
-                        onClick = onSave,
+                        onClick = {
+                            if (calculationPending) {
+                                onChange { old -> old.copy(amount = applyAmountKey(old.amount, "=")) }
+                            } else {
+                                onSave()
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .semantics { contentDescription = "保存日常账目" },
+                            .semantics { contentDescription = if (calculationPending) "等于" else "保存日常账目" },
                         minHeight = 54.dp,
-                        enabled = state.valid && !state.busy,
+                        enabled = actionEnabled && !state.busy,
                     ) {
                         Text(
-                            if (state.busy) "保存中..." else "保存${state.kind.label}",
+                            when {
+                                state.busy -> "保存中..."
+                                calculationPending -> "="
+                                else -> "保存${state.kind.label}"
+                            },
                             style = MaterialTheme.typography.titleMedium,
                         )
                     }
@@ -205,7 +221,7 @@ fun DailyEditContent(
                 DailyAmountDisplay(
                     state.amount,
                     state.kind == EntryKind.INCOME,
-                    state.amount.isNotEmpty() && !hasAmountOperation(state.amount) && !state.valid,
+                    state.amount.isNotEmpty() && !calculationPending && !state.valid,
                     enabled = !state.busy,
                     onClick = { if (noteFocused) finishNote() },
                 )

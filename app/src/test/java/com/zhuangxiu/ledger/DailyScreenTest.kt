@@ -369,4 +369,53 @@ class DailyScreenTest {
         key.performTouchInput { up() }
         compose.runOnIdle { assertEquals(listOf("1"), entered) }
     }
+
+    @Test fun calculationAndSavingShareTheSamePrimaryButton() {
+        var state by mutableStateOf(DailyEditState(loading = false))
+        val saved = mutableListOf<Pair<EntryKind, String>>()
+        compose.setContent {
+            RenovationLedgerTheme {
+                DailyEditContent(
+                    state = state,
+                    editing = false,
+                    onBack = {},
+                    onChange = { state = it(state) },
+                    onKind = { state = state.copy(kind = it) },
+                    onSave = { saved += state.kind to state.amount },
+                    onDelete = {},
+                )
+            }
+        }
+
+        fun pressKey(description: String) =
+            compose.onNodeWithContentDescription(description, useUnmergedTree = true).performClick()
+
+        val save = compose.onNodeWithContentDescription("保存日常账目")
+        val equals = compose.onNodeWithContentDescription("等于")
+        save.assertTextContains("保存支出").assertIsNotEnabled()
+        val buttonBounds = save.fetchSemanticsNode().boundsInRoot
+
+        pressKey("数字键5")
+        pressKey("加")
+        save.assertDoesNotExist()
+        equals.assertTextContains("=").assertIsNotEnabled()
+        compose.onAllNodesWithText("=", useUnmergedTree = true).assertCountEquals(1)
+
+        pressKey("数字键2")
+        pressKey("减")
+        pressKey("数字键1")
+        assertEquals(buttonBounds, equals.fetchSemanticsNode().boundsInRoot)
+        equals.assertIsEnabled().performClick()
+        compose.onNodeWithContentDescription("日常记账金额").assertTextContains("6")
+        compose.runOnIdle { assertTrue(saved.isEmpty()) }
+
+        equals.assertDoesNotExist()
+        assertEquals(buttonBounds, save.fetchSemanticsNode().boundsInRoot)
+        save.assertTextContains("保存支出").assertIsEnabled().performClick()
+
+        compose.runOnIdle { state = state.copy(amount = "", kind = EntryKind.INCOME, category = DailyCategory.SALARY) }
+        pressKey("数字键3")
+        save.assertTextContains("保存收入").assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(listOf(EntryKind.EXPENSE to "6", EntryKind.INCOME to "3"), saved) }
+    }
 }

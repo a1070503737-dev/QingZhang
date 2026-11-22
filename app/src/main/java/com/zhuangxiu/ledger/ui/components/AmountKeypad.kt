@@ -42,17 +42,19 @@ private val KEYPAD_ROWS = listOf(
     listOf("7", "8", "9", "⌫"),
     listOf(".", "0", "0", "="),
 )
+private val ENTRY_ROWS = KEYPAD_ROWS.dropLast(1) + listOf(listOf(".", "0", "0", "0"))
 
-private fun keyAt(position: Offset, size: IntSize): String? {
+private fun keyAt(position: Offset, size: IntSize, rows: List<List<String>>): String? {
     if (size.width <= 0 || size.height <= 0) return null
-    val row = (position.y / size.height * KEYPAD_ROWS.size).toInt().coerceIn(KEYPAD_ROWS.indices)
-    val keys = KEYPAD_ROWS[row]
+    val row = (position.y / size.height * rows.size).toInt().coerceIn(rows.indices)
+    val keys = rows[row]
     val column = (position.x / size.width * keys.size).toInt().coerceIn(keys.indices)
     return keys[column]
 }
 
 @Composable
-internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
+internal fun AmountKeypad(enabled: Boolean = true, showEquals: Boolean = true, onKey: (String) -> Unit) {
+    val rows = if (showEquals) KEYPAD_ROWS else ENTRY_ROWS
     val haptic = LocalHapticFeedback.current
     val viewConfig = LocalViewConfiguration.current
     val enterKey by rememberUpdatedState(onKey)
@@ -62,12 +64,12 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(enabled) {
+            .pointerInput(enabled, showEquals) {
                 if (!enabled) return@pointerInput
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                     val start = down.position
-                    pressedKey = keyAt(start, size)
+                    pressedKey = keyAt(start, size, rows)
                     var sliding = false
                     try {
                         while (true) {
@@ -87,7 +89,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                                 sliding = true
                             }
                             if (sliding) {
-                                pressedKey = keyAt(pointer.position, size)
+                                pressedKey = keyAt(pointer.position, size, rows)
                                 pointer.consume()
                             }
                         }
@@ -98,7 +100,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
             },
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        KEYPAD_ROWS.forEach { keys ->
+        rows.forEach { keys ->
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 keys.distinct().forEach { key ->
                     val description = when (key) {
@@ -115,7 +117,7 @@ internal fun AmountKeypad(enabled: Boolean = true, onKey: (String) -> Unit) {
                     }
                     Box(
                         modifier = Modifier
-                            .weight(if (key == "0") 2f else 1f)
+                            .weight(keys.count { it == key }.toFloat())
                             .heightIn(min = 50.dp)
                             .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
                             .ledgerContainer(RoundedCornerShape(18.dp), variant)
