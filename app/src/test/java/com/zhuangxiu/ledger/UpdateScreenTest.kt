@@ -3,7 +3,10 @@ package com.zhuangxiu.ledger
 import android.app.Application
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.zhuangxiu.ledger.ui.mine.UpdateContent
@@ -12,6 +15,7 @@ import com.zhuangxiu.ledger.ui.mine.UpdateUiState
 import com.zhuangxiu.ledger.ui.theme.RenovationLedgerTheme
 import com.zhuangxiu.ledger.update.AppRelease
 import com.zhuangxiu.ledger.update.AppVersion
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -30,7 +34,7 @@ class UpdateScreenTest {
     private fun render(state: UpdateUiState, download: () -> Unit = {}, cancel: () -> Unit = {}, install: () -> Unit = {}) {
         compose.setContent {
             RenovationLedgerTheme {
-                UpdateContent(state.copy(accessConfigured = true), {}, {}, download, cancel, install, {})
+                UpdateContent(state.copy(accessConfigured = true), {}, {}, download, cancel, install)
             }
         }
     }
@@ -59,6 +63,27 @@ class UpdateScreenTest {
         render(UpdateUiState(UpdateStage.READY, release), install = { installed = true })
         compose.onNodeWithText("安装更新").performClick()
         assertTrue(installed)
+    }
+
+    @Test fun officialWebsiteButtonOpensTheDownloadSite() {
+        val opened = mutableListOf<String>()
+        var checks = 0
+        val handler = object : UriHandler {
+            override fun openUri(uri: String) { opened.add(uri) }
+        }
+        compose.setContent {
+            RenovationLedgerTheme {
+                CompositionLocalProvider(LocalUriHandler provides handler) {
+                    UpdateContent(UpdateUiState(UpdateStage.CURRENT), {}, { checks++ }, {}, {}, {})
+                }
+            }
+        }
+        compose.onNodeWithText("访问轻账官网").performScrollTo().performClick()
+        compose.onNodeWithText("检查新版本").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(listOf("https://a1070503737-dev.github.io/QingZhang/"), opened)
+            assertEquals(1, checks)
+        }
     }
 
     @Test fun sharedAccessDoesNotAskEachUserForAToken() {

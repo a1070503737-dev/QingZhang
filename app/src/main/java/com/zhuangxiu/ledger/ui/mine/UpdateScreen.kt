@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -59,8 +60,9 @@ import com.zhuangxiu.ledger.ui.components.LedgerButton
 import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
-import com.zhuangxiu.ledger.update.UpdateSource
 import java.util.Locale
+
+private const val OFFICIAL_WEBSITE_URL = "https://a1070503737-dev.github.io/QingZhang/"
 
 @Composable
 fun UpdateScreen(onBack: () -> Unit, viewModel: UpdateViewModel = hiltViewModel()) {
@@ -107,13 +109,7 @@ fun UpdateScreen(onBack: () -> Unit, viewModel: UpdateViewModel = hiltViewModel(
                     viewModel.showError("请在系统设置中允许轻账安装应用，再返回重试")
                 }
             },
-            onOpenReleases = {
-                try {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, UpdateSource.RELEASES_URL.toUri()))
-                } catch (_: Exception) {
-                    viewModel.showError("无法打开浏览器，请稍后重试")
-                }
-            },
+            onWebsiteError = { viewModel.showError("无法打开浏览器，请稍后重试") },
             onConfigureAccess = { showAccess = true },
         )
     }
@@ -148,9 +144,10 @@ fun UpdateContent(
     onDownload: () -> Unit,
     onCancel: () -> Unit,
     onInstall: () -> Unit,
-    onOpenReleases: () -> Unit,
+    onWebsiteError: () -> Unit = {},
     onConfigureAccess: () -> Unit = {},
 ) {
+    val uriHandler = LocalUriHandler.current
     SubPageScaffold(title = "检查更新", onBack = onBack) { modifier ->
         Column(
             modifier
@@ -247,8 +244,18 @@ fun UpdateContent(
                 }
             }
             Text("首次安装需允许本应用安装更新，并在 Android 安装界面确认。更新前建议备份账本。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            LedgerButton(onClick = onOpenReleases, prominent = false, modifier = Modifier.fillMaxWidth()) {
-                Text("查看 GitHub 发行版", color = MaterialTheme.colorScheme.primary)
+            LedgerButton(
+                onClick = {
+                    try {
+                        uriHandler.openUri(OFFICIAL_WEBSITE_URL)
+                    } catch (_: Exception) {
+                        onWebsiteError()
+                    }
+                },
+                prominent = false,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("访问轻账官网", color = MaterialTheme.colorScheme.primary)
             }
             LedgerCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
