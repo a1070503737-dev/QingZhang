@@ -308,7 +308,7 @@ private fun GitHubAccessScreen(
         ) {
             LedgerCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("创建 Fine-grained token，只选择 a1070503737-dev/code 仓库，将 Contents 权限设为 Read-only，无需写入权限。")
+                    Text("创建 Fine-grained token，只选择 a1070503737-dev/QingZhang 仓库，将 Contents 权限设为 Read-only，无需写入权限。")
                     LedgerButton(
                         onClick = onCreateToken,
                         prominent = false,

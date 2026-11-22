@@ -5,7 +5,7 @@ import java.io.IOException
 import java.net.URI
 
 object UpdateSource {
-    const val REPOSITORY = "a1070503737-dev/code"
+    const val REPOSITORY = "a1070503737-dev/QingZhang"
     const val RELEASES_URL = "https://github.com/$REPOSITORY/releases"
     const val LATEST_URL = "https://api.github.com/repos/$REPOSITORY/releases/latest"
     const val MANIFEST_URL = "$RELEASES_URL/latest/download/update.json"

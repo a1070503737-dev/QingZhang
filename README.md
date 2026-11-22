@@ -4,7 +4,7 @@
 
 **当前正式版：v1.3.23** ｜ **系统要求：Android 8.0（API 26）及以上** ｜ **包名：`com.zhuangxiu.ledger`**
 
-[🌐 轻账下载官网](https://a1070503737-dev.github.io/code/) · [⬇️ 下载最新版 APK](https://github.com/a1070503737-dev/code/releases/download/v1.3.23/renovation-ledger-1.3.23-signed.apk) · [查看最新发行版](https://github.com/a1070503737-dev/code/releases/latest) · [版本列表](https://github.com/a1070503737-dev/code/releases)
+[🌐 轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) · [⬇️ 下载最新版 APK](https://github.com/a1070503737-dev/QingZhang/releases/download/v1.3.23/renovation-ledger-1.3.23-signed.apk) · [查看最新发行版](https://github.com/a1070503737-dev/QingZhang/releases/latest) · [版本列表](https://github.com/a1070503737-dev/QingZhang/releases)
 
 ## ✨ 主要功能
 
@@ -26,7 +26,7 @@
 2. **已有正式版**：进入应用的「设置 → 检查更新」，按提示下载并安装；也可以手动下载最新 APK。
 3. **换机、重装或跨签名版本升级前**：先在应用中导出并验证备份，避免丢失账本和照片。
 
-你也可以通过 [轻账下载官网](https://a1070503737-dev.github.io/code/) 获取最新 APK。正式版本统一通过 [GitHub Releases](https://github.com/a1070503737-dev/code/releases) 分发。仓库 `main` 分支不再存放旧版 APK；**不要使用历史文档中的旧 `dist/*.apk` 链接下载安装**。部分历史构建使用不同的签名，无法保证跨版本直接覆盖安装。
+你也可以通过 [轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) 获取最新 APK。正式版本统一通过 [GitHub Releases](https://github.com/a1070503737-dev/QingZhang/releases) 分发。仓库 `main` 分支不再存放旧版 APK；**不要使用历史文档中的旧 `dist/*.apk` 链接下载安装**。部分历史构建使用不同的签名，无法保证跨版本直接覆盖安装。
 
 > 当前公开 Release 的下载与更新**无需个人 GitHub Token**。如下载或升级失败，请优先检查网络、版本及签名是否匹配。
 

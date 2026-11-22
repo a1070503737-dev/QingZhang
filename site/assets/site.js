@@ -3,7 +3,7 @@
 (() => {
   "use strict";
   const owner = "a1070503737-dev";
-  const repo = "code";
+  const repo = "QingZhang";
   const fallbackVersion = "1.3.23";
   const base = "https://github.com/" + owner + "/" + repo;
   const mainLink = document.getElementById("download-apk");

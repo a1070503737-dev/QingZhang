@@ -61,7 +61,7 @@ internal class GitHubUpdateHttp(
                     403 -> throw IOException(if (connection.getHeaderField("X-RateLimit-Remaining") == "0")
                         "GitHub 暂时限制了请求，请稍后重试"
                     else if (UpdateCredentials.bundled) "更新服务暂时无法访问，请联系维护者"
-                    else "GitHub 拒绝了访问，请确认令牌对 code 仓库有 Contents 只读权限")
+                    else "GitHub 拒绝了访问，请确认令牌对 QingZhang 仓库有 Contents 只读权限")
                     429 -> throw IOException("GitHub 暂时限制了请求，请稍后重试")
                     404 -> throw IOException("暂时无法访问发行版，请确认更新仓库已发布版本并允许访问")
                     else -> throw IOException("GitHub 暂时无法提供下载（$status），请稍后重试")

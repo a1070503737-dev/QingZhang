@@ -65,6 +65,9 @@ class AppUpdateTest {
     }
 
     @Test fun redirectsStayOnGithubHttpsAndCredentialsStayOnRepositoryApi() {
+        assertEquals("a1070503737-dev/QingZhang", UpdateSource.REPOSITORY)
+        assertTrue(UpdateUrlPolicy.allowed("https://github.com/a1070503737-dev/QingZhang/releases/latest/download/update.json"))
+        assertFalse(UpdateUrlPolicy.allowed("https://github.com/a1070503737-dev/code/releases/latest/download/update.json"))
         assertTrue(UpdateUrlPolicy.canAuthorize(UpdateSource.LATEST_URL))
         assertTrue(UpdateUrlPolicy.allowed("https://release-assets.githubusercontent.com/github-production-release-asset/1/a?token=temporary"))
         assertFalse(UpdateUrlPolicy.canAuthorize("https://release-assets.githubusercontent.com/a"))
