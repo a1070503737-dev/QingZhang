@@ -4,7 +4,7 @@
 
 **当前正式版：v1.3.25** ｜ **系统要求：Android 8.0（API 26）及以上** ｜ **包名：`com.zhuangxiu.ledger`**
 
-[🌐 轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) · [⬇️ 下载最新版 APK](https://github.com/a1070503737-dev/QingZhang/releases/download/v1.3.25/renovation-ledger-1.3.25-signed.apk) · [查看最新发行版](https://github.com/a1070503737-dev/QingZhang/releases/latest) · [版本列表](https://github.com/a1070503737-dev/QingZhang/releases)
+[🌐 轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) · [⬇️ 下载 1.3.25 APK](https://github.com/a1070503737-dev/QingZhang/releases/download/v1.3.25/renovation-ledger-1.3.25-signed.apk) · [查看最新发行版](https://github.com/a1070503737-dev/QingZhang/releases/latest) · [版本列表](https://github.com/a1070503737-dev/QingZhang/releases)
 
 ## ✨ 主要功能
 
@@ -22,7 +22,7 @@
 
 ## 📲 安装与更新
 
-1. **首次安装**：从上方的「下载最新版 APK」获取正式安装包，在 Android 手机上打开并按系统提示安装。
+1. **首次安装**：从上方的「查看最新发行版」或轻账官网获取正式安装包，在 Android 手机上打开并按系统提示安装。
 2. **已有正式版**：进入应用的「设置 → 检查更新」，按提示下载并安装。1.3.23 如因仓库更名遇到检查失败，可手动覆盖安装新版。
 3. **换机、重装或跨签名版本升级前**：先在应用中导出并验证备份，避免丢失账本和照片。
 
