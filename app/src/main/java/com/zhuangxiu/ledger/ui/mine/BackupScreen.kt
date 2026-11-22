@@ -1,6 +1,5 @@
 package com.zhuangxiu.ledger.ui.mine
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -128,7 +127,7 @@ internal class BackupViewModel @Inject constructor(
         }
     }
     fun onAuthorizationLaunched() = _uiState.update { it.copy(authorization = null) }
-    fun completeAuthorization(data: Intent) = runDrive { drive.connect(drive.finishResolution(data)) }
+    fun completeAuthorization(data: Intent?) = runDrive { drive.connect(drive.finishResolution(data)) }
     fun disconnectDrive() = runDrive { drive.disconnect() }
     fun setDriveInterval(days: Int) = runDrive { drive.setInterval(days) }
     fun keepLatestDriveBackup(enabled: Boolean) = runDrive { drive.setKeepLatest(enabled) }
@@ -192,7 +191,7 @@ internal fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltV
         if (uri != null) pendingRestore = uri
     }
     val authorize = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) result.data?.let(viewModel::completeAuthorization)
+        viewModel.completeAuthorization(result.data)
     }
 
     LaunchedEffect(state.authorization) {

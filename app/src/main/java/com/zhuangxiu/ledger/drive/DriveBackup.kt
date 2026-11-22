@@ -15,6 +15,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.ClearTokenRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Scope
 import com.zhuangxiu.ledger.data.repository.BackupManager
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -39,6 +40,7 @@ internal data class DriveBackupStatus(
 )
 
 internal class DriveAuthorizationRequired : IOException("请重新授权已连接的 Google 账号")
+internal class DriveAuthorizationIncomplete : IOException("Google 授权未完成。请重新连接并确认授权。")
 
 @Singleton
 internal class DriveBackup @Inject constructor(
@@ -62,7 +64,8 @@ internal class DriveBackup @Inject constructor(
 
     suspend fun requestAuthorization(): AuthorizationResult = authorize(status.first().account)
 
-    fun finishResolution(data: Intent): AuthorizationResult = auth.getAuthorizationResultFromIntent(data)
+    fun finishResolution(data: Intent?): AuthorizationResult =
+        auth.getAuthorizationResultFromIntent(data ?: throw DriveAuthorizationIncomplete())
 
     suspend fun connect(result: AuthorizationResult) = operations.withLock {
         val account = drive.account(result.token())
@@ -191,7 +194,7 @@ internal class DriveBackup @Inject constructor(
 }
 
 internal fun driveIssue(error: Exception): String = when (error) {
-    is DriveAuthorizationRequired -> error.message.orEmpty()
+    is DriveAuthorizationRequired, is DriveAuthorizationIncomplete -> error.message.orEmpty()
     is DriveHttpError -> when (error.reason) {
         "accessNotConfigured", "serviceDisabled" -> "此应用的 Google Drive API 尚未启用"
         "storageQuotaExceeded" -> "Google Drive 空间不足"
@@ -201,8 +204,9 @@ internal fun driveIssue(error: Exception): String = when (error) {
     is ApiException -> when (error.statusCode) {
         2 -> "请更新手机上的 Google Play 服务"
         7 -> "无法连接 Google。请检查网络后重试"
-        10 -> "此应用的 Google 授权配置尚未就绪"
-        else -> "无法完成 Google 授权。请检查 Google Play 服务和账号后重试"
+        CommonStatusCodes.DEVELOPER_ERROR -> "Google 授权配置有误（代码 10）。请核对 Android OAuth 客户端的包名和签名 SHA-1。"
+        CommonStatusCodes.CANCELED -> "Google 授权未完成（代码 16）。请重新连接并确认授权。"
+        else -> "无法完成 Google 授权（代码 ${error.statusCode}）。请检查 Google Play 服务和账号后重试。"
     }
     else -> "备份操作未完成。请检查网络和手机可用空间后重试"
 }

@@ -1,7 +1,12 @@
 package com.zhuangxiu.ledger
 
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.common.api.Status
+import com.zhuangxiu.ledger.drive.DriveAuthorizationIncomplete
 import com.zhuangxiu.ledger.drive.DriveSnapshot
 import com.zhuangxiu.ledger.drive.GoogleDriveFiles
+import com.zhuangxiu.ledger.drive.driveIssue
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.assertArrayEquals
@@ -27,6 +32,13 @@ class GoogleDriveBackupTest {
 
     private val payload = "abc".toByteArray()
     private val metadata = """{"id":"file-a","name":"ledger.zip","createdTime":"2026-11-21T12:00:00Z","size":"3","md5Checksum":"900150983cd24fb0d6963f7d28e17f72"}"""
+
+    @Test fun driveAuthorizationReportsCancellationAndClientConfigurationErrors() {
+        assertTrue(driveIssue(DriveAuthorizationIncomplete()).contains("授权未完成"))
+        assertTrue(driveIssue(ApiException(Status(CommonStatusCodes.CANCELED))).contains("代码 16"))
+        assertTrue(driveIssue(ApiException(Status(CommonStatusCodes.DEVELOPER_ERROR))).contains("SHA-1"))
+        assertTrue(driveIssue(ApiException(Status(CommonStatusCodes.INTERNAL_ERROR))).contains("代码 8"))
+    }
 
     @Test fun uploadStartsVerifiedSessionAndTransfersTheZip() = runTest {
         val zip = files.newFile("ledger.zip").apply { writeBytes(payload) }
