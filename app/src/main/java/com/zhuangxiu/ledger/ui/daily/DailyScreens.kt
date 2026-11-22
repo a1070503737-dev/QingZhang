@@ -365,6 +365,7 @@ fun DailyHomeScreen(
                 if (showAdd) {
                     LedgerButton(
                         onClick = onAdd,
+                        hapticFeedback = HapticFeedbackType.SegmentTick,
                         prominent = false,
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.onSizeChanged { addButtonHeight = it.height },

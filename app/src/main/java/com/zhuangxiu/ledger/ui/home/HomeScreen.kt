@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -97,6 +98,7 @@ fun HomeContent(
             floatingActionButton = {
                 LedgerButton(
                     onClick = onAdd,
+                    hapticFeedback = HapticFeedbackType.SegmentTick,
                     minHeight = 54.dp,
                     contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
                 ) {

@@ -40,7 +40,9 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -114,11 +116,16 @@ fun LedgerButton(
     shape: Shape = CircleShape,
     minHeight: Dp = 48.dp,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+    hapticFeedback: HapticFeedbackType? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
+    val haptics = LocalHapticFeedback.current
     Button(
-        onClick = onClick,
+        onClick = {
+            hapticFeedback?.let(haptics::performHapticFeedback)
+            onClick()
+        },
         modifier = modifier.defaultMinSize(minHeight = minHeight),
         enabled = enabled,
         shape = shape,

@@ -1,7 +1,10 @@
 package com.zhuangxiu.ledger.ui.navigation
 
+import android.graphics.RenderEffect
+import android.graphics.RuntimeShader
 import android.os.Build
-import androidx.compose.foundation.Canvas
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,6 +23,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RenderEffect as ComposeRenderEffect
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -70,6 +74,7 @@ internal fun LiquidGlassDock(
     position: () -> Float,
     lift: () -> Float,
     modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val dark = LedgerTheme.isDark
@@ -88,46 +93,59 @@ internal fun LiquidGlassDock(
         )
     }
     val edgeLayer = rememberGraphicsLayer()
+    val tabLayer = rememberGraphicsLayer()
     val density = LocalDensity.current.density
     val blur = remember(density) { BlurEffect(0.85f * density, 0.85f * density, TileMode.Clamp) }
+    val refraction = remember(density) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) DockLensRefraction(density) else null
+    }
     var originInRoot by remember { mutableStateOf(Offset.Zero) }
 
-    Canvas(modifier.onGloballyPositioned { originInRoot = it.positionInRoot() }) {
-        if (size.isEmpty()) return@Canvas
+    Box(modifier.onGloballyPositioned { originInRoot = it.positionInRoot() }.drawWithContent {
+        if (size.isEmpty()) return@drawWithContent
         val slot = position().coerceIn(0f, TABS.lastIndex.toFloat())
         val raised = maxOf(lift().coerceIn(0f, 1f), 1.5f * abs(slot - slot.roundToInt()))
         val visualSlot = if (layoutDirection == LayoutDirection.Ltr) slot else TABS.lastIndex - slot
         val cellWidth = size.width / TABS.size
         val lensSize = Size(
-            (cellWidth - 10.dp.toPx() + 18.dp.toPx() * raised).coerceAtLeast(1f),
+            (cellWidth - 10.dp.toPx() + 24.dp.toPx() * raised).coerceAtLeast(1f),
             (size.height - 10.dp.toPx() + 15.dp.toPx() * raised).coerceAtLeast(1f),
         )
         val lensCenter = Offset((visualSlot + 0.5f) * cellWidth, size.height / 2f)
         val lensBounds = Rect(lensCenter - Offset(lensSize.width / 2f, lensSize.height / 2f), lensSize)
+        val lensPath = capsulePath(lensBounds)
+        val lensEdge = minOf((4f + 5f * raised).dp.toPx(), lensSize.minDimension / 3f)
+        val magnification = 1f + 0.08f * raised
+        val edgeMagnification = 1.04f + 0.09f * raised
         val dockBounds = Rect(Offset.Zero, size)
         val padding = 14.dp.roundToPx()
         val margin = Offset(padding.toFloat(), padding.toFloat())
-        val hasBackdrop = backdrop != null && backdrop.layer.size != IntSize.Zero &&
-            drawContext.canvas.nativeCanvas.isHardwareAccelerated
-        if (hasBackdrop) {
-            val shift = backdrop.originInRoot - originInRoot + margin
+        val hardware = drawContext.canvas.nativeCanvas.isHardwareAccelerated
+        if (hardware && backdrop != null && backdrop.layer.size != IntSize.Zero) {
+            val shift = backdrop.originInRoot - originInRoot
             edgeLayer.renderEffect = blur
             edgeLayer.record(
                 size = IntSize(size.width.roundToInt() + padding * 2, size.height.roundToInt() + padding * 2),
             ) {
-                translate(shift.x, shift.y) { drawLayer(backdrop.layer) }
+                translate(shift.x + margin.x, shift.y + margin.y) { drawLayer(backdrop.layer) }
             }
-            // Sample the page only along the glass edges; the center shows the page directly.
             drawGlassEdge(edgeLayer, margin, dockBounds, 3.dp.toPx(), scale = 1.016f)
-            drawGlassEdge(edgeLayer, margin, lensBounds, (3.5f + raised).dp.toPx(), scale = 1.04f + 0.02f * raised)
+            if (raised > 0f) {
+                clipPath(lensPath) {
+                    scale(magnification, lensCenter) {
+                        translate(shift.x, shift.y) { drawLayer(backdrop.layer) }
+                    }
+                }
+            }
+            drawGlassEdge(edgeLayer, margin, lensBounds, lensEdge, scale = edgeMagnification)
         }
 
         clipPath(capsulePath(dockBounds)) { drawRect(glassTint) }
         drawGlassOutline(dockBounds, glassRim, 1.dp.toPx())
         val lensWash = Brush.verticalGradient(
             0f to Color.White.copy(alpha = (if (dark) 0.12f else 0.22f) + 0.04f * raised),
-            0.5f to colors.primary.copy(alpha = (if (dark) 0.20f else 0.16f) - 0.09f * raised),
-            1f to colors.primary.copy(alpha = if (dark) 0.21f else 0.13f),
+            0.5f to colors.primary.copy(alpha = (if (dark) 0.20f else 0.16f) - 0.12f * raised),
+            1f to colors.primary.copy(alpha = (if (dark) 0.21f else 0.13f) - 0.06f * raised),
             startY = lensBounds.top,
             endY = lensBounds.bottom,
         )
@@ -137,21 +155,82 @@ internal fun LiquidGlassDock(
             size = lensSize,
             cornerRadius = CornerRadius(lensSize.minDimension / 2f),
         )
+        if (hardware && raised > 0.01f) {
+            tabLayer.record { this@drawWithContent.drawContent() }
+            if (refraction != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                tabLayer.renderEffect = refraction.effect(lensCenter, lensSize, raised)
+                drawLayer(tabLayer)
+            } else {
+                clipPath(lensPath, ClipOp.Difference) { drawLayer(tabLayer) }
+                clipPath(lensPath) { scale(magnification, lensCenter) { drawLayer(tabLayer) } }
+            }
+        } else {
+            drawContent()
+        }
         drawGlassOutline(
             lensBounds,
             Brush.linearGradient(
                 0f to Color.White.copy(alpha = (if (dark) 0.50f else 0.84f) + 0.12f * raised),
                 0.35f to Color.White.copy(alpha = if (dark) 0.25f else 0.52f),
                 0.63f to colors.outline.copy(alpha = 0.24f),
-                0.84f to colors.primary.copy(alpha = 0.24f + 0.12f * raised),
+                0.84f to colors.tertiary.copy(alpha = 0.19f + 0.32f * raised),
                 1f to Color.White.copy(alpha = if (dark) 0.37f else 0.77f),
                 start = lensBounds.topLeft,
                 end = lensBounds.bottomRight,
             ),
             (0.9f + 0.3f * raised).dp.toPx(),
         )
+    }) { content() }
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private class DockLensRefraction(density: Float) {
+    private val shader = RuntimeShader(DockLensShader).apply { setFloatUniform("density", density) }
+    private var lastCenter = Offset.Unspecified
+    private var lastSize = Size.Unspecified
+    private var lastLift = -1f
+    private var cachedEffect: ComposeRenderEffect? = null
+
+    fun effect(center: Offset, size: Size, lift: Float): ComposeRenderEffect {
+        if (center != lastCenter || size != lastSize || lift != lastLift) {
+            shader.setFloatUniform("center", center.x, center.y)
+            shader.setFloatUniform("halfSize", size.width / 2f, size.height / 2f)
+            shader.setFloatUniform("lift", lift)
+            cachedEffect = RenderEffect.createRuntimeShaderEffect(shader, "tabs").asComposeRenderEffect()
+            lastCenter = center
+            lastSize = size
+            lastLift = lift
+        }
+        return checkNotNull(cachedEffect)
     }
 }
+
+private const val DockLensShader = """
+    uniform shader tabs;
+    uniform float2 center;
+    uniform float2 halfSize;
+    uniform float density;
+    uniform float lift;
+
+    half4 main(float2 pixel) {
+        float radius = min(halfSize.x, halfSize.y);
+        float straight = halfSize.x - radius;
+        float2 relative = pixel - center;
+        float2 rim = float2(relative.x - clamp(relative.x, -straight, straight), relative.y);
+        float rimDistance = length(rim);
+        float depth = radius - rimDistance;
+        if (depth <= 0.0) {
+            return tabs.eval(pixel);
+        }
+
+        float transition = smoothstep(0.0, 5.0 * density, depth);
+        float bevel = transition * (1.0 - smoothstep(6.0 * density, 17.0 * density, depth));
+        float2 normal = rim / max(rimDistance, 0.01);
+        float2 zoom = relative * 0.075 * transition;
+        float2 bend = normal * (3.4 * density) * bevel;
+        return tabs.eval(pixel - (zoom + bend) * lift);
+    }
+"""
 
 private fun DrawScope.drawGlassEdge(layer: GraphicsLayer, margin: Offset, bounds: Rect, depth: Float, scale: Float) {
     val innerBounds = bounds.deflate(depth.coerceAtMost(bounds.minDimension / 3f))

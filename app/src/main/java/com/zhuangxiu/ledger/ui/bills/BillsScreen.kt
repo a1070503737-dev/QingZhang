@@ -63,6 +63,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -118,6 +119,7 @@ fun BillsScreen(
             floatingActionButton = {
                 LedgerButton(
                     onClick = onAdd,
+                    hapticFeedback = HapticFeedbackType.SegmentTick,
                     minHeight = 56.dp,
                     contentPadding = PaddingValues(16.dp),
                 ) { Icon(Icons.Outlined.Add, contentDescription = "记一笔") }

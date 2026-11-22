@@ -282,7 +282,7 @@ class DailyScreenTest {
         compose.runOnIdle { assertEquals(listOf(Routes.BOOKS, Routes.STATS), visited) }
     }
 
-    @Test fun dockVibratesOncePerSettledTabChange() {
+    @Test fun dockDragTicksBeforeReleaseAndPageSwipeTicksOnSwitch() {
         val ticks = mutableListOf<HapticFeedbackType>()
         val feedback = object : HapticFeedback {
             override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
@@ -305,21 +305,67 @@ class DailyScreenTest {
         val books = compose.onNodeWithText("账本")
         home.assertIsSelected().performClick()
         compose.runOnIdle { assertTrue(ticks.isEmpty()) }
-        stats.performClick()
-        stats.assertIsSelected().performClick()
+        val distance = stats.fetchSemanticsNode().boundsInRoot.center - home.fetchSemanticsNode().boundsInRoot.center
+        home.performTouchInput {
+            down(center)
+            moveTo(center + distance * 0.3f)
+        }
+        compose.runOnIdle { assertTrue(ticks.isEmpty()) }
+        home.performTouchInput { moveTo(center + distance) }
+        home.assertIsSelected()
         compose.runOnIdle { assertEquals(listOf(HapticFeedbackType.SegmentTick), ticks) }
-        val distance = books.fetchSemanticsNode().boundsInRoot.center - stats.fetchSemanticsNode().boundsInRoot.center
+        home.performTouchInput { moveTo(center + distance * 1.25f) }
+        compose.runOnIdle { assertEquals(1, ticks.size) }
+        home.performTouchInput { moveTo(center + distance * 2f) }
+        compose.runOnIdle { assertEquals(2, ticks.size) }
+        home.performTouchInput { moveTo(center + distance) }
+        compose.runOnIdle { assertEquals(3, ticks.size) }
+        home.performTouchInput { up() }
+        stats.assertIsSelected()
+        compose.runOnIdle { assertEquals(3, ticks.size) }
         stats.performTouchInput {
             down(center)
             moveTo(center + distance)
         }
-        compose.runOnIdle { assertEquals(1, ticks.size) }
+        compose.runOnIdle { assertEquals(4, ticks.size) }
         stats.performTouchInput { cancel() }
+        stats.assertIsSelected().performClick()
+        compose.runOnIdle { assertEquals(4, ticks.size) }
+
+        val root = compose.onRoot()
+        root.performTouchInput { swipe(Offset(width * 0.2f, center.y), Offset(width * 0.8f, center.y)) }
+        home.assertIsSelected()
+        compose.runOnIdle { assertEquals(5, ticks.size) }
+        root.performTouchInput { swipe(Offset(width * 0.8f, center.y), Offset(width * 0.2f, center.y)) }
         stats.assertIsSelected()
-        compose.runOnIdle { assertEquals(1, ticks.size) }
-        stats.performTouchInput { swipe(center, center + distance) }
+        compose.runOnIdle { assertEquals(6, ticks.size) }
+        books.performClick()
         books.assertIsSelected()
-        compose.runOnIdle { assertEquals(List(2) { HapticFeedbackType.SegmentTick }, ticks) }
+        compose.runOnIdle { assertEquals(List(7) { HapticFeedbackType.SegmentTick }, ticks) }
+    }
+
+    @Test fun addEntryButtonTicksOnceBeforeOpeningEntry() {
+        val actions = mutableListOf<String>()
+        val feedback = object : HapticFeedback {
+            override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+                assertEquals(HapticFeedbackType.SegmentTick, hapticFeedbackType)
+                actions.add("tick")
+            }
+        }
+        val month = YearMonth.of(2026, 11)
+        compose.setContent {
+            RenovationLedgerTheme {
+                CompositionLocalProvider(LocalHapticFeedback provides feedback) {
+                    DailyHomeScreen(
+                        DailyState(month, DailyStatistics.calculate(emptyList(), 1, month)),
+                        {}, {}, {}, {}, onAdd = { actions.add("add") }, onEdit = {},
+                    )
+                }
+            }
+        }
+        compose.runOnIdle { assertTrue(actions.isEmpty()) }
+        compose.onNodeWithText("记一笔").performClick()
+        compose.runOnIdle { assertEquals(listOf("tick", "add"), actions) }
     }
 
     @Test

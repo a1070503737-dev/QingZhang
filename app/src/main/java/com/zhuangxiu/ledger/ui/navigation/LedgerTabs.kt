@@ -7,6 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -40,13 +41,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.lerp
@@ -64,6 +66,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -95,13 +99,20 @@ internal fun LedgerTabPages(
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val dockBackdrop = rememberDockBackdrop()
     val showDock = !editingBook && !imeVisible
-    val haptics = LocalHapticFeedback.current
-    val settledPage = pager.settledPage
-    var lastSettledPage by remember(pager) { mutableIntStateOf(settledPage) }
-    LaunchedEffect(pager, settledPage) {
-        if (lastSettledPage != settledPage) {
-            lastSettledPage = settledPage
-            if (showDock) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+    val haptics by rememberUpdatedState(LocalHapticFeedback.current)
+    LaunchedEffect(pager, showDock) {
+        if (!showDock) return@LaunchedEffect
+        var startPage = pager.settledPage
+        pager.interactionSource.interactions.collectLatest { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> startPage = pager.settledPage
+                is DragInteraction.Stop -> {
+                    // The pager starts its snap animation after releasing the drag.
+                    withFrameNanos { }
+                    snapshotFlow { pager.isScrollInProgress }.first { scrolling -> !scrolling }
+                    if (pager.settledPage != startPage) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                }
+            }
         }
     }
     val openTab: (String) -> Unit = { route ->
@@ -157,6 +168,7 @@ internal fun LedgerBottomBar(
     val changeTab by rememberUpdatedState(onNavigate)
     val activeRoute by rememberUpdatedState(current)
     val activePage by rememberUpdatedState(selected)
+    val haptics by rememberUpdatedState(LocalHapticFeedback.current)
     val scope = rememberCoroutineScope()
     var scrubPosition by remember { mutableFloatStateOf(Float.NaN) }
     var dragging by remember { mutableStateOf(false) }
@@ -180,10 +192,16 @@ internal fun LedgerBottomBar(
             Modifier.widthIn(max = 480.dp).fillMaxWidth().height(DockHeight)
                 .pointerInput(direction) {
                     var settle: Job? = null
+                    var previewedPage = 0
                     fun track(x: Float) {
                         val fromStart = if (direction == LayoutDirection.Ltr) x else size.width - x
                         scrubPosition = (fromStart / size.width * TABS.size - 0.5f)
                             .coerceIn(0f, TABS.lastIndex.toFloat())
+                        val page = scrubPosition.roundToInt()
+                        if (page != previewedPage) {
+                            previewedPage = page
+                            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        }
                     }
                     fun finish(index: Int, navigate: Boolean) {
                         dragging = false
@@ -198,6 +216,7 @@ internal fun LedgerBottomBar(
                     detectHorizontalDragGestures(
                         onDragStart = {
                             settle?.cancel()
+                            previewedPage = activePage
                             dragging = true
                             track(it.x)
                         },
@@ -207,34 +226,40 @@ internal fun LedgerBottomBar(
                     )
                 },
         ) {
-            LiquidGlassDock(backdrop, position, lift = { lift }, modifier = Modifier.matchParentSize())
-            Row(Modifier.fillMaxSize().selectableGroup()) {
-                val visualPosition = position()
-                TABS.forEachIndexed { index, tab ->
-                    val selection = (1f - abs(visualPosition - index)).coerceIn(0f, 1f)
-                    val tint = lerp(colors.onSurfaceVariant, activeTint, selection)
-                    val interaction = tabInteractions[index]
-                    val focused by interaction.collectIsFocusedAsState()
-                    val focusOutline = if (focused) Modifier.border(1.dp, colors.primary, CircleShape) else Modifier
-                    Column(
-                        Modifier.weight(1f).fillMaxHeight().selectable(
-                            selected = index == selected,
-                            interactionSource = interaction,
-                            indication = null,
-                            role = Role.Tab,
-                            onClick = { if (tab.route != current) onNavigate(tab.route) },
-                        ).padding(horizontal = 4.dp, vertical = 3.dp).then(focusOutline),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
-                    ) {
-                        Icon(tab.icon, null, tint = tint, modifier = Modifier.size(23.dp))
-                        Text(
-                            tab.label,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = tint,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+            LiquidGlassDock(backdrop, position, lift = { lift }, modifier = Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxSize().selectableGroup()) {
+                    val visualPosition = position()
+                    TABS.forEachIndexed { index, tab ->
+                        val selection = (1f - abs(visualPosition - index)).coerceIn(0f, 1f)
+                        val tint = lerp(colors.onSurfaceVariant, activeTint, selection)
+                        val interaction = tabInteractions[index]
+                        val focused by interaction.collectIsFocusedAsState()
+                        val focusOutline = if (focused) Modifier.border(1.dp, colors.primary, CircleShape) else Modifier
+                        Column(
+                            Modifier.weight(1f).fillMaxHeight().selectable(
+                                selected = index == selected,
+                                interactionSource = interaction,
+                                indication = null,
+                                role = Role.Tab,
+                                onClick = {
+                                    if (tab.route != current) {
+                                        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                        onNavigate(tab.route)
+                                    }
+                                },
+                            ).padding(horizontal = 4.dp, vertical = 3.dp).then(focusOutline),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
+                        ) {
+                            Icon(tab.icon, null, tint = tint, modifier = Modifier.size(23.dp))
+                            Text(
+                                tab.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = tint,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
             }
