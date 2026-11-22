@@ -12,6 +12,10 @@ captures/
 *.aab
 *.jks
 *.keystore
+
+# Private recovery and signing material (never commit)
+qingzhang-signing-recovery.txt
+*signing-recovery*.txt
 keystore.properties
 *.p12
 *.pfx
