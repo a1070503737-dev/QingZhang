@@ -39,6 +39,12 @@ python3 tools/create_update_manifest.py dist/renovation-ledger-1.0.9-signed.apk 
 
 清单 schemaVersion 固定为 1；APK 文件名必须为 `renovation-ledger-版本号-signed.apk`；版本号仅允许三个数字段，versionCode 必须递增。后续每个 Latest 发行版都必须保留 `update.json` 附件。
 
+## 官网 APK 直链
+
+每次正式发行时，把已签名的版本 APK 原样复制为 `renovation-ledger-latest.apk`，随版本 APK 和 `update.json` 一起上传到草稿。官网使用 GitHub 的 `releases/latest/download/renovation-ledger-latest.apk`，应用内更新使用清单中的带版本号附件。
+
+GitHub 的「Maintain QingZhang latest APK download」工作流也会在发行版发布或编辑后核对最新正式版。如果直链附件缺失，它会先比对安装包、更新清单与 GitHub 的 SHA-256，再上传副本。
+
 ## 验证范围
 
 回归测试模拟 REST API 配额耗尽时仍能通过发行版文件读取版本、读取和下载均不访问 REST API、不读取或发送令牌、拒绝损坏或过大的清单、固定下载域名以及精确核对 versionCode。云端网络可能提供额外身份，不能把云端访问成功当作手机网络必定可用或凭据有效的证明。
