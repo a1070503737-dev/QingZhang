@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.zhuangxiu.ledger",
+  "versionName": "1.3.16",
+  "versionCode": 31,
+  "notes": "日常记账的等号和保存合并到底部同一按钮。\n\n- 输入加减运算时显示「=」，按下后显示计算结果。\n- 算完或直接输入有效金额时，显示「保存收入」或「保存支出」。\n- 再点保存才会写入账目，便于核对金额。\n\n安装包沿用 Android 1.3.15 的应用包名和签名，可通过「设置 → 检查更新」覆盖升级。",
+  "apk": {
+    "fileName": "renovation-ledger-1.3.16-signed.apk",
+    "size": 3382096,
+    "sha256": "91d719a303b5b0630e841e061c25a13e9848855a93d1baebf452869580f30b20"
+  }
+}
