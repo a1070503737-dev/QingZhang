@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -54,6 +55,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -142,39 +144,51 @@ fun DailyEditContent(
                         .padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (!noteFocused) {
-                        AmountKeypad(enabled = !state.busy, showEquals = false) { key ->
-                            onChange { old -> old.copy(amount = applyAmountKey(old.amount, key)) }
-                        }
-                    }
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     val actionEnabled = if (calculationPending) {
                         applyAmountKey(state.amount, "=") != state.amount
                     } else {
                         state.valid
                     }
-                    LedgerButton(
-                        onClick = {
-                            if (calculationPending) {
-                                onChange { old -> old.copy(amount = applyAmountKey(old.amount, "=")) }
-                            } else {
-                                onSave()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .semantics { contentDescription = if (calculationPending) "等于" else "保存日常账目" },
-                        minHeight = 54.dp,
-                        enabled = actionEnabled && !state.busy,
-                    ) {
-                        Text(
-                            when {
-                                state.busy -> "保存中..."
-                                calculationPending -> "="
-                                else -> "保存${state.kind.label}"
+                    val primaryAction: @Composable (Modifier) -> Unit = { buttonModifier ->
+                        LedgerButton(
+                            onClick = {
+                                if (calculationPending) {
+                                    onChange { old -> old.copy(amount = applyAmountKey(old.amount, "=")) }
+                                } else {
+                                    onSave()
+                                }
                             },
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                            modifier = buttonModifier.semantics {
+                                contentDescription = if (calculationPending) "等于" else "保存日常账目"
+                            },
+                            minHeight = 54.dp,
+                            shape = if (noteFocused) CircleShape else RoundedCornerShape(15.dp),
+                            contentPadding = PaddingValues(horizontal = if (noteFocused) 20.dp else 4.dp, vertical = 8.dp),
+                            enabled = actionEnabled && !state.busy,
+                        ) {
+                            Text(
+                                when {
+                                    state.busy -> "保存中..."
+                                    calculationPending -> "="
+                                    else -> "保存${state.kind.label}"
+                                },
+                                style = when {
+                                    calculationPending -> MaterialTheme.typography.headlineSmall
+                                    noteFocused -> MaterialTheme.typography.titleMedium
+                                    else -> MaterialTheme.typography.labelLarge
+                                },
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                            )
+                        }
+                    }
+                    if (noteFocused) {
+                        primaryAction(Modifier.fillMaxWidth())
+                    } else {
+                        AmountKeypad(enabled = !state.busy, primaryAction = primaryAction) { key ->
+                            onChange { old -> old.copy(amount = applyAmountKey(old.amount, key)) }
+                        }
                     }
                 }
             }

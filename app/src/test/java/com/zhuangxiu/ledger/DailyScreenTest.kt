@@ -370,32 +370,55 @@ class DailyScreenTest {
         compose.runOnIdle { assertEquals(listOf("1"), entered) }
     }
 
-    @Test fun calculationAndSavingShareTheSamePrimaryButton() {
+    @Test @Config(qualifiers = "w320dp-h740dp-xhdpi")
+    fun calculationAndSavingShareTheSamePrimaryButton() {
         var state by mutableStateOf(DailyEditState(loading = false))
         val saved = mutableListOf<Pair<EntryKind, String>>()
         compose.setContent {
-            RenovationLedgerTheme {
-                DailyEditContent(
-                    state = state,
-                    editing = false,
-                    onBack = {},
-                    onChange = { state = it(state) },
-                    onKind = { state = state.copy(kind = it) },
-                    onSave = { saved += state.kind to state.amount },
-                    onDelete = {},
-                )
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 1.3f)) {
+                RenovationLedgerTheme {
+                    DailyEditContent(
+                        state = state,
+                        editing = false,
+                        onBack = {},
+                        onChange = { state = it(state) },
+                        onKind = { state = state.copy(kind = it) },
+                        onSave = { saved += state.kind to state.amount },
+                        onDelete = {},
+                    )
+                }
             }
         }
 
         fun pressKey(description: String) =
             compose.onNodeWithContentDescription(description, useUnmergedTree = true).performClick()
 
+        fun keyBounds(description: String) =
+            compose.onNodeWithContentDescription(description).fetchSemanticsNode().boundsInRoot
+
         val save = compose.onNodeWithContentDescription("保存日常账目")
         val equals = compose.onNodeWithContentDescription("等于")
-        save.assertTextContains("保存支出").assertIsNotEnabled()
+        save.assertIsDisplayed().assertTextContains("保存支出").assertIsNotEnabled()
         val buttonBounds = save.fetchSemanticsNode().boundsInRoot
+        val zeroBounds = keyBounds("数字键0")
+        val deleteBounds = keyBounds("退格")
+        assertEquals(keyBounds("数字键1").center.x, keyBounds("数字键.").center.x)
+        assertEquals(keyBounds("数字键2").center.x, zeroBounds.center.x)
+        assertEquals(keyBounds("数字键3").center.x, deleteBounds.center.x)
+        assertEquals(keyBounds("加").center.x, buttonBounds.center.x)
+        assertEquals(keyBounds("减").center.x, buttonBounds.center.x)
+        assertEquals(keyBounds("数字键7").top, buttonBounds.top)
+        assertEquals(deleteBounds.bottom, buttonBounds.bottom)
 
         pressKey("数字键5")
+        compose.onNodeWithContentDescription("数字键0").performTouchInput {
+            swipe(center, center + buttonBounds.center - zeroBounds.center)
+        }
+        compose.runOnIdle {
+            assertEquals("5", state.amount)
+            assertTrue(saved.isEmpty())
+        }
+
         pressKey("加")
         save.assertDoesNotExist()
         equals.assertTextContains("=").assertIsNotEnabled()
@@ -405,6 +428,7 @@ class DailyScreenTest {
         pressKey("减")
         pressKey("数字键1")
         assertEquals(buttonBounds, equals.fetchSemanticsNode().boundsInRoot)
+        capture("qingzhang-keypad-compact-calculation")
         equals.assertIsEnabled().performClick()
         compose.onNodeWithContentDescription("日常记账金额").assertTextContains("6")
         compose.runOnIdle { assertTrue(saved.isEmpty()) }
