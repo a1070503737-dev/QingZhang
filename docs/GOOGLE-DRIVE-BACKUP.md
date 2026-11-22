@@ -4,7 +4,7 @@
 
 1. 在发行维护者所有的 Google Cloud 项目中启用 Google Drive API。
 2. 设置 Google Auth Platform 的品牌、受众和数据访问。应用使用 `https://www.googleapis.com/auth/drive.file`，只访问它创建的备份文件。测试阶段将验收账号加入测试用户。面向正式用户发布前，设置适当的受众和发布状态。
-3. 创建 Android 类型的 OAuth 客户端。包名为 `com.zhuangxiu.ledger`。现有正式安装包的签名 SHA-1 为 `97:66:33:4E:C8:EF:6D:3D:85:04:16:0D:B6:64:F8:A0:FC:06:6E:F7`。
+3. 在同一个 Google Cloud 项目里为 1.3.18 及以后版本新增 Android OAuth 客户端。包名为 `com.zhuangxiu.ledger`，签名 SHA-1 为 `2C:A7:FB:FC:E3:6E:47:DB:AB:04:70:27:02:FA:1C:A9:0A:28:CF:FD`。需要继续支持 1.3.17 及更早版本时，保留对应 SHA-1 为 `97:66:33:4E:C8:EF:6D:3D:85:04:16:0D:B6:64:F8:A0:FC:06:6E:F7` 的客户端。
 4. 在有 Google Play 服务的 Android 设备上安装正式签名的 APK。连接测试账号，点击「立即备份」，确认 ZIP 出现在 Drive 中，并确认界面显示成功时间。
 5. 在测试设备上重新安装，用同一 Google 账号查看云端备份。确认列表和文件一致，选择一份云端备份，验证账本和凭证可恢复。再验证断开后自动备份停止，旧 ZIP 仍可访问。
 
