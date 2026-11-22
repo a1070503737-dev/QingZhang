@@ -24,12 +24,16 @@ android {
         applicationId = "com.zhuangxiu.ledger"
         minSdk = 26
         targetSdk = 37
-        versionCode = 38
-        versionName = "1.3.23"
+        versionCode = 39
+        versionName = "1.3.24"
         buildConfigField("String", "BUNDLED_GITHUB_TOKEN", "\"\"")
     }
 
     buildTypes {
+        debug {
+            // Separate test package to protect production app and user data.
+            applicationIdSuffix = ".test"
+        }
         release {
             // The field is deliberately embedded in this APK and is extractable by its recipients.
             buildConfigField("String", "BUNDLED_GITHUB_TOKEN", "\"$bundledUpdateToken\"")

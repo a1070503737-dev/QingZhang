@@ -1,0 +1,178 @@
+name: Build QingZhang 1.3.24 APKs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'tools/**'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - '.github/workflows/build-1.3.24.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qingzhang-1.3.24-publish
+  cancel-in-progress: false
+
+jobs:
+  test-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-37.0 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Verify source and build isolated test APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+      - name: Inspect test APK and prepare files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p publish-test
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          tools_dir="$ANDROID_HOME/build-tools/36.0.0"
+          "$tools_dir/apksigner" verify --verbose "$apk"
+          "$tools_dir/aapt" dump badging "$apk" | grep -E "^package: name='com\.zhuangxiu\.ledger\.test' versionCode='39' versionName='1\.3\.24'"
+          cp "$apk" publish-test/QingZhang-1.3.24-test.apk
+          cd publish-test
+          sha256sum QingZhang-1.3.24-test.apk > SHA256SUMS-1.3.24-test.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QingZhang-1.3.24-test-APK
+          path: publish-test/*
+          if-no-files-found: error
+      - name: Publish isolated test APK as pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=v1.3.24-test.1
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Test release already exists; refusing to overwrite artifacts.'
+            exit 0
+          fi
+          cat > "$RUNNER_TEMP/test-notes.md" <<'NOTES'
+          ## 轻账 1.3.24 测试版
+          
+          - 修复 GitHub 仓库重命名为 `QingZhang` 后的更新地址信任校验。
+          - 测试包名：`com.zhuangxiu.ledger.test`，可与正式版并存，数据相互隔离。
+          - 这是 **debug 签名的测试 APK**，不能覆盖正式版，也不能把其账本当作正式数据。
+          - Google Drive OAuth 可能不支持测试包名，请以本地记账和更新流程验证为主。
+          - 此包不作为应用内更新源，不包含 `update.json`。
+          NOTES
+          gh release create "$tag" publish-test/QingZhang-1.3.24-test.apk publish-test/SHA256SUMS-1.3.24-test.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title '轻账 1.3.24 测试版（独立安装）' --notes-file "$RUNNER_TEMP/test-notes.md"
+          echo 'Published test APK as pre-release.' >> "$GITHUB_STEP_SUMMARY"
+
+  official-apk:
+    needs: test-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check availability of original signing credentials
+        id: signer
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.RENOVATION_LEDGER_KEYSTORE_BASE64 }}
+          STOREPASS: ${{ secrets.RENOVATION_LEDGER_STORE_PASSWORD }}
+        run: |
+          if [[ -z "$KEYSTORE_B64" || -z "$STOREPASS" ]]; then
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo '::warning::Official APK not published: original Android signing credentials are unavailable. The public v1.3.23 remains latest.'
+            echo '正式版 1.3.24 未发布：缺少原签名证书或密码，不能保证覆盖安装。' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.signer.outputs.available == 'true'
+      - uses: actions/setup-java@v4
+        if: steps.signer.outputs.available == 'true'
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@v3
+        if: steps.signer.outputs.available == 'true'
+        with:
+          packages: 'platform-tools platforms;android-37.0 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.signer.outputs.available == 'true'
+      - name: Build unsigned production package
+        if: steps.signer.outputs.available == 'true'
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace
+      - name: Sign with original key and verify against published 1.3.23
+        if: steps.signer.outputs.available == 'true'
+        id: sign
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.RENOVATION_LEDGER_KEYSTORE_BASE64 }}
+          STOREPASS: ${{ secrets.RENOVATION_LEDGER_STORE_PASSWORD }}
+          KEYPASS: ${{ secrets.RENOVATION_LEDGER_KEY_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$(mktemp -d "$RUNNER_TEMP/qz-sign.XXXXXXXX")"
+          trap 'rm -rf -- "$work"' EXIT
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$work/release.keystore"
+          unset KEYSTORE_B64
+          if [[ -z "$KEYPASS" ]]; then KEYPASS="$STOREPASS"; fi
+          export STOREPASS KEYPASS
+          tools_dir="$ANDROID_HOME/build-tools/36.0.0"
+          unsigned=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$unsigned"
+          "$tools_dir/zipalign" -f -p 4 "$unsigned" "$work/aligned.apk"
+          mkdir -p publish-official
+          "$tools_dir/apksigner" sign --ks "$work/release.keystore" --ks-key-alias renovation-ledger \
+            --ks-pass env:STOREPASS --key-pass env:KEYPASS \
+            --out publish-official/renovation-ledger-1.3.24-signed.apk "$work/aligned.apk"
+          "$tools_dir/apksigner" verify --verbose --print-certs publish-official/renovation-ledger-1.3.24-signed.apk
+          gh release download v1.3.23 -p 'renovation-ledger-1.3.23-signed.apk' --dir "$work" --repo "$GITHUB_REPOSITORY"
+          python3 tools/verify_update.py "$work/renovation-ledger-1.3.23-signed.apk" \
+            publish-official/renovation-ledger-1.3.24-signed.apk
+          cat > publish-official/notes.md <<'NOTES'
+          ## 轻账 1.3.24
+          
+          - 修复 GitHub 仓库从 `code` 更名为 `QingZhang` 后，检查更新及 APK 下载的可信地址校验问题。
+          - 保持正式应用包名 `com.zhuangxiu.ledger`，versionCode 39。
+          - 使用与 1.3.23 相同的正式签名证书，覆盖安装前仍建议备份账本。
+          NOTES
+          python3 tools/create_update_manifest.py publish-official/renovation-ledger-1.3.24-signed.apk \
+            --notes-file publish-official/notes.md --output publish-official/update.json
+          (cd publish-official && sha256sum renovation-ledger-1.3.24-signed.apk update.json > SHA256SUMS-1.3.24.txt)
+      - name: Publish verified official 1.3.24
+        if: steps.signer.outputs.available == 'true' && steps.sign.conclusion == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=v1.3.24
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo '::error::Official release already exists; refusing to overwrite.'
+            exit 1
+          fi
+          gh release create "$tag" \
+            publish-official/renovation-ledger-1.3.24-signed.apk \
+            publish-official/SHA256SUMS-1.3.24.txt publish-official/update.json \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title '轻账 1.3.24' --notes-file publish-official/notes.md --latest
+          echo '正式版 1.3.24 已验证签名并发布。' >> "$GITHUB_STEP_SUMMARY"
