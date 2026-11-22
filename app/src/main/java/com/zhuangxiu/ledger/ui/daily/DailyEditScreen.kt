@@ -48,8 +48,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -86,8 +88,10 @@ import java.time.LocalDate
 fun DailyEditScreen(onBack: () -> Unit, viewModel: DailyEditViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     LaunchedEffect(state.complete) {
         if (state.complete) {
+            if (viewModel.consumeSaveFeedback()) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
             Toast.makeText(context, state.resultMessage, Toast.LENGTH_SHORT).show()
             onBack()
         }
@@ -418,11 +422,7 @@ fun DailyEditContent(
         )
     }
     if (deleteDialog) {
-        ConfirmDialog(
-            title = "删除这笔账目？",
-            text = "删除后将从本地账本和统计中移除，无法撤销。",
-            confirmLabel = "删除",
-            destructive = true,
+        DeleteDailyEntryDialog(
             onConfirm = {
                 deleteDialog = false
                 onDelete()
@@ -430,6 +430,18 @@ fun DailyEditContent(
             onDismiss = { deleteDialog = false },
         )
     }
+}
+
+@Composable
+internal fun DeleteDailyEntryDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    ConfirmDialog(
+        title = "删除这笔账目？",
+        text = "删除后将从本地账本和统计中移除，无法撤销。",
+        confirmLabel = "删除",
+        destructive = true,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+    )
 }
 
 @Composable

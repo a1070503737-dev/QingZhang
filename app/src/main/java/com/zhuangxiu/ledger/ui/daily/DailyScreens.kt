@@ -47,6 +47,7 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Cottage
 import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DirectionsBus
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.EmojiEvents
@@ -351,8 +352,11 @@ fun DailyHomeScreen(
     bookNames: Map<Long, String> = emptyMap(),
     canAdd: Boolean = true,
     readOnly: Boolean = false,
+    archivedBookIds: Set<Long> = emptySet(),
+    onDelete: ((String) -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     var addButtonHeight by remember { mutableIntStateOf(0) }
     val showAdd = canAdd && WindowInsets.ime.getBottom(density) == 0
@@ -475,12 +479,29 @@ fun DailyHomeScreen(
                             DailyGroupHeader(day, DailyStatistics.totals(entries))
                         }
                         items(entries, key = { "entry-${it.id}" }, contentType = { "entry" }) { entry ->
-                            DailyEntryRow(entry, bookNames[entry.bookId], if (readOnly) null else ({ onEdit(entry.id) }))
+                            val showActions = !readOnly && entry.bookId !in archivedBookIds
+                            DailyEntryRow(
+                                entry,
+                                bookNames[entry.bookId],
+                                onClick = if (readOnly) null else ({ onEdit(entry.id) }),
+                                showActions = showActions,
+                                onDelete = if (showActions && onDelete != null) ({ pendingDeleteId = entry.id }) else null,
+                            )
                         }
                     }
                 }
             }
         }
+    }
+    if (pendingDeleteId != null && !readOnly) {
+        DeleteDailyEntryDialog(
+            onConfirm = {
+                val id = pendingDeleteId
+                pendingDeleteId = null
+                if (id != null) onDelete?.invoke(id)
+            },
+            onDismiss = { pendingDeleteId = null },
+        )
     }
 }
 
@@ -509,45 +530,84 @@ private fun DailyGroupHeader(day: Long, totals: DailyTotals) {
 }
 
 @Composable
-private fun DailyEntryRow(entry: DailyEntryEntity, bookName: String?, onClick: (() -> Unit)?) {
+private fun DailyEntryRow(
+    entry: DailyEntryEntity,
+    bookName: String?,
+    onClick: (() -> Unit)?,
+    showActions: Boolean,
+    onDelete: (() -> Unit)?,
+) {
     val colors = MaterialTheme.colorScheme
     val income = entry.kind == EntryKind.INCOME
+    val projectPayment = entry.id.startsWith("payment:")
     val time = if (entry.minute < 0) null else "%02d:%02d".format(entry.minute / 60, entry.minute % 60)
-    LedgerPanel(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        onClick = onClick,
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+    var menuOpen by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxWidth()) {
+        LedgerPanel(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            onClick = onClick,
+            onLongClick = if (showActions) ({ menuOpen = true }) else null,
+            onLongClickLabel = "账目操作",
         ) {
-            Box(
-                Modifier.size(42.dp).background(colors.secondaryContainer, CircleShape),
-                contentAlignment = Alignment.Center,
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(entry.category.icon(), contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(21.dp))
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(entry.displayCategory, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    listOfNotNull(LocalDate.ofEpochDay(entry.day).toString(), time).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant,
-                )
-                Text(listOfNotNull(bookName, entry.displayPayment).joinToString(" · "),
-                    style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
-                if (entry.note.isNotBlank()) {
-                    Text(entry.note, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                Box(
+                    Modifier.size(42.dp).background(colors.secondaryContainer, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(entry.category.icon(), contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(21.dp))
                 }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(entry.displayCategory, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        listOfNotNull(LocalDate.ofEpochDay(entry.day).toString(), time).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                    Text(listOfNotNull(bookName, entry.displayPayment).joinToString(" · "),
+                        style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                    if (entry.note.isNotBlank()) {
+                        Text(entry.note, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    }
+                }
+                Text(
+                    (if (income) "+" else "-") + Money.format(entry.amountCents),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = LedgerTheme.extra.transaction(income),
+                )
             }
-            Text(
-                (if (income) "+" else "-") + Money.format(entry.amountCents),
-                style = MaterialTheme.typography.titleMedium,
-                color = LedgerTheme.extra.transaction(income),
+        }
+        DropdownMenu(
+            expanded = menuOpen && showActions,
+            onDismissRequest = { menuOpen = false },
+            shape = RoundedCornerShape(18.dp),
+            containerColor = colors.surfaceContainerHigh,
+        ) {
+            DropdownMenuItem(
+                text = { Text(if (projectPayment) "查看账单" else "编辑账目") },
+                leadingIcon = {
+                    Icon(if (projectPayment) Icons.AutoMirrored.Outlined.ReceiptLong else Icons.Outlined.Edit, null)
+                },
+                onClick = {
+                    menuOpen = false
+                    onClick?.invoke()
+                },
             )
+            if (onDelete != null && !projectPayment) {
+                DropdownMenuItem(
+                    text = { Text("删除账目", color = colors.error) },
+                    leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = colors.error) },
+                    onClick = {
+                        menuOpen = false
+                        onDelete()
+                    },
+                )
+            }
         }
     }
 }

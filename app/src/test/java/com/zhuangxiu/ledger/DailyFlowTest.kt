@@ -124,11 +124,13 @@ class DailyFlowTest {
         awaitDescription("本月结余 ¥80.00")
         compose.activityRule.scenario.recreate()
         awaitDescription("本月结余 ¥80.00")
-        compose.onNodeWithText("餐饮").performScrollTo().performClick()
-        awaitText("编辑账目")
-        compose.onNodeWithContentDescription("删除账目").performClick()
+        val expenseRow = compose.onNodeWithText("餐饮").performScrollTo()
+        expenseRow.performTouchInput { longClick() }
+        compose.onNodeWithText("编辑账目").assertIsDisplayed()
+        compose.onNodeWithText("删除账目").performClick()
         compose.onNodeWithText("取消").performClick()
-        compose.onNodeWithContentDescription("删除账目").performClick()
+        expenseRow.assertIsDisplayed().performTouchInput { longClick() }
+        compose.onNodeWithText("删除账目").performClick()
         compose.onNodeWithText("删除", useUnmergedTree = true).performClick()
         awaitDescription("本月结余 ¥100.00")
         compose.onNodeWithContentDescription("切换账本").performClick()

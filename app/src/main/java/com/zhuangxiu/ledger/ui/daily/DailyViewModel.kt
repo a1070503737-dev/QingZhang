@@ -60,6 +60,21 @@ class DailyViewModel @Inject constructor(
         if (next.year in 1..9999) saved["month"] = next.toString()
     }
     fun currentMonth() { saved["month"] = YearMonth.now().toString() }
+
+    fun deleteEntry(id: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val message = try {
+                repository.deleteFromActiveBook(id)
+                "已删除账目"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.message ?: "删除失败，请重试"
+            }
+            onResult(message)
+        }
+    }
+
     fun saveBook(book: BookEntity, done: () -> Unit) = action {
         if (book.id == 0L) {
             settings.selectBook(repository.addBook(book.name, book.kind, book.trackPayments, book.trackPhotos))

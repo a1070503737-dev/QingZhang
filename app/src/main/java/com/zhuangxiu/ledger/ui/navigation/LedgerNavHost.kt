@@ -1,5 +1,6 @@
 package com.zhuangxiu.ledger.ui.navigation
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -45,6 +46,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -97,6 +99,7 @@ internal fun LedgerNavHost(
     val dailyViewModel: DailyViewModel = hiltViewModel()
     val bookState by dailyViewModel.books.collectAsStateWithLifecycle()
     val dailyState by dailyViewModel.daily.collectAsStateWithLifecycle()
+    val appContext = LocalContext.current.applicationContext
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
@@ -280,6 +283,12 @@ internal fun LedgerNavHost(
                                     bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
                                     canAdd = if (bookState.all) bookState.books.any { !it.archived } else bookState.selected?.archived == false,
                                     readOnly = archivedBook != null,
+                                    archivedBookIds = bookState.books.filter { it.archived }.map { it.id }.toSet(),
+                                    onDelete = { id ->
+                                        dailyViewModel.deleteEntry(id) { message ->
+                                            Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
                                 )
                             }
                             Routes.STATS -> {

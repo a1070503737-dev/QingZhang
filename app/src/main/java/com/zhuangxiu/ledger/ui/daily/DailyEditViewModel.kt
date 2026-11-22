@@ -36,6 +36,7 @@ class DailyEditViewModel @Inject constructor(private val repository: DailyReposi
         ?: saved.get<String>("draftId") ?: UUID.randomUUID().toString().also { saved["draftId"] = it }
     private var bookId = saved.get<Long>("bookId") ?: 1L
     private var original: DailyEntryEntity? = null
+    private var saveFeedbackPending = false
     private val _state = MutableStateFlow(DailyEditState())
     val state = _state.asStateFlow()
 
@@ -77,21 +78,33 @@ class DailyEditViewModel @Inject constructor(private val repository: DailyReposi
         val s = _state.value
         if (s.busy || s.loading || s.complete || s.missing) return
         if (!s.valid) { _state.value = s.copy(error = "请输入有效的正数金额，最多两位小数"); return }
-        operate {
+        operate(Result.SAVED) {
             repository.save(DailyEntryEntity(id, bookId, requireNotNull(Money.parseToCents(s.amount)), s.kind, s.category, s.day, s.minute, s.method, s.note.trim(),
                 categoryName = s.categoryName, sourceCategory = original?.sourceCategory, account = s.account, sourceMethod = s.sourceMethod,
                 importFingerprint = original?.importFingerprint, importBatchId = original?.importBatchId), editing)
         }
     }
-    fun delete() { if (editing && !_state.value.busy && !_state.value.complete) operate("已删除账目") { repository.delete(id) } }
-    private fun operate(message: String = "已保存账目", block: suspend () -> Unit) {
+    fun delete() { if (editing && !_state.value.busy && !_state.value.complete) operate(Result.DELETED) { repository.delete(id) } }
+
+    fun consumeSaveFeedback(): Boolean {
+        val pending = saveFeedbackPending
+        saveFeedbackPending = false
+        return pending
+    }
+
+    private enum class Result(val message: String) {
+        SAVED("已保存账目"), DELETED("已删除账目"),
+    }
+
+    private fun operate(result: Result, block: suspend () -> Unit) {
         _state.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
             try {
                 block()
-                saved["resultMessage"] = message
+                saveFeedbackPending = result == Result.SAVED
+                saved["resultMessage"] = result.message
                 saved["complete"] = true
-                _state.update { it.copy(complete = true, resultMessage = message) }
+                _state.update { it.copy(complete = true, resultMessage = result.message) }
             }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) { _state.update { it.copy(error = e.message ?: "保存失败，请重试") } }

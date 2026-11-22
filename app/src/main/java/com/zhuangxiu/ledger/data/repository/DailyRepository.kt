@@ -38,6 +38,13 @@ class DailyRepository @Inject constructor(private val db: AppDatabase) {
         }
     }
     suspend fun delete(id: String) { dao.delete(id) }
+
+    suspend fun deleteFromActiveBook(id: String): Unit = db.withTransaction {
+        val entry = dao.get(id) ?: return@withTransaction
+        require(dao.book(entry.bookId)?.archived == false) { "请先恢复已归档的账本" }
+        dao.delete(id)
+    }
+
     suspend fun addBook(name: String, kind: BookKind = BookKind.DAILY,
                         trackPayments: Boolean = kind == BookKind.RENOVATION, trackPhotos: Boolean = kind == BookKind.RENOVATION): Long = db.withTransaction {
         val trimmed = validName(name)

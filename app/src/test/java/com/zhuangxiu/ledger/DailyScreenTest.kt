@@ -344,6 +344,51 @@ class DailyScreenTest {
         compose.runOnIdle { assertEquals(List(7) { HapticFeedbackType.SegmentTick }, ticks) }
     }
 
+    @Test fun monthlyEntryLongPressOpensItsMenuWithOneHaptic() {
+        val ticks = mutableListOf<HapticFeedbackType>()
+        val edited = mutableListOf<String>()
+        val deleted = mutableListOf<String>()
+        val feedback = object : HapticFeedback {
+            override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+                ticks.add(hapticFeedbackType)
+            }
+        }
+        val month = YearMonth.of(2026, 11)
+        val entry = DailyEntryEntity("expense", 1, 1234, EntryKind.EXPENSE, DailyCategory.FOOD,
+            month.atDay(15).toEpochDay(), 720, PayMethod.WECHAT)
+        compose.setContent {
+            RenovationLedgerTheme {
+                CompositionLocalProvider(LocalHapticFeedback provides feedback) {
+                    DailyHomeScreen(
+                        DailyState(month, DailyStatistics.calculate(listOf(entry), 1, month)),
+                        {}, {}, {}, {}, {},
+                        onEdit = { edited.add(it) },
+                        onDelete = { deleted.add(it) },
+                    )
+                }
+            }
+        }
+        val row = compose.onNodeWithText("餐饮").performScrollTo()
+        row.performTouchInput { longClick() }
+        compose.onNodeWithText("编辑账目").assertIsDisplayed()
+        compose.onNodeWithText("删除账目").assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(listOf(HapticFeedbackType.LongPress), ticks)
+            assertTrue(edited.isEmpty() && deleted.isEmpty())
+        }
+        compose.onNodeWithText("编辑账目").performClick()
+        compose.runOnIdle { assertEquals(listOf(entry.id), edited) }
+        row.performTouchInput { longClick() }
+        compose.onNodeWithText("删除账目").performClick()
+        compose.onNodeWithText("删除这笔账目？").assertIsDisplayed()
+        compose.runOnIdle { assertTrue(deleted.isEmpty()) }
+        compose.onNodeWithText("删除").performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(entry.id), deleted)
+            assertEquals(List(2) { HapticFeedbackType.LongPress }, ticks)
+        }
+    }
+
     @Test fun addEntryButtonTicksOnceBeforeOpeningEntry() {
         val actions = mutableListOf<String>()
         val feedback = object : HapticFeedback {
