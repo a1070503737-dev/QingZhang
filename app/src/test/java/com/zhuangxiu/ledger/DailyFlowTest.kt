@@ -48,7 +48,15 @@ class DailyFlowTest {
         val stats = compose.onNodeWithText("统计")
         val books = compose.onNodeWithText("账本")
         val distance = books.fetchSemanticsNode().boundsInRoot.center - stats.fetchSemanticsNode().boundsInRoot.center
-        stats.performTouchInput { swipe(center, center + distance) }
+        stats.performTouchInput {
+            down(center)
+            moveTo(center + distance * 0.48f)
+        }
+        capture("qingzhang-glass-dock-drag")
+        stats.performTouchInput {
+            moveTo(center + distance)
+            up()
+        }
         books.assertIsSelected()
         compose.onNodeWithText("我的账本").assertIsDisplayed()
         compose.onNodeWithText("首页").performClick()

@@ -3,8 +3,13 @@ package com.zhuangxiu.ledger.ui.navigation
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,12 +49,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -89,6 +95,15 @@ internal fun LedgerTabPages(
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val dockBackdrop = rememberDockBackdrop()
     val showDock = !editingBook && !imeVisible
+    val haptics = LocalHapticFeedback.current
+    val settledPage = pager.settledPage
+    var lastSettledPage by remember(pager) { mutableIntStateOf(settledPage) }
+    LaunchedEffect(pager, settledPage) {
+        if (lastSettledPage != settledPage) {
+            lastSettledPage = settledPage
+            if (showDock) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+        }
+    }
     val openTab: (String) -> Unit = { route ->
         val index = tabIndexOf(route)
         if (index >= 0) {
@@ -145,7 +160,13 @@ internal fun LedgerBottomBar(
     val scope = rememberCoroutineScope()
     var scrubPosition by remember { mutableFloatStateOf(Float.NaN) }
     var dragging by remember { mutableStateOf(false) }
-    val lift by animateFloatAsState(if (dragging) 1f else 0f, tween(175), label = "Dock lens lift")
+    val tabInteractions = remember { TABS.map { MutableInteractionSource() } }
+    val pressed = tabInteractions.map { it.collectIsPressedAsState().value }.any { it }
+    val lift by animateFloatAsState(
+        if (dragging || pressed) 1f else 0f,
+        spring(dampingRatio = 0.78f, stiffness = 510f),
+        label = "Dock lens lift",
+    )
     val position = { if (scrubPosition.isNaN()) pagePosition?.invoke() ?: selected.toFloat() else scrubPosition }
     val direction = LocalLayoutDirection.current
     val colors = MaterialTheme.colorScheme
@@ -157,8 +178,6 @@ internal fun LedgerBottomBar(
     ) {
         Box(
             Modifier.widthIn(max = 480.dp).fillMaxWidth().height(DockHeight)
-                .shadow(5.dp, CircleShape, clip = false)
-                .clip(CircleShape)
                 .pointerInput(direction) {
                     var settle: Job? = null
                     fun track(x: Float) {
@@ -192,14 +211,19 @@ internal fun LedgerBottomBar(
             Row(Modifier.fillMaxSize().selectableGroup()) {
                 val visualPosition = position()
                 TABS.forEachIndexed { index, tab ->
-                    val focus = (1f - abs(visualPosition - index)).coerceIn(0f, 1f)
-                    val tint = lerp(colors.onSurfaceVariant, activeTint, focus)
+                    val selection = (1f - abs(visualPosition - index)).coerceIn(0f, 1f)
+                    val tint = lerp(colors.onSurfaceVariant, activeTint, selection)
+                    val interaction = tabInteractions[index]
+                    val focused by interaction.collectIsFocusedAsState()
+                    val focusOutline = if (focused) Modifier.border(1.dp, colors.primary, CircleShape) else Modifier
                     Column(
                         Modifier.weight(1f).fillMaxHeight().selectable(
                             selected = index == selected,
+                            interactionSource = interaction,
+                            indication = null,
                             role = Role.Tab,
                             onClick = { if (tab.route != current) onNavigate(tab.route) },
-                        ),
+                        ).padding(horizontal = 4.dp, vertical = 3.dp).then(focusOutline),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
                     ) {

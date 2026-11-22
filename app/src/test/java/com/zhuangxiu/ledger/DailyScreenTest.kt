@@ -15,12 +15,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.zhuangxiu.ledger.data.db.*
 import com.zhuangxiu.ledger.domain.DailyStatistics
 import com.zhuangxiu.ledger.ui.components.AmountKeypad
@@ -276,8 +282,48 @@ class DailyScreenTest {
         compose.runOnIdle { assertEquals(listOf(Routes.BOOKS, Routes.STATS), visited) }
     }
 
+    @Test fun dockVibratesOncePerSettledTabChange() {
+        val ticks = mutableListOf<HapticFeedbackType>()
+        val feedback = object : HapticFeedback {
+            override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+                ticks.add(hapticFeedbackType)
+            }
+        }
+        compose.setContent {
+            RenovationLedgerTheme {
+                CompositionLocalProvider(LocalHapticFeedback provides feedback) {
+                    NavHost(rememberNavController(), startDestination = Routes.HOME) {
+                        composable(Routes.HOME) { entry ->
+                            LedgerTabPages(entry, Routes.HOME) { _, _, _ -> Box(Modifier.fillMaxSize()) }
+                        }
+                    }
+                }
+            }
+        }
+        val home = compose.onNodeWithText("首页")
+        val stats = compose.onNodeWithText("统计")
+        val books = compose.onNodeWithText("账本")
+        home.assertIsSelected().performClick()
+        compose.runOnIdle { assertTrue(ticks.isEmpty()) }
+        stats.performClick()
+        stats.assertIsSelected().performClick()
+        compose.runOnIdle { assertEquals(listOf(HapticFeedbackType.SegmentTick), ticks) }
+        val distance = books.fetchSemanticsNode().boundsInRoot.center - stats.fetchSemanticsNode().boundsInRoot.center
+        stats.performTouchInput {
+            down(center)
+            moveTo(center + distance)
+        }
+        compose.runOnIdle { assertEquals(1, ticks.size) }
+        stats.performTouchInput { cancel() }
+        stats.assertIsSelected()
+        compose.runOnIdle { assertEquals(1, ticks.size) }
+        stats.performTouchInput { swipe(center, center + distance) }
+        books.assertIsSelected()
+        compose.runOnIdle { assertEquals(List(2) { HapticFeedbackType.SegmentTick }, ticks) }
+    }
+
     @Test
-    fun floatingDockLetsContentShowThroughItsSurface() {
+    fun floatingDockKeepsBackdropDetailsSharpInItsCenter() {
         compose.setContent {
             RenovationLedgerTheme(dynamicColor = false) {
                 val backdrop = rememberDockBackdrop()
@@ -292,12 +338,14 @@ class DailyScreenTest {
         }
         val image = compose.onRoot().captureToImage().asAndroidBitmap()
         val stats = compose.onNodeWithText("统计").fetchSemanticsNode().boundsInRoot
-        val y = stats.center.y.toInt()
-        val left = image.getPixel(image.width * 5 / 12, y)
-        val right = image.getPixel(image.width * 7 / 12, y)
-        assertTrue(android.graphics.Color.red(left) > android.graphics.Color.red(right))
-        assertTrue(android.graphics.Color.blue(right) > android.graphics.Color.blue(left))
-        assertTrue(android.graphics.Color.green(left) > 128 && android.graphics.Color.green(right) > 128)
+        val y = (stats.bottom - stats.height * 0.12f).toInt()
+        // A red-to-blue boundary beneath the dock should stay crisp between its two edges.
+        val left = image.getPixel(image.width / 2 - 2, y)
+        val right = image.getPixel(image.width / 2 + 2, y)
+        assertTrue("Expected red left of the boundary, got ${left.toUInt().toString(16)}",
+            android.graphics.Color.red(left) - android.graphics.Color.blue(left) > 140)
+        assertTrue("Expected blue right of the boundary, got ${right.toUInt().toString(16)}",
+            android.graphics.Color.blue(right) - android.graphics.Color.red(right) > 140)
     }
 
     @Test @Config(qualifiers = "w320dp-h740dp-xhdpi")
