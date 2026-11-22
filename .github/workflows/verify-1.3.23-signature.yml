@@ -1,0 +1,38 @@
+name: Verify original QingZhang APK signing certificate
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verify-1.3.23-signature.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools build-tools;36.0.0'
+      - name: Download original 1.3.23 APK and check public signing certificate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download v1.3.23 -R "$GITHUB_REPOSITORY" -p 'renovation-ledger-1.3.23-signed.apk' -D "$RUNNER_TEMP"
+          apk="$RUNNER_TEMP/renovation-ledger-1.3.23-signed.apk"
+          tools="$ANDROID_HOME/build-tools/36.0.0"
+          "$tools/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/apksigner-report.txt"
+          cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/apksigner-report.txt" | tr '[:upper:]' '[:lower:]' | head -1)"
+          echo "Official v1.3.23 certificate SHA-256: $cert"
+          test -n "$cert"
+          expected='8c94f0524d86419e04a5839aefff106cb23b779f52ac2fbe0c29a9e3750b2191'
+          if [[ "$cert" != "$expected" ]]; then
+            echo '::error::Uploaded recovery keystore certificate DOES NOT MATCH current official release; do not sign a replacement APK with it.'
+            exit 1
+          fi
+          echo 'Certificate matches the provided recovery keystore fingerprint. No private key was uploaded to GitHub.' >> "$GITHUB_STEP_SUMMARY"
