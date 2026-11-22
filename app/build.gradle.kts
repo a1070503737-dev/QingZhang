@@ -24,8 +24,8 @@ android {
         applicationId = "com.zhuangxiu.ledger"
         minSdk = 26
         targetSdk = 37
-        versionCode = 39
-        versionName = "1.3.24"
+        versionCode = 40
+        versionName = "1.3.25"
         buildConfigField("String", "BUNDLED_GITHUB_TOKEN", "\"\"")
     }
 

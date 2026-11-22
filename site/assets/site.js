@@ -4,7 +4,7 @@
   "use strict";
   const owner = "a1070503737-dev";
   const repo = "QingZhang";
-  const fallbackVersion = "1.3.23";
+  const fallbackVersion = "1.3.25";
   const base = "https://github.com/" + owner + "/" + repo;
   const mainLink = document.getElementById("download-apk");
   const secondLink = document.getElementById("download-apk-bottom");
