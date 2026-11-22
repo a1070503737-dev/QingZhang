@@ -10,12 +10,14 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -224,6 +226,7 @@ internal fun LedgerNavHost(
 
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val showBottomBar = !imeVisible && currentRoute == Routes.BILLS
+    val billsDockBackdrop = rememberDockBackdrop()
 
     LedgerBackground(
         overlay = {
@@ -236,6 +239,7 @@ internal fun LedgerNavHost(
                 LedgerBottomBar(
                     current = currentRoute ?: Routes.HOME,
                     onNavigate = switchTab,
+                    backdrop = billsDockBackdrop,
                 )
             }
         },
@@ -356,14 +360,16 @@ internal fun LedgerNavHost(
                         entry.savedStateHandle["showPending"] = false
                     }
                 }
-                BillsScreen(
-                    viewModel = billsViewModel,
-                    bottomBar = dockSpacer,
-                    onAdd = { navController.navigate(Routes.edit(bookId = bookId)) },
-                    onOpenExpense = { navController.navigate(Routes.detail(it)) },
-                    onEditExpense = { navController.navigate(Routes.edit(id = it)) },
-                    onCopyExpense = { navController.navigate(Routes.edit(copyFrom = it, bookId = bookId)) },
-                )
+                Box(Modifier.fillMaxSize().recordDockBackdrop(if (showBottomBar) billsDockBackdrop else null)) {
+                    BillsScreen(
+                        viewModel = billsViewModel,
+                        bottomBar = dockSpacer,
+                        onAdd = { navController.navigate(Routes.edit(bookId = bookId)) },
+                        onOpenExpense = { navController.navigate(Routes.detail(it)) },
+                        onEditExpense = { navController.navigate(Routes.edit(id = it)) },
+                        onCopyExpense = { navController.navigate(Routes.edit(copyFrom = it, bookId = bookId)) },
+                    )
+                }
             }
             composable(Routes.MINE) {
                 MineScreen(

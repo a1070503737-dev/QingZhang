@@ -280,12 +280,13 @@ class DailyScreenTest {
     fun floatingDockLetsContentShowThroughItsSurface() {
         compose.setContent {
             RenovationLedgerTheme(dynamicColor = false) {
+                val backdrop = rememberDockBackdrop()
                 Box(Modifier.fillMaxSize()) {
-                    Row(Modifier.fillMaxSize()) {
+                    Row(Modifier.fillMaxSize().recordDockBackdrop(backdrop)) {
                         Box(Modifier.weight(1f).fillMaxHeight().background(Color.Red))
                         Box(Modifier.weight(1f).fillMaxHeight().background(Color.Blue))
                     }
-                    LedgerBottomBar(Routes.HOME, {}, Modifier.align(Alignment.BottomCenter))
+                    LedgerBottomBar(Routes.HOME, {}, Modifier.align(Alignment.BottomCenter), backdrop = backdrop)
                 }
             }
         }
