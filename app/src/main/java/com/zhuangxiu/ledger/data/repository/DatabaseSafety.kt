@@ -11,7 +11,6 @@ import java.io.IOException
 object DatabaseSafety {
     private fun root(context: Context) = File(context.filesDir, "database_safety")
     fun rollbackDir(context: Context) = File(root(context), "pending_restore")
-    fun recoveryZip(context: Context) = File(root(context), "before-restore.zip")
 
     fun prepare(context: Context) {
         recoverInterruptedRestore(context)

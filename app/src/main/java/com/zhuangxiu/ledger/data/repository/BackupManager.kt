@@ -48,13 +48,6 @@ class BackupManager @Inject constructor(
             out.use { output -> backup.inputStream().use { it.copyTo(output) } }
         } finally { backup.delete() }
     }
-    suspend fun exportRecoveryTo(uri: Uri) = withContext(Dispatchers.IO) {
-        val file = DatabaseSafety.recoveryZip(context)
-        if (!file.isFile) throw IOException("尚未执行过恢复，没有恢复前安全副本")
-        val out = context.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("无法写入所选位置")
-        out.use { output -> file.inputStream().use { it.copyTo(output) } }
-    }
-
     /** 数据库写事务阻止并发写入，复制主库与 WAL 后在副本上合并，避免 checkpoint + copy 之间丢失写入。 */
     internal suspend fun snapshot(): File = withContext(Dispatchers.IO) {
         val dir = File.createTempFile("ledger-snapshot-", "", context.cacheDir).apply { delete(); mkdirs() }
@@ -82,7 +75,7 @@ class BackupManager @Inject constructor(
 
     internal suspend fun restoreFrom(file: File) = restore { file.inputStream() }
 
-    /** v1 备份只恢复装修，保留当前生活账本；v2 备份恢复所有账本。替换前保留可导出的安全副本。 */
+    /** v1 备份只恢复装修，保留当前生活账本。v2 备份恢复所有账本。 */
     private suspend fun restore(openInput: () -> InputStream) = withContext(Dispatchers.IO) { mutex.withLock {
         val temp = File.createTempFile("ledger-restore-", "", context.cacheDir).apply { delete(); mkdirs() }
         var before: File? = null
@@ -129,10 +122,6 @@ class BackupManager @Inject constructor(
             } finally { prepared.close() }
             BackupDatabaseValidator.validate(file, current.version, identity)
             before = snapshot()
-            val recovery = DatabaseSafety.recoveryZip(context).apply { parentFile?.mkdirs() }
-            val recoveryTemp = File(recovery.path + ".tmp")
-            recoveryTemp.outputStream().use { BackupZip.zip(File(before, BackupZip.DB_ENTRY), File(before, BackupZip.RECEIPTS_DIR), it) }
-            if (!recoveryTemp.renameTo(recovery)) throw IOException("无法保存恢复前安全副本")
             DatabaseSafety.armRestore(context, before)
             db.close(); closed = true
             DatabaseSafety.replace(context, temp)

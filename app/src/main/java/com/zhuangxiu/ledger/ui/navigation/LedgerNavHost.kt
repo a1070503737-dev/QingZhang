@@ -82,6 +82,7 @@ import com.zhuangxiu.ledger.ui.importing.ImportScreen
 import com.zhuangxiu.ledger.ui.mine.BackupScreen
 import com.zhuangxiu.ledger.ui.mine.BudgetScreen
 import com.zhuangxiu.ledger.ui.mine.CategoriesScreen
+import com.zhuangxiu.ledger.ui.mine.FeedbackScreen
 import com.zhuangxiu.ledger.ui.mine.MineScreen
 import com.zhuangxiu.ledger.ui.mine.ReminderScreen
 import com.zhuangxiu.ledger.ui.mine.UpdateScreen
@@ -414,8 +415,11 @@ internal fun LedgerNavHost(
             }
             composable(Routes.BUDGET) { BudgetScreen(onBack = back) }
             composable(Routes.CATEGORIES) { CategoriesScreen(onBack = back) }
-            composable(Routes.BACKUP) { BackupScreen(onBack = back) }
+            composable(Routes.BACKUP) {
+                BackupScreen(onBack = back, onImport = { navController.navigate(Routes.IMPORT) })
+            }
             composable(Routes.IMPORT) { ImportScreen(onBack = back) }
+            composable(Routes.FEEDBACK) { FeedbackScreen(onBack = back) }
             composable(Routes.REMINDER) { ReminderScreen(onBack = back) }
             composable(Routes.UPDATE) { UpdateScreen(onBack = back) }
         }

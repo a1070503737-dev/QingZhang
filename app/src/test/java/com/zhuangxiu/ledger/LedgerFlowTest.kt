@@ -3,7 +3,6 @@ package com.zhuangxiu.ledger
 import android.graphics.Bitmap
 import android.app.Activity
 import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.view.WindowManager
@@ -47,6 +46,8 @@ class LedgerFlowTest {
     @Test fun importMultipleDocumentsRequiresConfirmationAndRefreshesHome() {
         awaitText("生活账本")
         settingsTab.performClick()
+        compose.onNodeWithText("数据导入").assertDoesNotExist()
+        compose.onNodeWithText("数据管理").performScrollTo().performClick()
         compose.onNodeWithText("数据导入").performScrollTo().performClick()
         awaitText("从鲨鱼记账导入")
         compose.onNodeWithText("选择 CSV 或 XLSX 文件").performClick()
@@ -82,6 +83,8 @@ class LedgerFlowTest {
         list.performScrollToIndex(0)
         awaitText("成功 2 笔 · 跳过 0 笔 · 解析失败 0 笔")
         compose.onNodeWithContentDescription("返回").performClick()
+        compose.onNodeWithText("数据管理").assertIsDisplayed()
+        compose.onNodeWithContentDescription("返回").performClick()
         settingsTab.assertIsSelected()
         compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.waitUntil(15_000) {
@@ -89,45 +92,29 @@ class LedgerFlowTest {
         }
     }
 
-    @Test fun backupCanBeReachedFromSettings() {
+    @Test fun dataManagementContainsImportAndBackupActions() {
         awaitText("生活账本")
         settingsTab.performClick().assertIsSelected()
-        compose.onNodeWithText("备份与恢复").performScrollTo().performClick()
+        compose.onNodeWithText("数据管理").performScrollTo().performClick()
+        compose.onNodeWithText("数据导入").assertIsDisplayed()
         awaitText("保存备份到本地")
         compose.onNodeWithText("从备份恢复").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("导出恢复前安全副本").assertExists()
+        compose.onNodeWithText("导出恢复前安全副本").assertDoesNotExist()
+        compose.onNodeWithText("Google Drive 备份").performScrollTo().assertIsDisplayed()
         compose.onNodeWithContentDescription("返回").performClick()
         settingsTab.assertIsSelected()
     }
 
-    @Test fun feedbackOpensAnEmailDraftAndCanCopyTheAddressWithoutAMailApp() {
+    @Test fun settingsOpensFeedbackInsideTheApp() {
         awaitText("生活账本")
         settingsTab.performClick().assertIsSelected()
-        val emailLabel = if (BuildConfig.FEEDBACK_FORM_URL.isEmpty()) "意见反馈" else "邮件反馈"
-        val feedback = compose.onNodeWithText(emailLabel).performScrollTo().assertIsDisplayed()
-        val shadow = Shadows.shadowOf(compose.activity)
-        compose.runOnIdle { while (shadow.nextStartedActivity != null) { } }
-        feedback.performClick()
-        compose.runOnIdle {
-            val draft = requireNotNull(shadow.nextStartedActivity)
-            assertEquals(Intent.ACTION_SENDTO, draft.action)
-            assertEquals("mailto:a1070503737@gmail.com", draft.dataString)
-            assertEquals("轻账使用反馈", draft.getStringExtra(Intent.EXTRA_SUBJECT))
-        }
-
-        val application = Shadows.shadowOf(compose.activity.application)
-        compose.runOnIdle { application.checkActivities(true) }
-        try {
-            feedback.performClick()
-            compose.onNodeWithText("a1070503737@gmail.com", substring = true).assertIsDisplayed()
-            compose.onNodeWithText("复制邮箱").performClick()
-            compose.runOnIdle {
-                val clipboard = requireNotNull(compose.activity.getSystemService(ClipboardManager::class.java))
-                assertEquals("a1070503737@gmail.com", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
-            }
-        } finally {
-            compose.runOnIdle { application.checkActivities(false) }
-        }
+        compose.onNodeWithText("邮件反馈").assertDoesNotExist()
+        compose.onNodeWithText("意见反馈").performScrollTo().performClick()
+        compose.onNodeWithText("反馈内容").assertIsDisplayed()
+        compose.onNodeWithText("联系方式（选填）").assertIsDisplayed()
+        compose.onNodeWithText("提交反馈").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("返回").performClick()
+        settingsTab.assertIsSelected()
     }
 
     @Test fun recordRenovationDepositFromHomeThenOpenPendingAndNavigateTabs() {

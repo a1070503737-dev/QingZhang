@@ -133,7 +133,7 @@ class DailyDatabaseTest {
         assertEquals(2, db.dailyDao().all().size)
         assertEquals("旅行", db.dailyDao().book(custom)!!.name)
         assertEquals("receipt", images.file("receipt.jpg").readText())
-        assertTrue(DatabaseSafety.recoveryZip(context).isFile)
+        assertFalse(File(context.filesDir, "database_safety/before-restore.zip").exists())
     }
     @Test fun oldBackupRestoresRenovationButPreservesCurrentDailyEntries() = runTest {
         repo.save(entry(), false)

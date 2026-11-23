@@ -32,6 +32,7 @@ object Routes {
     const val BUDGET = "budget"
     const val CATEGORIES = "categories"
     const val BACKUP = "backup"
+    const val FEEDBACK = "feedback"
     const val REMINDER = "reminder"
     const val UPDATE = "update"
 }

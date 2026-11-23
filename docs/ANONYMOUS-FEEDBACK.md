@@ -4,10 +4,12 @@
 2. 从执行日志打开「表单编辑地址」，点击「发布」，把填写者的常规访问权限设为「知道链接的任何人」。发布后复制**填写链接**。[Google 表单发布说明](https://support.google.com/docs/answer/2839588?hl=zh-Hans)
 3. 用未登录 Google 的浏览器打开填写链接，提交一条测试反馈，确认 Gmail 收到了正文。表单的「回复」页也会保留提交记录。
 
-发布 APK 时，在项目的 `gradle.properties` 设置公开填写链接，供本次和后续构建使用。
+在项目的 `gradle.properties` 配置完整的公开填写链接及两个问题的数字编号。可在填写页生成的预填链接中查看 `entry.<编号>`。更换表单或重建问题后同步更新编号。
 
 ```properties
 qingzhangFeedbackFormUrl=https://docs.google.com/forms/d/e/表单的公开编号/viewform
+qingzhangFeedbackContentEntry=1269361530
+qingzhangFeedbackContactEntry=2073899096
 ```
 
-配置后，「设置 → 意见反馈」会打开匿名表单，「邮件反馈」也可继续使用。应用只打开公开填写链接。联系信息由填写者自愿提供。
+「设置 → 意见反馈」直接在应用内填写，再向 Google 表单提交。填写页的确认语使用「已收到你的反馈，谢谢！」，应用根据这个确认语显示提交成功。联系方式选填。

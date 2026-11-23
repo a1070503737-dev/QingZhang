@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.SaveAlt
@@ -97,11 +98,6 @@ internal class BackupViewModel @Inject constructor(
     val driveStatus = drive.status
 
     fun defaultFileName(): String = backupManager.defaultFileName()
-    fun exportRecoveryTo(uri: Uri) = runBusy {
-        backupManager.exportRecoveryTo(uri)
-        _uiState.update { it.copy(message = "恢复前安全副本已保存") }
-    }
-
     fun exportTo(uri: Uri) = runBusy {
         backupManager.exportTo(uri)
         _uiState.update { it.copy(message = "备份已保存") }
@@ -172,18 +168,18 @@ internal class BackupViewModel @Inject constructor(
     }
 }
 
-/** 备份与恢复页 */
 @Composable
-internal fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltViewModel()) {
+internal fun BackupScreen(
+    onBack: () -> Unit,
+    onImport: () -> Unit,
+    viewModel: BackupViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val drive by viewModel.driveStatus.collectAsStateWithLifecycle(initialValue = DriveBackupStatus())
     val context = LocalContext.current
     var pendingRestore by remember { mutableStateOf<Uri?>(null) }
     var pendingDriveRestore by remember { mutableStateOf<DriveSnapshot?>(null) }
 
-    val recoveryDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-        if (uri != null) viewModel.exportRecoveryTo(uri)
-    }
     val createDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) viewModel.exportTo(uri)
     }
@@ -209,7 +205,7 @@ internal fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltV
     }
 
     BackHandler(state.busy || state.restored) { }
-    SubPageScaffold(title = "备份与恢复", onBack = { if (!state.busy && !state.restored) onBack() }) { modifier ->
+    SubPageScaffold(title = "数据管理", onBack = { if (!state.busy && !state.restored) onBack() }) { modifier ->
         Box(modifier.fillMaxSize()) {
             Column(
                 Modifier
@@ -218,6 +214,8 @@ internal fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltV
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                ActionCard(Icons.Outlined.FileOpen, "数据导入", "预览并合并鲨鱼记账的 CSV 或 XLSX 账单", !state.busy, onImport)
+                Text("备份与恢复", style = MaterialTheme.typography.titleMedium)
                 Text(
                     "备份文件是一个 zip 压缩包，包含所有生活账本、装修账单、预算和凭证图片。旧版装修备份也可恢复，且会保留当前生活账目。",
                     style = MaterialTheme.typography.bodyMedium,
@@ -228,9 +226,6 @@ internal fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltV
                 }
                 ActionCard(Icons.Outlined.IosShare, "分享备份", "通过微信、网盘、邮件等发送备份文件", !state.busy) {
                     viewModel.prepareShare()
-                }
-                ActionCard(Icons.Outlined.SaveAlt, "导出恢复前安全副本", "找回最近一次恢复之前的数据", !state.busy) {
-                    recoveryDocument.launch("轻账恢复前安全副本.zip")
                 }
                 ActionCard(Icons.Outlined.Restore, "从备份恢复", "选择备份文件，覆盖当前的全部数据", !state.busy) {
                     openDocument.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
@@ -247,9 +242,9 @@ internal fun BackupScreen(onBack: () -> Unit, viewModel: BackupViewModel = hiltV
         ConfirmDialog(
             title = "从备份恢复？",
             text = if (cloudRestore != null) {
-                "将使用 Google Drive 中的「${cloudRestore.name}」替换本机账本和凭证。恢复前会保存安全副本，完成后需要重启应用。"
+                "将使用 Google Drive 中的「${cloudRestore.name}」替换本机账本和凭证。完成后需要重启应用。"
             } else {
-                "新版备份会替换全部账本；旧版装修备份仅替换装修数据，保留当前生活账目。恢复前自动保存安全副本，可在本页导出找回。完成后需要重启应用。"
+                "新版备份会替换全部账本。旧版装修备份仅替换装修数据，保留当前生活账目。完成后需要重启应用。"
             },
             confirmLabel = "恢复",
             destructive = true,
