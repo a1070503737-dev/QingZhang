@@ -23,6 +23,7 @@ internal class LedgerEntryService @Inject constructor(private val repository: Da
     suspend fun book(bookId: Long) = requireNotNull(repository.book(bookId)) { "账本不存在" }
 
     suspend fun save(bookId: Long, requestId: String, drafts: List<EntryDraft>, allowSimilar: Boolean): Boolean {
+        require(requestId.matches(Regex("[A-Za-z0-9-]{1,100}"))) { "记账请求编号无效" }
         require(drafts.size in 1..MAX_DRAFTS) { "每次可保存 1–20 笔账目" }
         val entries = drafts.mapIndexed { index, draft ->
             val kind = requireNotNull(draft.kind) { "请选择每笔账目的收支类型" }

@@ -49,19 +49,19 @@ class DailyRepository @Inject constructor(private val db: AppDatabase) {
         require(book.kind == BookKind.DAILY && !book.archived && entries.all { it.bookId == book.id }) {
             "请选择可记账的日常账本"
         }
-        val pending = entries.filter { entry ->
-            val previous = dao.get(entry.id)
-            require(previous == null || previous == entry) { "此记账请求已使用。请重新创建草稿。" }
-            previous == null
+        val previous = dao.reviewedBatch(entries.first().id.substringBeforeLast(':') + ":")
+        if (previous.isNotEmpty()) {
+            require(previous.toSet() == entries.toSet()) { "此记账请求已使用。请重新创建草稿。" }
+            return@withTransaction true
         }
         if (!allowSimilar) {
-            for ((day, group) in pending.groupBy { it.day }) {
+            for ((day, group) in entries.groupBy { it.day }) {
                 val existing = dao.existing(book.id, day, day)
                 val keys = existing.map { Triple(it.kind, it.amountCents, it.displayCategory) }.toMutableSet()
                 if (group.any { !keys.add(Triple(it.kind, it.amountCents, it.displayCategory)) }) return@withTransaction false
             }
         }
-        pending.forEach { check(dao.insert(it) != -1L) }
+        entries.forEach { check(dao.insert(it) != -1L) }
         true
     }
     suspend fun delete(id: String) { dao.delete(id) }

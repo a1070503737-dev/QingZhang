@@ -77,6 +77,8 @@ interface DailyDao {
     @Query("SELECT p.id AS id, e.id AS expenseId, e.bookId AS bookId, p.amountCents AS amountCents, p.date AS day, p.payMethod AS payMethod, c.name AS categoryName, CASE WHEN p.note = '' THEN e.note ELSE p.note END AS note FROM payments p JOIN expenses e ON p.expenseId = e.id JOIN categories c ON c.id = e.typeId JOIN books b ON b.id = e.bookId WHERE (:bookId = 0 OR e.bookId = :bookId) AND p.date >= :from AND p.date < :until AND p.amountCents > 0")
     fun observeProjectPayments(bookId: Long, from: Long, until: Long): Flow<List<ProjectPayment>>
     @Query("SELECT * FROM daily_entries WHERE id = :id") suspend fun get(id: String): DailyEntryEntity?
+    @Query("SELECT * FROM daily_entries WHERE id GLOB (:prefix || '*')")
+    suspend fun reviewedBatch(prefix: String): List<DailyEntryEntity>
     @Query("SELECT * FROM daily_entries") suspend fun all(): List<DailyEntryEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(entry: DailyEntryEntity): Long
     @Update suspend fun update(entry: DailyEntryEntity): Int

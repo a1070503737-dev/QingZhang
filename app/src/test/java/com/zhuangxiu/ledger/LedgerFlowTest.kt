@@ -117,6 +117,29 @@ class LedgerFlowTest {
         settingsTab.assertIsSelected()
     }
 
+    @Test fun voiceEntryTextFallbackSavesTwoReviewedEntriesToTheHomeLedger() {
+        awaitText("生活账本")
+        compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
+        awaitText("账本 · 生活账本")
+        compose.onNodeWithContentDescription("语音记账").performClick()
+        awaitText("识别文字，也可直接输入")
+        compose.onNodeWithText("识别文字，也可直接输入").performTextInput("早餐 8 元，午饭 25 元")
+        compose.onNodeWithText("解析文字").performClick()
+        compose.onNodeWithText("确认保存 2 笔").performScrollTo().performClick()
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithContentDescription("本月支出 ¥33.00").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test fun devicesWithoutAppFunctionsCanStillUseSettings() {
+        awaitText("生活账本")
+        settingsTab.performClick().assertIsSelected()
+        compose.onNodeWithText("系统助手").performScrollTo().performClick()
+        compose.onNodeWithText("这台设备暂不支持 Android AppFunctions。").assertIsDisplayed()
+        compose.onNodeWithContentDescription("返回").performClick()
+        settingsTab.assertIsSelected()
+    }
+
     @Test fun recordRenovationDepositFromHomeThenOpenPendingAndNavigateTabs() {
         awaitText("生活账本")
         compose.onNodeWithText("账本").performClick()

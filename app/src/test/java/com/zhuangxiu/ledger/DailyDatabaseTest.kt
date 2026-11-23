@@ -54,6 +54,9 @@ class DailyDatabaseTest {
         val drafts = ChineseVoiceParser.parse("早餐8元，午饭25元", day)
         assertTrue(ledger.save(1, "original", drafts, allowSimilar = false))
         assertTrue(ledger.save(1, "original", drafts, allowSimilar = false))
+        assertTrue(runCatching {
+            ledger.save(1, "original", drafts + drafts.first(), allowSimilar = true)
+        }.isFailure)
         assertFalse(ledger.save(1, "retry", drafts, allowSimilar = false))
         assertEquals(2, db.dailyDao().all().size)
         assertEquals(3300L, ledger.month(1, YearMonth.from(day)).totals.expense)

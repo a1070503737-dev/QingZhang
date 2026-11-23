@@ -59,6 +59,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.zhuangxiu.ledger.LedgerShortcut
+import com.zhuangxiu.ledger.assistant.AssistantAccessScreen
 import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.data.db.BookKind
 import com.zhuangxiu.ledger.ui.bills.BillsScreen
@@ -427,6 +428,7 @@ internal fun LedgerNavHost(
             }
             composable(Routes.IMPORT) { ImportScreen(onBack = back) }
             composable(Routes.FEEDBACK) { FeedbackScreen(onBack = back) }
+            composable(Routes.ASSISTANT) { AssistantAccessScreen(onBack = back) }
             composable(Routes.REMINDER) { ReminderScreen(onBack = back) }
             composable(Routes.UPDATE) { UpdateScreen(onBack = back) }
         }

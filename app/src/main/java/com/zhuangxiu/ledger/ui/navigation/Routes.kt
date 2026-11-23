@@ -35,6 +35,7 @@ object Routes {
     const val CATEGORIES = "categories"
     const val BACKUP = "backup"
     const val FEEDBACK = "feedback"
+    const val ASSISTANT = "system-assistant"
     const val REMINDER = "reminder"
     const val UPDATE = "update"
 }

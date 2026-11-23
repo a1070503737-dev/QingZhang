@@ -38,11 +38,13 @@ internal fun DeviceSpeechButton(enabled: Boolean, onText: (String) -> Unit, onEr
     val error by rememberUpdatedState(onError)
     var recognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
     var finishing by remember { mutableStateOf(false) }
+    var startAfterPermission by remember { mutableStateOf(false) }
 
     fun release() {
-        recognizer?.destroy()
+        val engine = recognizer
         recognizer = null
         finishing = false
+        engine?.destroy()
     }
 
     fun start() {
@@ -91,11 +93,17 @@ internal fun DeviceSpeechButton(enabled: Boolean, onText: (String) -> Unit, onEr
     }
 
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) start() else error("未授予麦克风权限，可以手动输入。")
+        if (!granted) error("未授予麦克风权限，可以手动输入。")
+        else if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) start()
+        else startAfterPermission = true
     }
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) release()
+            if (event == Lifecycle.Event.ON_RESUME && startAfterPermission) {
+                startAfterPermission = false
+                start()
+            }
         }
         lifecycle.addObserver(observer)
         onDispose {
