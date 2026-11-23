@@ -2,9 +2,9 @@
 
 > 一款面向 Android 的轻量记账应用。日常收支与装修账本放在一起管理，优先本地存储，支持按需备份和导入账单。
 
-**当前正式版：v1.3.27** ｜ **系统要求：Android 8.0（API 26）及以上** ｜ **包名：`com.zhuangxiu.ledger`**
+**当前正式版：v1.3.28** ｜ **系统要求：Android 8.0（API 26）及以上** ｜ **包名：`com.zhuangxiu.ledger`**
 
-[🌐 轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) · [⬇️ 下载 1.3.27 APK](https://github.com/a1070503737-dev/QingZhang/releases/download/v1.3.27/renovation-ledger-1.3.27-signed.apk) · [查看最新发行版](https://github.com/a1070503737-dev/QingZhang/releases/latest) · [版本列表](https://github.com/a1070503737-dev/QingZhang/releases)
+[🌐 轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) · [⬇️ 下载 1.3.28 APK](https://github.com/a1070503737-dev/QingZhang/releases/download/v1.3.28/renovation-ledger-1.3.28-signed.apk) · [查看最新发行版](https://github.com/a1070503737-dev/QingZhang/releases/latest) · [版本列表](https://github.com/a1070503737-dev/QingZhang/releases)
 
 ## ✨ 主要功能
 
@@ -17,6 +17,7 @@
 | 账单导入 | 支持从鲨鱼记账导入 CSV / XLSX 账单，导入前可预览和核对 |
 | 备份与恢复 | 本地 ZIP 备份；授权 Google 账号后可使用 Google Drive 备份 |
 | 应用内更新 | 从 GitHub Releases 检查和下载正式版，安装前由 Android 确认 |
+| 意见反馈 | 在设置中填写匿名表单，或通过邮件反馈 |
 
 应用支持在首页「本月明细」长按账目呼出编辑、删除操作，并为长按及保存成功添加轻震反馈。
 
@@ -97,6 +98,7 @@ tools/              # 更新清单生成与校验脚本
 ## 📚 文档与维护说明
 
 - [Google Drive 备份配置](docs/GOOGLE-DRIVE-BACKUP.md)
+- [匿名反馈配置](docs/ANONYMOUS-FEEDBACK.md)
 - [鲨鱼记账导入与迁移说明（历史版本资料）](docs/QINGZHANG-1.2.0.md)
 - [公开发行版更新方案（历史技术说明）](docs/UPDATE-1.0.8.md)
 

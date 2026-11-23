@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Feedback
 import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.NotificationsNone
@@ -74,9 +75,25 @@ private val APP_ENTRIES = listOf(
 )
 
 @Composable
-fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit) {
+internal fun MineScreen(
+    bottomBar: @Composable () -> Unit,
+    onNavigate: (String) -> Unit,
+    feedbackFormUrl: String = BuildConfig.FEEDBACK_FORM_URL,
+) {
     val context = LocalContext.current
-    var showFeedbackAddress by rememberSaveable { mutableStateOf(false) }
+    var feedbackToCopy by rememberSaveable { mutableStateOf<String?>(null) }
+    val hasFeedbackForm = feedbackFormUrl.isNotEmpty()
+
+    fun openFeedback(intent: Intent, address: String) {
+        try {
+            context.startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            feedbackToCopy = address
+        } catch (_: SecurityException) {
+            feedbackToCopy = address
+        }
+    }
+
     LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
@@ -94,16 +111,19 @@ fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit) 
                 SettingsSection("装修账本", RENOVATION_ENTRIES, onNavigate)
                 SettingsSection("应用", APP_ENTRIES, onNavigate) {
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingsRow(Icons.Outlined.MailOutline, "意见反馈", "通过邮件反馈使用体验和建议") {
+                    if (hasFeedbackForm) {
+                        SettingsRow(Icons.Outlined.Feedback, "意见反馈", "匿名填写，联系方式选填") {
+                            val form = Intent(Intent.ACTION_VIEW, feedbackFormUrl.toUri())
+                                .addCategory(Intent.CATEGORY_BROWSABLE)
+                            openFeedback(form, feedbackFormUrl)
+                        }
+                        HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    val emailLabel = if (hasFeedbackForm) "邮件反馈" else "意见反馈"
+                    SettingsRow(Icons.Outlined.MailOutline, emailLabel, "通过邮件反馈使用体验和建议") {
                         val email = Intent(Intent.ACTION_SENDTO, "mailto:$FEEDBACK_EMAIL".toUri())
                             .putExtra(Intent.EXTRA_SUBJECT, "轻账使用反馈")
-                        try {
-                            context.startActivity(email)
-                        } catch (_: ActivityNotFoundException) {
-                            showFeedbackAddress = true
-                        } catch (_: SecurityException) {
-                            showFeedbackAddress = true
-                        }
+                        openFeedback(email, FEEDBACK_EMAIL)
                     }
                 }
                 Text(
@@ -115,21 +135,28 @@ fun MineScreen(bottomBar: @Composable () -> Unit, onNavigate: (String) -> Unit) 
             }
         }
     }
-    if (showFeedbackAddress) {
+    feedbackToCopy?.let { address ->
+        val isForm = address == feedbackFormUrl
+        val label = if (isForm) "反馈表单链接" else "反馈邮箱"
+        val instructions = if (isForm) {
+            "无法打开浏览器。可以复制链接，在其他设备上填写反馈。"
+        } else {
+            "无法打开邮件应用。可以复制邮箱，用网页版邮箱发送反馈。"
+        }
         ConfirmDialog(
-            title = "反馈邮箱",
-            text = "无法打开邮件应用。可以复制邮箱，用网页版邮箱发送反馈。\n\n$FEEDBACK_EMAIL",
-            confirmLabel = "复制邮箱",
+            title = label,
+            text = "$instructions\n\n$address",
+            confirmLabel = if (isForm) "复制链接" else "复制邮箱",
             onConfirm = {
                 context.getSystemService(ClipboardManager::class.java)?.let { clipboard ->
-                    clipboard.setPrimaryClip(ClipData.newPlainText("反馈邮箱", FEEDBACK_EMAIL))
-                    showFeedbackAddress = false
+                    clipboard.setPrimaryClip(ClipData.newPlainText(label, address))
+                    feedbackToCopy = null
                     if (Build.VERSION.SDK_INT < 33) {
-                        Toast.makeText(context, "已复制反馈邮箱", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "已复制$label", Toast.LENGTH_SHORT).show()
                     }
                 }
             },
-            onDismiss = { showFeedbackAddress = false },
+            onDismiss = { feedbackToCopy = null },
         )
     }
 }

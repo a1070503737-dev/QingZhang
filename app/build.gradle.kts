@@ -16,6 +16,14 @@ val bundledUpdateToken = providers.gradleProperty("ledgerUpdateTokenFile").orNul
     }
 }.orEmpty()
 
+val feedbackFormUrl = providers.gradleProperty("qingzhangFeedbackFormUrl").orNull.orEmpty().trim().substringBefore('?')
+require(
+    feedbackFormUrl.isEmpty() ||
+        feedbackFormUrl.matches(Regex("""https://(?:docs\.google\.com/forms/d/(?:e/)?[A-Za-z0-9_-]+/viewform|forms\.gle/[A-Za-z0-9_-]+)/?""")),
+) {
+    "qingzhangFeedbackFormUrl must be a public Google Forms responder link"
+}
+
 android {
     namespace = "com.zhuangxiu.ledger"
     compileSdk = 37
@@ -24,9 +32,10 @@ android {
         applicationId = "com.zhuangxiu.ledger"
         minSdk = 26
         targetSdk = 37
-        versionCode = 42
-        versionName = "1.3.27"
+        versionCode = 43
+        versionName = "1.3.28"
         buildConfigField("String", "BUNDLED_GITHUB_TOKEN", "\"\"")
+        buildConfigField("String", "FEEDBACK_FORM_URL", "\"$feedbackFormUrl\"")
     }
 
     buildTypes {

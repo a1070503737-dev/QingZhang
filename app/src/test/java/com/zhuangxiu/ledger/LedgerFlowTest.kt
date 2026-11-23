@@ -103,7 +103,8 @@ class LedgerFlowTest {
     @Test fun feedbackOpensAnEmailDraftAndCanCopyTheAddressWithoutAMailApp() {
         awaitText("生活账本")
         settingsTab.performClick().assertIsSelected()
-        val feedback = compose.onNodeWithText("意见反馈").performScrollTo().assertIsDisplayed()
+        val emailLabel = if (BuildConfig.FEEDBACK_FORM_URL.isEmpty()) "意见反馈" else "邮件反馈"
+        val feedback = compose.onNodeWithText(emailLabel).performScrollTo().assertIsDisplayed()
         val shadow = Shadows.shadowOf(compose.activity)
         compose.runOnIdle { while (shadow.nextStartedActivity != null) { } }
         feedback.performClick()
