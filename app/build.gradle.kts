@@ -43,8 +43,8 @@ android {
         applicationId = "com.zhuangxiu.ledger"
         minSdk = 26
         targetSdk = 37
-        versionCode = 44
-        versionName = "1.3.29"
+        versionCode = 45
+        versionName = "1.3.30"
         buildConfigField("String", "BUNDLED_GITHUB_TOKEN", "\"\"")
         val feedbackSubmitUrl = if (feedbackFormUrl.isEmpty()) "" else feedbackFormUrl.removeSuffix("viewform") + "formResponse"
         buildConfigField("String", "FEEDBACK_SUBMIT_URL", "\"$feedbackSubmitUrl\"")
