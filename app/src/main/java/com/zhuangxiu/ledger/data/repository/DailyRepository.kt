@@ -21,11 +21,15 @@ class DailyRepository @Inject constructor(private val db: AppDatabase) {
     suspend fun categories() = dao.dailyCategories()
     suspend fun categoriesForBook(bookId: Long) = dao.usedCategories(bookId)
 
-    suspend fun save(entry: DailyEntryEntity, editing: Boolean) = db.withTransaction {
+    private fun validateEntry(entry: DailyEntryEntity) {
         require(entry.amountCents in 1..99_999_999_999L) { "请输入大于 0 且不超过 999,999,999.99 的金额" }
         require(entry.category.kind == entry.kind) { "分类与收支类型不匹配" }
         require(entry.minute in -1..1439 && LocalDate.ofEpochDay(entry.day).year in 1..9999) { "日期时间不正确" }
         require(entry.note.length <= 1000) { "备注最多 1000 字" }
+    }
+
+    suspend fun save(entry: DailyEntryEntity, editing: Boolean) = db.withTransaction {
+        validateEntry(entry)
         val book = requireNotNull(dao.book(entry.bookId)) { "账本不存在" }
         require(editing || !book.archived) { "请先恢复已归档的账本" }
         if (editing) {
@@ -36,6 +40,29 @@ class DailyRepository @Inject constructor(private val db: AppDatabase) {
             // 同一编辑会话的 UUID 不变，重复提交不会新增第二笔。
             dao.insert(entry)
         }
+    }
+
+    /** The whole reviewed batch either succeeds or asks for another confirmation. */
+    internal suspend fun saveReviewed(entries: List<DailyEntryEntity>, allowSimilar: Boolean): Boolean = db.withTransaction {
+        entries.forEach(::validateEntry)
+        val book = requireNotNull(dao.book(entries.first().bookId)) { "账本不存在" }
+        require(book.kind == BookKind.DAILY && !book.archived && entries.all { it.bookId == book.id }) {
+            "请选择可记账的日常账本"
+        }
+        val pending = entries.filter { entry ->
+            val previous = dao.get(entry.id)
+            require(previous == null || previous == entry) { "此记账请求已使用。请重新创建草稿。" }
+            previous == null
+        }
+        if (!allowSimilar) {
+            for ((day, group) in pending.groupBy { it.day }) {
+                val existing = dao.existing(book.id, day, day)
+                val keys = existing.map { Triple(it.kind, it.amountCents, it.displayCategory) }.toMutableSet()
+                if (group.any { !keys.add(Triple(it.kind, it.amountCents, it.displayCategory)) }) return@withTransaction false
+            }
+        }
+        pending.forEach { check(dao.insert(it) != -1L) }
+        true
     }
     suspend fun delete(id: String) { dao.delete(id) }
 

@@ -87,6 +87,7 @@ import com.zhuangxiu.ledger.ui.mine.MineScreen
 import com.zhuangxiu.ledger.ui.mine.ReminderScreen
 import com.zhuangxiu.ledger.ui.mine.UpdateScreen
 import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
+import com.zhuangxiu.ledger.ui.voice.VoiceEntryScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -362,7 +363,13 @@ internal fun LedgerNavHost(
                     navArgument("bookId") { type = NavType.LongType; defaultValue = 1L },
                     navArgument("entryId") { type = NavType.StringType; defaultValue = "" },
                 ),
-            ) { DailyEditScreen(onBack = back) }
+            ) { entry ->
+                val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
+                DailyEditScreen(onBack = back, onVoice = { navController.navigate(Routes.voiceEntry(bookId)) })
+            }
+            composable(Routes.VOICE_ENTRY, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) {
+                VoiceEntryScreen(onBack = back, onSaved = { navController.popBackStack(Routes.DAILY_EDIT, inclusive = true) })
+            }
             composable(Routes.BILLS, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) { entry ->
                 val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
                 val billsViewModel: BillsViewModel = hiltViewModel()

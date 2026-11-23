@@ -14,6 +14,8 @@ object Routes {
     const val BOOKS = "books"
     const val DAILY_EDIT = "daily-edit?bookId={bookId}&entryId={entryId}"
     fun dailyEdit(bookId: Long, entryId: String = "") = "daily-edit?bookId=$bookId&entryId=$entryId"
+    const val VOICE_ENTRY = "voice-entry/{bookId}"
+    fun voiceEntry(bookId: Long) = "voice-entry/$bookId"
 
     // 记账 / 编辑页：id 为 -1 表示新建；copyFrom 为某笔账单 id 时，新建并预填它的阶段、类型、商家
     const val EDIT = "edit?id={id}&copyFrom={copyFrom}&bookId={bookId}"

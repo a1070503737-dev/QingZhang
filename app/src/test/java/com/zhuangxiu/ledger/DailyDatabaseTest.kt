@@ -19,6 +19,8 @@ import org.robolectric.annotation.Config
 import java.io.File
 import com.zhuangxiu.ledger.importing.*
 import com.zhuangxiu.ledger.domain.DailyStatistics
+import com.zhuangxiu.ledger.domain.ChineseVoiceParser
+import com.zhuangxiu.ledger.domain.LedgerEntryService
 import java.time.YearMonth
 
 @RunWith(RobolectricTestRunner::class)
@@ -44,6 +46,23 @@ class DailyDatabaseTest {
         assertEquals(2088L, repo.get("test")!!.amountCents)
         assertEquals("午饭", repo.get("test")!!.note)
         repo.delete("test"); assertNull(repo.get("test"))
+    }
+
+    @Test fun reviewedBatchesAreAtomicAndRetrySafe() = runTest {
+        val ledger = LedgerEntryService(repo)
+        val day = java.time.LocalDate.of(2026, 11, 23)
+        val drafts = ChineseVoiceParser.parse("早餐8元，午饭25元", day)
+        assertTrue(ledger.save(1, "original", drafts, allowSimilar = false))
+        assertTrue(ledger.save(1, "original", drafts, allowSimilar = false))
+        assertFalse(ledger.save(1, "retry", drafts, allowSimilar = false))
+        assertEquals(2, db.dailyDao().all().size)
+        assertEquals(3300L, ledger.month(1, YearMonth.from(day)).totals.expense)
+        assertTrue(runCatching {
+            ledger.save(1, "invalid", listOf(drafts.first(), drafts.last().copy(amount = "")), allowSimilar = true)
+        }.isFailure)
+        assertEquals(2, db.dailyDao().all().size)
+        assertTrue(ledger.save(1, "retry", drafts, allowSimilar = true))
+        assertEquals(4, db.dailyDao().all().size)
     }
 
     @Test fun multiFileImportUsesOneBookAndTransactionWithSourceAwareDuplicates() = runTest {

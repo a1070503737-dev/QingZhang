@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -85,7 +86,7 @@ import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import java.time.LocalDate
 
 @Composable
-fun DailyEditScreen(onBack: () -> Unit, viewModel: DailyEditViewModel = hiltViewModel()) {
+fun DailyEditScreen(onBack: () -> Unit, viewModel: DailyEditViewModel = hiltViewModel(), onVoice: (() -> Unit)? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
@@ -105,6 +106,7 @@ fun DailyEditScreen(onBack: () -> Unit, viewModel: DailyEditViewModel = hiltView
         onKind = viewModel::kind,
         onSave = viewModel::save,
         onDelete = viewModel::delete,
+        onVoice = onVoice,
     )
 }
 
@@ -117,6 +119,7 @@ fun DailyEditContent(
     onKind: (EntryKind) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
+    onVoice: (() -> Unit)? = null,
 ) {
     var noteFocused by remember { mutableStateOf(false) }
     var datePicker by rememberSaveable { mutableStateOf(false) }
@@ -198,6 +201,11 @@ fun DailyEditContent(
             }
         },
         actions = {
+            if (!editing && !state.loading && !state.missing && onVoice != null) {
+                LedgerIconButton(onClick = onVoice, enabled = !state.busy) {
+                    Icon(Icons.Outlined.Mic, "语音记账")
+                }
+            }
             if (editing && !state.missing) {
                 LedgerIconButton(onClick = { deleteDialog = true }, enabled = !state.busy) {
                     Icon(Icons.Outlined.DeleteOutline, "删除账目")
