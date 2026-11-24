@@ -126,6 +126,10 @@ class LedgerFlowTest {
         awaitText("识别文字，也可直接输入")
         compose.onNodeWithText("识别文字，也可直接输入").performTextInput("早餐 8 元，午饭 25 元")
         compose.onNodeWithText("解析文字").performClick()
+        val reviewTitle = compose.onNodeWithText("核对记账草稿")
+        val top = reviewTitle.fetchSemanticsNode().boundsInRoot.top
+        compose.onNodeWithTag("voice-review-scroll").performTouchInput { swipeDown() }
+        assertEquals(top, reviewTitle.fetchSemanticsNode().boundsInRoot.top, 1f)
         compose.onNodeWithText("确认保存 2 笔").performScrollTo().performClick()
         compose.waitUntil(15_000) {
             compose.onAllNodesWithContentDescription("本月支出 ¥33.00").fetchSemanticsNodes().isNotEmpty()

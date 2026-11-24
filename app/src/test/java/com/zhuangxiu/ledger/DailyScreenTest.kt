@@ -52,6 +52,23 @@ import java.time.YearMonth
 class DailyScreenTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
+    @Test fun homeVoiceButtonScalesOnTouchDownAndSettlesOnRelease() {
+        compose.setContent {
+            RenovationLedgerTheme {
+                HoldToTalkButton(VoiceCapture.Idle, onHold = {}, onEnd = {}, onTap = {})
+            }
+        }
+        val label = compose.onNodeWithText("ai 记账", useUnmergedTree = true)
+        val idleWidth = label.fetchSemanticsNode().boundsInRoot.width
+        compose.mainClock.autoAdvance = false
+        label.performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(160)
+        assertTrue(label.fetchSemanticsNode().boundsInRoot.width > idleWidth * 1.03f)
+        label.performTouchInput { up() }
+        compose.mainClock.advanceTimeBy(220)
+        assertEquals(idleWidth, label.fetchSemanticsNode().boundsInRoot.width, 0.5f)
+    }
+
     @Test fun homeVoiceHoldStartsBeforeReleaseAndDoesNotOpenManualInput() {
         val events = mutableListOf<String>()
         compose.setContent {

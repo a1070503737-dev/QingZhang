@@ -5,12 +5,16 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Mic
@@ -27,9 +31,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
@@ -37,6 +43,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -158,6 +165,19 @@ internal fun HoldToTalkButton(
     val end by rememberUpdatedState(onEnd)
     val tap by rememberUpdatedState(onTap)
     val colors = MaterialTheme.colorScheme
+    var pressed by remember { mutableStateOf(false) }
+    val active = pressed && capture != VoiceCapture.Recognizing
+    val contentColor = if (active) colors.onSecondaryContainer else colors.onPrimaryContainer
+    val scale by animateFloatAsState(
+        targetValue = when {
+            !active -> 1f
+            capture == VoiceCapture.Recording -> 1.09f
+            else -> 1.055f
+        },
+        animationSpec = tween(if (active) 115 else 155, easing = FastOutSlowInEasing),
+        label = "Voice button press",
+    )
+    val labelWidth = with(LocalDensity.current) { 80.sp.toDp() }
     LedgerPanel(
         modifier = Modifier
             .heightIn(min = 54.dp)
@@ -168,27 +188,38 @@ internal fun HoldToTalkButton(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
+                        pressed = true
                         var released = false
-                        try { released = tryAwaitRelease() } finally { end(released) }
+                        try {
+                            released = tryAwaitRelease()
+                        } finally {
+                            pressed = false
+                            end(released)
+                        }
                     },
                     onLongPress = { start() },
                     onTap = { tap() },
                 )
+            }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
             },
         shape = RoundedCornerShape(16.dp),
-        variant = SurfaceTone.Accent(colors.primaryContainer),
+        variant = SurfaceTone.Accent(if (active) colors.secondaryContainer else colors.primaryContainer),
     ) {
         Row(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.Mic, null, tint = colors.onPrimaryContainer)
+            Icon(Icons.Outlined.Mic, null, tint = contentColor)
             Spacer(Modifier.width(8.dp))
             Text(
                 when (capture) {
                     VoiceCapture.Idle -> "ai 记账"
-                    VoiceCapture.Starting -> "正在启动麦克风…"
+                    VoiceCapture.Starting -> "准备录音…"
                     VoiceCapture.Recording -> "松手识别"
                     VoiceCapture.Recognizing -> "正在识别…"
                 },
-                color = colors.onPrimaryContainer,
+                modifier = Modifier.widthIn(min = labelWidth),
+                color = contentColor,
                 fontWeight = FontWeight.SemiBold,
             )
         }

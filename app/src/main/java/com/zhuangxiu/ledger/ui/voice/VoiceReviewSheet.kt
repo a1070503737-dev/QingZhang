@@ -5,31 +5,39 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.zhuangxiu.ledger.data.db.DailyCategory
@@ -47,6 +55,7 @@ import com.zhuangxiu.ledger.ui.components.LedgerChip
 internal fun VoiceReviewSheet(state: VoiceEntryState, model: VoiceEntryViewModel) {
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
+    val canDismiss by rememberUpdatedState(!state.busy)
     LaunchedEffect(state.complete) {
         if (state.complete) {
             haptics.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -56,39 +65,60 @@ internal fun VoiceReviewSheet(state: VoiceEntryState, model: VoiceEntryViewModel
     }
     ModalBottomSheet(
         onDismissRequest = model::dismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !state.busy }),
+        modifier = Modifier.fillMaxHeight(0.94f),
+        sheetState = rememberModalBottomSheetState(
+            skipPartiallyExpanded = true,
+            confirmValueChange = remember { { _: SheetValue -> canDismiss } },
+        ),
+        sheetGesturesEnabled = false,
+        dragHandle = null,
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(
-            Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            val bookName = state.bookName
-            if (bookName != null) {
+        Column(Modifier.fillMaxWidth().imePadding()) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
                 Text("核对记账草稿", style = MaterialTheme.typography.titleLarge)
-                Text("账本 · $bookName", style = MaterialTheme.typography.labelLarge)
-                OutlinedTextField(
-                    value = state.text,
-                    onValueChange = model::text,
-                    label = { Text("识别文字，也可直接输入") },
-                    placeholder = { Text("早餐 8 元，午饭 25 元") },
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                LedgerButton(onClick = model::parse, enabled = state.text.isNotBlank() && !state.busy) {
-                    Text("解析文字")
-                }
-                state.drafts.forEachIndexed { index, draft ->
-                    ReviewEntry(index + 1, draft, enabled = !state.busy,
-                        onChange = { change -> model.edit(index, change) }, onRemove = { model.remove(index) })
-                }
-                if (state.drafts.isNotEmpty()) {
-                    LedgerButton(
-                        onClick = { model.save() }, enabled = state.canSave, modifier = Modifier.fillMaxWidth(),
-                    ) { Text(if (state.busy) "正在保存…" else "确认保存 ${state.drafts.size} 笔") }
+                IconButton(onClick = model::dismiss, enabled = canDismiss) {
+                    Icon(Icons.Outlined.Close, contentDescription = "关闭记账草稿")
                 }
             }
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .testTag("voice-review-scroll")
+                    .verticalScroll(rememberScrollState(), overscrollEffect = null)
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                state.bookName?.let { bookName ->
+                    Text("账本 · $bookName", style = MaterialTheme.typography.labelLarge)
+                    OutlinedTextField(
+                        value = state.text,
+                        onValueChange = model::text,
+                        label = { Text("识别文字，也可直接输入") },
+                        placeholder = { Text("早餐 8 元，午饭 25 元") },
+                        enabled = !state.busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    LedgerButton(onClick = model::parse, enabled = state.text.isNotBlank() && !state.busy) {
+                        Text("解析文字")
+                    }
+                    state.drafts.forEachIndexed { index, draft ->
+                        ReviewEntry(index + 1, draft, enabled = !state.busy,
+                            onChange = { change -> model.edit(index, change) }, onRemove = { model.remove(index) })
+                    }
+                    if (state.drafts.isNotEmpty()) {
+                        LedgerButton(
+                            onClick = { model.save() }, enabled = state.canSave, modifier = Modifier.fillMaxWidth(),
+                        ) { Text(if (state.busy) "正在保存…" else "确认保存 ${state.drafts.size} 笔") }
+                    }
+                }
+                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
         }
     }
     if (state.confirmSimilar) {
