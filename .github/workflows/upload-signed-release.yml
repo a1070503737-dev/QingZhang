@@ -1,0 +1,65 @@
+name: Upload signed QingZhang release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing draft release tag
+        required: true
+        type: string
+      payload_commit:
+        description: Commit containing the verified release files
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release inputs
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PAYLOAD_COMMIT: ${{ inputs.payload_commit }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$PAYLOAD_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.payload_commit }}
+          persist-credentials: false
+
+      - name: Verify and attach the signed APK and update manifest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          apk="renovation-ledger-$version-signed.apk"
+          checksums="SHA256SUMS-$version.txt"
+          python3 - "$version" "$apk" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          version, name = sys.argv[1:]
+          file = Path(name)
+          manifest = json.loads(Path("update.json").read_text(encoding="utf-8"))
+          assert manifest["schemaVersion"] == 1
+          assert manifest["packageName"] == "com.zhuangxiu.ledger"
+          assert manifest["versionName"] == version
+          assert manifest["apk"]["fileName"] == name
+          assert manifest["apk"]["size"] == file.stat().st_size
+          assert hashlib.file_digest(file.open("rb"), "sha256").hexdigest() == manifest["apk"]["sha256"]
+          PY
+          cp "$apk" renovation-ledger-latest.apk
+          sha256sum -c "$checksums"
+          [[ "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" == true ]]
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" "$apk" \
+            renovation-ledger-latest.apk update.json "$checksums"
