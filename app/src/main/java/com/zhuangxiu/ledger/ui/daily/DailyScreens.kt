@@ -56,6 +56,7 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Replay
@@ -348,36 +349,57 @@ fun DailyHomeScreen(
     readOnly: Boolean = false,
     archivedBookIds: Set<Long> = emptySet(),
     onDelete: ((String) -> Unit)? = null,
+    onVoice: (() -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     var addButtonHeight by remember { mutableIntStateOf(0) }
-    val showAdd = canAdd && WindowInsets.ime.getBottom(density) == 0
+    val showEntryActions = (canAdd || onVoice != null) && WindowInsets.ime.getBottom(density) == 0
     LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = header,
             bottomBar = bottomBar,
             floatingActionButton = {
-                if (showAdd) {
-                    LedgerButton(
-                        onClick = onAdd,
-                        hapticFeedback = HapticFeedbackType.SegmentTick,
-                        prominent = false,
-                        shape = RoundedCornerShape(16.dp),
+                if (showEntryActions) {
+                    FlowRow(
                         modifier = Modifier.onSizeChanged { addButtonHeight = it.height },
-                        minHeight = 54.dp,
-                        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(Icons.Outlined.Add, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("记一笔", fontWeight = FontWeight.SemiBold)
+                        if (onVoice != null) {
+                            LedgerButton(
+                                onClick = onVoice,
+                                hapticFeedback = HapticFeedbackType.SegmentTick,
+                                shape = RoundedCornerShape(16.dp),
+                                minHeight = 54.dp,
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+                            ) {
+                                Icon(Icons.Outlined.Mic, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("ai 记账", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        if (canAdd) {
+                            LedgerButton(
+                                onClick = onAdd,
+                                hapticFeedback = HapticFeedbackType.SegmentTick,
+                                prominent = false,
+                                shape = RoundedCornerShape(16.dp),
+                                minHeight = 54.dp,
+                                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
+                            ) {
+                                Icon(Icons.Outlined.Add, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("记一笔", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
                 }
             },
         ) { padding ->
-            val bottomClearance = if (showAdd) {
+            val bottomClearance = if (showEntryActions) {
                 with(density) { addButtonHeight.toDp() }.coerceAtLeast(54.dp) + 32.dp
             } else {
                 24.dp

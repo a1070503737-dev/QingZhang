@@ -2,3 +2,7 @@
 # 保留崩溃堆栈的行号，方便排查问题
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# Vosk uses JNA direct native method registration.
+-keep class org.vosk.LibVosk { *; }
+-keep class com.sun.jna.** { *; }

@@ -1,6 +1,7 @@
 package com.zhuangxiu.ledger
 
 import android.graphics.Bitmap
+import android.Manifest
 import android.app.Activity
 import android.content.ClipData
 import android.content.Intent
@@ -119,9 +120,8 @@ class LedgerFlowTest {
 
     @Test fun voiceEntryTextFallbackSavesTwoReviewedEntriesToTheHomeLedger() {
         awaitText("生活账本")
-        compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
-        awaitText("账本 · 生活账本")
-        compose.onNodeWithContentDescription("语音记账").performClick()
+        compose.runOnIdle { Shadows.shadowOf(compose.activity.application).denyPermissions(Manifest.permission.RECORD_AUDIO) }
+        compose.onNodeWithText("ai 记账").performClick()
         awaitText("识别文字，也可直接输入")
         compose.onNodeWithText("识别文字，也可直接输入").performTextInput("早餐 8 元，午饭 25 元")
         compose.onNodeWithText("解析文字").performClick()
@@ -131,13 +131,11 @@ class LedgerFlowTest {
         }
     }
 
-    @Test fun devicesWithoutAppFunctionsCanStillUseSettings() {
+    @Test fun settingsShowsOnlyInAppFeatures() {
         awaitText("生活账本")
         settingsTab.performClick().assertIsSelected()
-        compose.onNodeWithText("系统助手").performScrollTo().performClick()
-        compose.onNodeWithText("这台设备暂不支持 Android AppFunctions。").assertIsDisplayed()
-        compose.onNodeWithContentDescription("返回").performClick()
-        settingsTab.assertIsSelected()
+        compose.onNodeWithText("系统助手").assertDoesNotExist()
+        compose.onNodeWithText("意见反馈").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun recordRenovationDepositFromHomeThenOpenPendingAndNavigateTabs() {

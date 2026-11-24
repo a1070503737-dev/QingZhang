@@ -59,7 +59,7 @@ class DailyDatabaseTest {
         }.isFailure)
         assertFalse(ledger.save(1, "retry", drafts, allowSimilar = false))
         assertEquals(2, db.dailyDao().all().size)
-        assertEquals(3300L, ledger.month(1, YearMonth.from(day)).totals.expense)
+        assertEquals(3300L, DailyStatistics.calculate(db.dailyDao().all(), 1, YearMonth.from(day)).totals.expense)
         assertTrue(runCatching {
             ledger.save(1, "invalid", listOf(drafts.first(), drafts.last().copy(amount = "")), allowSimilar = true)
         }.isFailure)

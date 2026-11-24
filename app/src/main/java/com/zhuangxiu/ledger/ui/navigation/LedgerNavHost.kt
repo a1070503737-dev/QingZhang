@@ -59,7 +59,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.zhuangxiu.ledger.LedgerShortcut
-import com.zhuangxiu.ledger.assistant.AssistantAccessScreen
 import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.data.db.BookKind
 import com.zhuangxiu.ledger.ui.bills.BillsScreen
@@ -89,6 +88,8 @@ import com.zhuangxiu.ledger.ui.mine.ReminderScreen
 import com.zhuangxiu.ledger.ui.mine.UpdateScreen
 import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
 import com.zhuangxiu.ledger.ui.voice.VoiceEntryScreen
+
+private enum class EntryBookPicker { Manual, Voice }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,19 +150,29 @@ internal fun LedgerNavHost(
         )
     }
 
-    var pickQuickBook by rememberSaveable { mutableStateOf(false) }
+    var entryBookPicker by rememberSaveable { mutableStateOf<EntryBookPicker?>(null) }
     val currentActiveBook = bookState.selected?.takeUnless { it.archived || bookState.all }
     val activeBooks = bookState.books.filterNot { it.archived }
+    val activeDailyBooks = activeBooks.filter { it.kind == BookKind.DAILY }
+    val addVoiceEntry: (BookEntity) -> Unit = { book ->
+        navController.navigate(Routes.voiceEntry(book.id)) { launchSingleTop = true }
+    }
     val openQuickEntry: () -> Unit = {
         when {
             currentActiveBook != null -> addToBook(currentActiveBook)
-            activeBooks.isNotEmpty() -> pickQuickBook = true
+            activeBooks.isNotEmpty() -> entryBookPicker = EntryBookPicker.Manual
             else -> switchTab(Routes.BOOKS)
         }
     }
-    if (pickQuickBook) {
+    val openVoiceEntry: () -> Unit = {
+        val target = currentActiveBook?.takeIf { it.kind == BookKind.DAILY } ?: activeDailyBooks.singleOrNull()
+        if (target != null) addVoiceEntry(target)
+        else if (activeDailyBooks.isNotEmpty()) entryBookPicker = EntryBookPicker.Voice
+    }
+    entryBookPicker?.let { picker ->
+        val books = if (picker == EntryBookPicker.Voice) activeDailyBooks else activeBooks
         ModalBottomSheet(
-            onDismissRequest = { pickQuickBook = false },
+            onDismissRequest = { entryBookPicker = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -171,14 +182,14 @@ internal fun LedgerNavHost(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text("记到哪个账本？", style = MaterialTheme.typography.titleLarge)
-                activeBooks.forEach { book ->
+                books.forEach { book ->
                     LedgerPanel(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
                         variant = SurfaceTone.Flat,
                         onClick = {
-                            pickQuickBook = false
-                            addToBook(book)
+                            entryBookPicker = null
+                            if (picker == EntryBookPicker.Voice) addVoiceEntry(book) else addToBook(book)
                         },
                     ) {
                         Row(
@@ -196,7 +207,7 @@ internal fun LedgerNavHost(
                     }
                 }
                 LedgerButton(
-                    onClick = { pickQuickBook = false },
+                    onClick = { entryBookPicker = null },
                     prominent = false,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("取消") }
@@ -219,7 +230,7 @@ internal fun LedgerNavHost(
                 openQuickEntry()
             }
             LedgerShortcut.STATISTICS -> {
-                pickQuickBook = false
+                entryBookPicker = null
                 if (isTabHost(currentRoute)) {
                     switchTab(Routes.STATS)
                 } else {
@@ -281,6 +292,7 @@ internal fun LedgerNavHost(
                                     dailyViewModel::month,
                                     dailyViewModel::currentMonth,
                                     onAdd = openQuickEntry,
+                                    onVoice = openVoiceEntry.takeIf { activeDailyBooks.isNotEmpty() },
                                     onEdit = openEntryEdit,
                                     onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
                                     bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
@@ -364,12 +376,9 @@ internal fun LedgerNavHost(
                     navArgument("bookId") { type = NavType.LongType; defaultValue = 1L },
                     navArgument("entryId") { type = NavType.StringType; defaultValue = "" },
                 ),
-            ) { entry ->
-                val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
-                DailyEditScreen(onBack = back, onVoice = { navController.navigate(Routes.voiceEntry(bookId)) })
-            }
+            ) { DailyEditScreen(onBack = back) }
             composable(Routes.VOICE_ENTRY, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) {
-                VoiceEntryScreen(onBack = back, onSaved = { navController.popBackStack(Routes.DAILY_EDIT, inclusive = true) })
+                VoiceEntryScreen(onBack = back, onSaved = back)
             }
             composable(Routes.BILLS, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) { entry ->
                 val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
@@ -428,7 +437,6 @@ internal fun LedgerNavHost(
             }
             composable(Routes.IMPORT) { ImportScreen(onBack = back) }
             composable(Routes.FEEDBACK) { FeedbackScreen(onBack = back) }
-            composable(Routes.ASSISTANT) { AssistantAccessScreen(onBack = back) }
             composable(Routes.REMINDER) { ReminderScreen(onBack = back) }
             composable(Routes.UPDATE) { UpdateScreen(onBack = back) }
         }

@@ -62,7 +62,7 @@ internal fun VoiceEntryScreen(
         }
     }
     BackHandler(state.busy) {}
-    SubPageScaffold(title = "语音记账", onBack = { if (!state.busy) onBack() }) { modifier ->
+    SubPageScaffold(title = "ai 记账", onBack = { if (!state.busy) onBack() }) { modifier ->
         Column(
             modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -72,7 +72,7 @@ internal fun VoiceEntryScreen(
             if (bookName != null) {
                 Text("账本 · $bookName", style = MaterialTheme.typography.labelLarge)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DeviceSpeechButton(enabled = !state.busy, onText = model::recognized, onError = { speechIssue = it })
+                    LocalSpeechButton(enabled = !state.busy, onText = model::recognized, onError = { speechIssue = it })
                 }
                 speechIssue?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 OutlinedTextField(

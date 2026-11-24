@@ -6,8 +6,6 @@ import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.data.repository.DailyRepository
 import com.zhuangxiu.ledger.util.Money
 import java.time.LocalDate
-import java.time.YearMonth
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 internal class LedgerEntryService @Inject constructor(private val repository: DailyRepository) {
@@ -19,8 +17,6 @@ internal class LedgerEntryService @Inject constructor(private val repository: Da
     suspend fun writableBook(bookId: Long) = requireNotNull(repository.book(bookId)?.takeIf {
         it.kind == BookKind.DAILY && !it.archived
     }) { "请选择可记账的日常账本" }
-
-    suspend fun book(bookId: Long) = requireNotNull(repository.book(bookId)) { "账本不存在" }
 
     suspend fun save(bookId: Long, requestId: String, drafts: List<EntryDraft>, allowSimilar: Boolean): Boolean {
         require(requestId.matches(Regex("[A-Za-z0-9-]{1,100}"))) { "记账请求编号无效" }
@@ -36,11 +32,6 @@ internal class LedgerEntryService @Inject constructor(private val repository: Da
         return repository.saveReviewed(entries, allowSimilar)
     }
 
-    suspend fun month(bookId: Long, month: YearMonth): DailySummary {
-        book(bookId)
-        val records = repository.observeActual(bookId, month.atDay(1).toEpochDay(), month.plusMonths(1).atDay(1).toEpochDay()).first()
-        return DailyStatistics.calculate(records, bookId, month)
-    }
 }
 
 internal fun parseEntryDate(text: String): LocalDate? =

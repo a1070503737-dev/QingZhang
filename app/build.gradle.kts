@@ -80,6 +80,19 @@ android {
         buildConfig = true
     }
 
+    androidResources {
+        noCompress += "zip"
+    }
+
+    packaging {
+        // JNA ships these legacy ABIs without a matching Vosk engine.
+        jniLibs.excludes += setOf(
+            "**/armeabi/libjnidispatch.so",
+            "**/mips/libjnidispatch.so",
+            "**/mips64/libjnidispatch.so",
+        )
+    }
+
     testOptions {
         // Robolectric 需要读取 Android 资源
         unitTests.isIncludeAndroidResources = true
@@ -109,8 +122,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.hilt.navigation.compose)
-    implementation(libs.androidx.appfunctions)
-    ksp(libs.androidx.appfunctions.compiler)
+    implementation("com.alphacephei:vosk-android:0.3.75@aar")
+    implementation("net.java.dev.jna:jna:5.18.1@aar")
 
     // Compose + Material 3
     implementation(platform(libs.compose.bom))

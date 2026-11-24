@@ -98,7 +98,7 @@ tools/              # 更新清单生成与校验脚本
 
 - [Google Drive 备份配置](docs/GOOGLE-DRIVE-BACKUP.md)
 - [匿名反馈配置](docs/ANONYMOUS-FEEDBACK.md)
-- [语音记账、ADB 测试与 Gemini 开发者预览](docs/VOICE-APPFUNCTIONS.md)
+- [ai 记账与内置语音模型](docs/VOICE-ENTRY.md)
 - [鲨鱼记账导入与迁移说明（历史版本资料）](docs/QINGZHANG-1.2.0.md)
 - [公开发行版更新方案（历史技术说明）](docs/UPDATE-1.0.8.md)
 

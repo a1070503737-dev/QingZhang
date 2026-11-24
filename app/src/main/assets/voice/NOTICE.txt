@@ -1,0 +1,14 @@
+Vosk API for Android (com.alphacephei:vosk-android:0.3.75)
+Copyright Alpha Cephei Inc. and contributors
+Licensed under the Apache License, Version 2.0.
+Source: https://github.com/alphacep/vosk-api
+
+Vosk small Chinese speech recognition model (vosk-model-small-cn-0.22)
+Copyright Alpha Cephei Inc. and contributors
+Licensed under the Apache License, Version 2.0 and redistributed without modification.
+Source: https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip
+
+Java Native Access (net.java.dev.jna:jna:5.18.1)
+Copyright its respective contributors.
+Distributed under the Apache License, Version 2.0 option.
+Source: https://github.com/java-native-access/jna

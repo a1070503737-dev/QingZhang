@@ -1,3 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<AppFunctionAppMetadata xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions"
-    appfn:instructions="QingZhang is a private ledger. Its functions open an on-device draft for confirmation or open a ledger and monthly statistics for the user to view in the app. An open draft does not mean anything has been saved." />

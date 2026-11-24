@@ -20,6 +20,9 @@ internal fun interface VoiceTextParser {
     fun parse(transcript: String, today: LocalDate): List<EntryDraft>
 }
 
+private val chineseWordGap = Regex("(?<=[\\u3400-\\u9fff])\\s+(?=[\\u3400-\\u9fff])")
+internal fun compactChineseSpeech(text: String): String = chineseWordGap.replace(text, "")
+
 internal object ChineseVoiceParser : VoiceTextParser {
     private const val CHINESE_DIGITS = "零一二三四五六七八九"
     private const val CHINESE_NUMBER = "零〇一二两三四五六七八九十百千万亿"
@@ -30,6 +33,7 @@ internal object ChineseVoiceParser : VoiceTextParser {
     private val datePattern = Regex("(?:[0-9]{4}年)?[0-9]{1,2}月[0-9]{1,2}[日号]?|[0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2}|大前天|前天|昨天|昨日|今天|今日|明天|[0-9]{1,4}天前")
     private val incomeWords = listOf("收入", "到账", "收到", "赚了", "发了", "报销", "退回", "进账")
     private val expenseWords = listOf("支出", "花了", "花费", "支付", "买了", "付款", "缴费", "消费", "付了")
+    private val totalWords = listOf("一共", "合计", "总计", "共计", "总共", "单价")
     private val categories = linkedMapOf(
         DailyCategory.SALARY to listOf("工资", "薪水", "薪资"),
         DailyCategory.BONUS to listOf("奖金", "年终奖"),
@@ -47,10 +51,10 @@ internal object ChineseVoiceParser : VoiceTextParser {
     )
 
     override fun parse(transcript: String, today: LocalDate): List<EntryDraft> {
-        val normalized = Normalizer.normalize(transcript, Normalizer.Form.NFKC)
+        val normalized = Normalizer.normalize(compactChineseSpeech(transcript), Normalizer.Form.NFKC)
             .replace(Regex("(?<=\\d),(?=\\d{3}(?:[,.\\s元块圆]|$))"), "")
         var date = today.toString()
-        return clauses.split(normalized).mapNotNull { part ->
+        return clauses.split(normalized).flatMap(::splitSpokenItems).mapNotNull { part ->
             if (part.isBlank()) return@mapNotNull null
             val dates = datePattern.findAll(part).toList()
             if (dates.isNotEmpty()) date = dates.singleOrNull()?.let { parseDate(it.value, today)?.toString() }.orEmpty()
@@ -77,6 +81,23 @@ internal object ChineseVoiceParser : VoiceTextParser {
             val category = candidates.filter { it.kind == kind }.singleOrNull()
             EntryDraft(kind, amount, date, category, memo)
         }
+    }
+
+    private fun splitSpokenItems(line: String): List<String> {
+        val amounts = money.findAll(line).toList()
+        if (amounts.size < 2 || totalWords.any { it in line }) return listOf(line)
+
+        val cues = categories.values.flatten() + incomeWords + expenseWords
+        val boundaries = amounts.zipWithNext { first, second ->
+            val boundary = first.range.last + 1
+            val gap = line.substring(boundary, second.range.first).trim()
+            // A fresh item name is needed before splitting two adjacent amounts.
+            if (cues.none { it in gap } || gap.firstOrNull()?.let { it.isDigit() || it in CHINESE_NUMBER } == true) {
+                return listOf(line)
+            }
+            boundary
+        }
+        return (listOf(0) + boundaries + line.length).zipWithNext { start, end -> line.substring(start, end) }
     }
 
     private fun parseAmount(raw: String): String? {

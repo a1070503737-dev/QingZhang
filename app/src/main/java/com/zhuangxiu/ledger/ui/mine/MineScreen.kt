@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Feedback
-import androidx.compose.material.icons.outlined.Assistant
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.SettingsBackupRestore
@@ -56,7 +55,6 @@ private val APP_ENTRIES = listOf(
     MineEntry(Icons.Outlined.NotificationsNone, "提醒设置", "待付款到期提醒、预算预警", Routes.REMINDER),
     MineEntry(Icons.Outlined.SystemUpdate, "检查更新", "当前版本 ${BuildConfig.VERSION_NAME}", Routes.UPDATE),
     MineEntry(Icons.Outlined.Feedback, "意见反馈", "匿名填写，联系方式选填", Routes.FEEDBACK),
-    MineEntry(Icons.Outlined.Assistant, "系统助手", "管理 Android AppFunctions 调用权限", Routes.ASSISTANT),
 )
 
 @Composable

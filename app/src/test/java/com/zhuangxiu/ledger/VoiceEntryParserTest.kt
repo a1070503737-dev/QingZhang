@@ -31,9 +31,16 @@ class VoiceEntryParserTest {
     @Test fun ambiguousDetailsStayIncomplete() {
         assertNull(ChineseVoiceParser.parse("十八元", today).single().kind)
         assertEquals("", ChineseVoiceParser.parse("早餐8块5", today).single().amount)
-        assertEquals("", ChineseVoiceParser.parse("早餐8元午饭25元", today).single().amount)
+        assertEquals("", ChineseVoiceParser.parse("早餐8元25元", today).single().amount)
+        assertEquals("", ChineseVoiceParser.parse("早餐8元午饭25元合计33元", today).single().amount)
         assertEquals("", ChineseVoiceParser.parse("2月30日早餐8元", today).single().date)
         assertEquals("", ChineseVoiceParser.parse("公交-8元", today).single().amount)
         assertEquals("", ChineseVoiceParser.parse("打车一百二元", today).single().amount)
+    }
+
+    @Test fun offlineTokensCanSeparateMealsWithoutPunctuation() {
+        val drafts = ChineseVoiceParser.parse("早 餐 八 元 午 饭 二 十 五 元", today)
+        assertEquals(listOf("8", "25"), drafts.map { it.amount })
+        assertEquals(listOf("早餐", "午饭"), drafts.map { it.note })
     }
 }
