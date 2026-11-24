@@ -31,10 +31,17 @@ internal object ChineseVoiceParser : VoiceTextParser {
     private val clauses = Regex("[，,；;。！？!？、\\n]+|然后|还有")
     private val money = Regex("(?<![0-9.])(?:¥\\s*[+负-]?$NUMBER|[+负-]?$NUMBER\\s*[元块圆])")
     private val plainAmount = Regex("(?<![0-9.])[+负-]?[0-9]+(?:\\.[0-9]+)?(?![0-9.])")
-    private val datePattern = Regex("(?:[0-9]{4}年)?[0-9]{1,2}月[0-9]{1,2}[日号]?|[0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2}|大前天|前天|昨天|昨日|今天|今日|明天|[0-9]{1,4}天前")
+    private val datePattern = Regex("(?:[0-9]{4}年)?[0-9]{1,2}月[0-9]{1,2}[日号]?|[0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2}|大前天|前天|昨天|昨日|昨晚|昨夜|今早|今晚|今天|今日|明晚|明天|[0-9]{1,4}天前")
     private val incomeWords = listOf("收入", "到账", "收到", "赚了", "发了", "报销", "退回", "进账")
-    private val expenseWords = listOf("支出", "花了", "花费", "支付", "买了", "付款", "缴费", "消费", "付了")
-    private val totalWords = listOf("一共", "合计", "总计", "共计", "总共", "单价")
+    private val amountWords = listOf("支出", "花了", "花费", "支付", "付款", "缴费", "消费", "付了", "实付")
+    private val mealActions = listOf("吃了", "吃个", "吃点", "吃顿", "吃碗", "吃份", "喝了", "喝杯")
+    private val purchaseActions = listOf("买了", "买个", "买一", "买点", "买件", "买东西", "入手", "下单", "购入", "购买")
+    private val mealContext = Regex("(?:^|我|早上|中午|晚上|夜里|刚才|刚刚|去)(?:在家|又|刚)?[吃喝](?!药|苦|亏|土)")
+    private val purchaseContext = Regex("(?:^|我|早上|中午|晚上|刚才|刚刚|又|去)买(?!单|不起|家|卖|方)")
+    private val kitchenGoods = Regex("(?:咖啡|奶茶|面包|水果|火锅)(?:机|杯|壶|锅|刀|架|模具|滤纸|滤杯|色)")
+    private val totalWords = listOf("一共", "合计", "总计", "共计", "总共", "单价", "其中", "包含")
+    private val quantity = Regex("^\\s*(?:个|件|杯|碗|盘|包|袋|份|盒|瓶|张|台|只|双|本|条|套|斤|公斤|克|升|次|天|小时|分钟|公里|寸|号)")
+    private val unconfirmed = Regex("(?:没(?:有)?|还没|不|打算|准备|计划|想|要不要)(?:去)?(?:买|吃|喝|花|付|支付|下单)")
     private val approximate = Regex(
         "大概|大约|大致|差不多|左右|上下|不到|将近|几[十百千元块圆]|[十百千万]几|" +
             "[0-9$CHINESE_NUMBER][多来](?=\\s*[元块圆]|\\s*$)|[元块圆]\\s*(?:多|出头)|" +
@@ -48,16 +55,22 @@ internal object ChineseVoiceParser : VoiceTextParser {
         DailyCategory.SIDE_JOB to listOf("兼职", "稿费"),
         DailyCategory.GIFT to listOf("红包"),
         DailyCategory.REFUND to listOf("退款", "退回"),
-        DailyCategory.FOOD to listOf("餐饮", "早餐", "早饭", "午饭", "午餐", "中饭", "晚饭", "晚餐", "吃饭", "餐费", "外卖", "咖啡", "拿铁", "奶茶", "买菜", "加餐"),
-        DailyCategory.TRANSPORT to listOf("公交", "地铁", "打车", "车费", "交通", "停车", "加油"),
+        DailyCategory.FOOD to listOf(
+            "餐饮", "早餐", "早饭", "午饭", "午餐", "中饭", "晚饭", "晚餐", "夜宵",
+            "吃饭",
+            "餐费", "外卖", "咖啡", "拿铁", "奶茶", "买菜", "加餐",
+            "烧烤", "火锅", "炸鸡", "汉堡", "面条", "米粉", "寿司", "蛋糕", "面包", "水果",
+        ) + mealActions,
+        DailyCategory.TRANSPORT to listOf("公交", "地铁", "打车", "车费", "交通", "停车", "加油", "火车票", "机票", "网约车"),
         DailyCategory.HOME to listOf("住房", "房租", "租金", "物业"),
         DailyCategory.UTILITIES to listOf("水费", "电费", "燃气", "生活缴费"),
-        DailyCategory.HEALTH to listOf("医疗", "看病", "挂号", "买药"),
+        DailyCategory.HEALTH to listOf("医疗", "看病", "挂号", "买药", "买了药", "吃药", "药店", "处方药"),
         DailyCategory.PHONE to listOf("话费", "通讯", "流量"),
         DailyCategory.FUN to listOf("娱乐", "电影", "游戏", "门票"),
-        DailyCategory.SHOPPING to listOf("购物", "买衣服", "超市", "网购"),
+        DailyCategory.SHOPPING to (listOf("购物", "买衣服", "超市", "网购") + purchaseActions),
     )
-    private val itemCues = categories.values.flatten() + incomeWords + expenseWords
+    private val itemCues = categories.values.flatten() + incomeWords + amountWords
+    private val bareAmountPrefixes = itemCues - (mealActions + purchaseActions).toSet() + totalWords
     private val nextItem = itemCues.joinToString("|")
     private val amountAtItemEnd = Regex(
         "(?<![0-9.$CHINESE_NUMBER])[+负-]?$NUMBER(?=\\s*(?:$|$nextItem))",
@@ -81,23 +94,30 @@ internal object ChineseVoiceParser : VoiceTextParser {
             if (dates.isNotEmpty()) date = dates.singleOrNull()?.let { parseDate(it.value, today)?.toString() }.orEmpty()
             val line = datePattern.replace(part, "").trim()
             if (line.isEmpty()) return@mapNotNull null
+            if (unconfirmed.containsMatchIn(line)) return@mapNotNull EntryDraft(date = date, note = line)
 
             val explicit = money.findAll(line).toList()
-            val bare = plainAmount.findAll(line).toList() + listOfNotNull(
-                bareChineseAmount.find(line)?.takeIf { number ->
-                    itemCues.any { it in line.substring(0, number.range.first) }
-                },
-            )
-            val amountMatch = if (explicit.isNotEmpty()) explicit.singleOrNull() else bare.singleOrNull()
+            val amountMatch = if (explicit.isNotEmpty()) explicit.singleOrNull() else {
+                (plainAmount.findAll(line) + listOfNotNull(bareChineseAmount.find(line)))
+                    .filter { isBareAmount(line, it) }.singleOrNull()
+            }
             val trailing = amountMatch?.let { line.substring(it.range.last + 1) }.orEmpty()
             val ambiguous = explicit.size > 1 || approximate.containsMatchIn(line) ||
                 Regex("^\\s*[${CHINESE_NUMBER}0-9]+").containsMatchIn(trailing)
             val amount = if (ambiguous) "" else amountMatch?.value?.let(::parseAmount).orEmpty()
 
             val memo = if (amountMatch != null && amount.isNotEmpty()) line.removeRange(amountMatch.range).trim() else line
-            val candidates = categories.filterValues { words -> words.any { it in memo } }.keys
+            val describesPurchase = purchaseContext.containsMatchIn(memo) || purchaseActions.any { it in memo }
+            val matches = categories.filter { (category, words) ->
+                val description = if (category == DailyCategory.FOOD) kitchenGoods.replace(memo, "") else memo
+                words.any { it in description } ||
+                    (category == DailyCategory.FOOD && mealContext.containsMatchIn(description)) ||
+                    (category == DailyCategory.SHOPPING && describesPurchase)
+            }.keys
+            // A purchase of coffee, medicine or a ticket should use its specific category.
+            val candidates = (matches - DailyCategory.SHOPPING).ifEmpty { matches }
             val saidIncome = incomeWords.any { it in memo }
-            val saidExpense = expenseWords.any { it in memo }
+            val saidExpense = amountWords.any { it in memo } || describesPurchase
             val kind = when {
                 saidIncome && saidExpense -> null
                 saidIncome -> EntryKind.INCOME
@@ -107,6 +127,13 @@ internal object ChineseVoiceParser : VoiceTextParser {
             val category = candidates.filter { it.kind == kind }.singleOrNull()
             EntryDraft(kind, amount, date, category, memo)
         }
+    }
+
+    private fun isBareAmount(line: String, number: MatchResult): Boolean {
+        val before = line.substring(0, number.range.first).trimEnd()
+        val after = line.substring(number.range.last + 1)
+        if (quantity.containsMatchIn(after)) return false
+        return (before.isEmpty() && after.isBlank()) || bareAmountPrefixes.any { before.endsWith(it) }
     }
 
     private fun normalizeFractions(line: String): String {
@@ -136,8 +163,7 @@ internal object ChineseVoiceParser : VoiceTextParser {
         val explicit = money.findAll(line).toList()
         // Offline transcripts often have neither punctuation nor a currency unit.
         val implicit = amountAtItemEnd.findAll(line).filter { number ->
-            explicit.none { number.range.first in it.range } &&
-                itemCues.any { it in line.substring(0, number.range.first) }
+            explicit.none { number.range.first in it.range } && isBareAmount(line, number)
         }
         val amounts = (explicit.asSequence() + implicit).sortedBy { it.range.first }.toList()
         if (amounts.size < 2) return listOf(line)
@@ -147,7 +173,8 @@ internal object ChineseVoiceParser : VoiceTextParser {
             boundary += approximateSuffix.find(line.substring(boundary, second.range.first))?.value?.length ?: 0
             val gap = line.substring(boundary, second.range.first).trim()
             // A fresh item name is needed before splitting two adjacent amounts.
-            if (itemCues.none { it in gap } || gap.firstOrNull()?.let { it.isDigit() || it in CHINESE_NUMBER } == true) {
+            val newItem = itemCues.any { it in gap } || mealContext.containsMatchIn(gap) || purchaseContext.containsMatchIn(gap)
+            if (!newItem || gap.firstOrNull()?.let { it.isDigit() || it in CHINESE_NUMBER } == true) {
                 return listOf(line)
             }
             boundary
@@ -213,11 +240,11 @@ internal object ChineseVoiceParser : VoiceTextParser {
 
     private fun parseDate(value: String, today: LocalDate): LocalDate? = try {
         when (value) {
-            "今天", "今日" -> today
-            "昨天", "昨日" -> today.minusDays(1)
+            "今天", "今日", "今早", "今晚" -> today
+            "昨天", "昨日", "昨晚", "昨夜" -> today.minusDays(1)
             "前天" -> today.minusDays(2)
             "大前天" -> today.minusDays(3)
-            "明天" -> today.plusDays(1)
+            "明天", "明晚" -> today.plusDays(1)
             else -> if (value.endsWith("天前")) today.minusDays(value.removeSuffix("天前").toLong())
             else {
                 val parts = Regex("\\d+").findAll(value).map { it.value.toInt() }.toList()
