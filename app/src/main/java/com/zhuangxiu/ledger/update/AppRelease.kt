@@ -35,6 +35,7 @@ data class AppRelease(
     val size: Long,
     val sha256: String,
     val versionCode: Long? = null,
+    val delta: ApkDelta? = null,
 ) {
     val downloadUrl: String get() = if (versionCode != null) {
         "${UpdateSource.RELEASES_URL}/download/v$version/renovation-ledger-$version-signed.apk"
@@ -63,7 +64,8 @@ data class AppRelease(
             // The URL is derived from the trusted repository, numeric version and fixed name;
             // no arbitrary URL from an unsigned metadata file can select another download host.
             val notes = if (root.isNull("notes")) "" else root.optString("notes").take(12_000)
-            return AppRelease(version, notes, 0, size, sha256, code)
+            val delta = root.optJSONObject("delta")?.let { ApkDelta.parse(it, version, code, size) }
+            return AppRelease(version, notes, 0, size, sha256, code, delta)
         }
 
         fun parse(json: String): AppRelease? {
@@ -85,6 +87,30 @@ data class AppRelease(
             }
             val notes = if (release.isNull("body")) "" else release.optString("body").take(12_000)
             return AppRelease(version, notes, id, size, digest)
+        }
+    }
+}
+
+data class ApkDelta(
+    val baseVersionCode: Long,
+    val baseSha256: String,
+    val fileName: String,
+    val size: Long,
+    val sha256: String,
+) {
+    internal fun downloadUrl(version: AppVersion) = "${UpdateSource.RELEASES_URL}/download/v$version/$fileName"
+
+    companion object {
+        internal fun parse(json: JSONObject, version: AppVersion, code: Long, apkSize: Long): ApkDelta? {
+            val baseCode = json.optLong("baseVersionCode")
+            val baseDigest = json.optString("baseSha256").lowercase()
+            val digest = json.optString("sha256").lowercase()
+            val size = json.optLong("size")
+            val name = "renovation-ledger-$version-from-$baseCode.qzpatch"
+            val sha256 = Regex("[a-f0-9]{64}")
+            if (baseCode !in 1 until code || size !in 1 until apkSize ||
+                !baseDigest.matches(sha256) || !digest.matches(sha256) || json.optString("fileName") != name) return null
+            return ApkDelta(baseCode, baseDigest, name, size, digest)
         }
     }
 }

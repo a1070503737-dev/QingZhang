@@ -52,7 +52,11 @@ internal class GitHubUpdateHttp(
                     200 -> return Response(connection.inputStream, connection)
                     301, 302, 303, 307, 308 -> {
                         val location = connection.getHeaderField("Location") ?: throw IOException("下载链接已失效，请重新检查更新")
-                        url = URI(url).resolve(location).toString()
+                        url = try {
+                            URI(url).resolve(location).toString()
+                        } catch (e: IllegalArgumentException) {
+                            throw IOException("下载链接无效，请重新检查更新", e)
+                        }
                         connection.disconnect()
                     }
                     401 -> throw IOException(if (UpdateCredentials.bundled)

@@ -7,8 +7,18 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from zipfile import BadZipFile
 
+from apk_delta import write_patch
 from verify_update import inspect, tool
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for block in iter(lambda: file.read(64 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def main():
@@ -16,9 +26,10 @@ def main():
     parser.add_argument('apk', type=Path)
     parser.add_argument('--notes-file', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--base-apk', type=Path, help='previous signed APK to build an optional incremental update')
     args = parser.parse_args()
     try:
-        package, code, _ = inspect(args.apk)
+        package, code, signers = inspect(args.apk)
         badging = subprocess.run([tool('aapt'), 'dump', 'badging', str(args.apk)], check=True, capture_output=True, text=True).stdout
         match = re.search(r"versionName='(\d+\.\d+\.\d+)'", badging)
         if package != 'com.zhuangxiu.ledger' or code <= 0 or not match:
@@ -38,12 +49,28 @@ def main():
             'apk': {
                 'fileName': args.apk.name,
                 'size': size,
-                'sha256': hashlib.sha256(args.apk.read_bytes()).hexdigest(),
+                'sha256': sha256(args.apk),
             },
         }
         args.output.parent.mkdir(parents=True, exist_ok=True)
+        if args.base_apk is not None:
+            base_package, base_code, base_signers = inspect(args.base_apk)
+            if base_package != package or base_signers != signers or not 0 < base_code < code:
+                raise ValueError('增量更新基准包的包名、签名或版本不匹配')
+            if not 0 < args.base_apk.stat().st_size <= 150 * 1024 * 1024:
+                raise ValueError('增量更新基准包大小超出限制')
+            patch = args.output.with_name(f'renovation-ledger-{version}-from-{base_code}.qzpatch')
+            if write_patch(args.base_apk, args.apk, patch):
+                manifest['delta'] = {
+                    'baseVersionCode': base_code,
+                    'baseSha256': sha256(args.base_apk),
+                    'fileName': patch.name,
+                    'size': patch.stat().st_size,
+                    'sha256': sha256(patch),
+                }
+                print(f'增量附件 {patch.name}，{patch.stat().st_size:,} 字节')
         args.output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    except (ValueError, OSError, subprocess.CalledProcessError) as error:
+    except (ValueError, OSError, BadZipFile, subprocess.CalledProcessError) as error:
         print(f'生成更新文件失败：{error}', file=sys.stderr)
         return 1
     print(f'更新文件已生成：{args.output.name}，版本 {version} / {code}，APK 签名校验通过。')

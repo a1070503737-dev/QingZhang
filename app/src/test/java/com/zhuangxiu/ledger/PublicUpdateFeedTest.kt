@@ -52,6 +52,31 @@ class PublicUpdateFeedTest {
         assertFalse(release.downloadUrl.contains("evil"))
     }
 
+    @Test fun deltaIsOptionalAndUsesTheFixedReleaseAssetUrl() {
+        val patch = JSONObject()
+            .put("baseVersionCode", 9)
+            .put("baseSha256", "b".repeat(64))
+            .put("fileName", "renovation-ledger-1.0.9-from-9.qzpatch")
+            .put("size", 100_000)
+            .put("sha256", "c".repeat(64))
+            .put("downloadUrl", "https://evil.example/patch")
+        val root = manifest().put("delta", patch)
+        val release = AppRelease.parseManifest(root.toString())
+        val delta = requireNotNull(release.delta)
+        assertEquals(9L, delta.baseVersionCode)
+        assertEquals(100_000L, delta.size)
+        assertEquals("${UpdateSource.RELEASES_URL}/download/v1.0.9/renovation-ledger-1.0.9-from-9.qzpatch",
+            delta.downloadUrl(release.version))
+
+        for ((key, value) in listOf("baseVersionCode" to 10, "baseSha256" to "invalid",
+            "fileName" to "../update.json", "size" to release.size)) {
+            root.put("delta", JSONObject(patch.toString()).put(key, value))
+            val fallback = AppRelease.parseManifest(root.toString())
+            assertNull(fallback.delta)
+            assertEquals(release.downloadUrl, fallback.downloadUrl)
+        }
+    }
+
     @Test fun invalidManifestCannotOfferAnInstallation() {
         val changes = listOf<(JSONObject) -> Unit>(
             { it.put("schemaVersion", 2) },

@@ -38,11 +38,12 @@ internal object VerifiedDownload {
         }
     }
 
-    fun sha256(file: File): String {
+    fun sha256(file: File, ensureActive: () -> Unit = {}): String {
         val digest = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { input ->
             val buffer = ByteArray(64 * 1024)
             while (true) {
+                ensureActive()
                 val read = input.read(buffer)
                 if (read == -1) break
                 digest.update(buffer, 0, read)

@@ -42,9 +42,10 @@ jobs:
           version="${RELEASE_TAG#v}"
           apk="renovation-ledger-$version-signed.apk"
           checksums="SHA256SUMS-$version.txt"
-          python3 - "$version" "$apk" <<'PY'
+          patch="$(python3 - "$version" "$apk" <<'PY'
           import hashlib
           import json
+          import re
           import sys
           from pathlib import Path
 
@@ -57,9 +58,25 @@ jobs:
           assert manifest["apk"]["fileName"] == name
           assert manifest["apk"]["size"] == file.stat().st_size
           assert hashlib.file_digest(file.open("rb"), "sha256").hexdigest() == manifest["apk"]["sha256"]
+          delta = manifest.get("delta")
+          if delta is not None:
+              base = delta["baseVersionCode"]
+              assert type(base) is int and 0 < base < manifest["versionCode"]
+              assert re.fullmatch(r"[a-f0-9]{64}", delta["baseSha256"])
+              expected = f"renovation-ledger-{version}-from-{base}.qzpatch"
+              assert delta["fileName"] == expected
+              patch = Path(expected)
+              assert 0 < patch.stat().st_size == delta["size"] < file.stat().st_size
+              with patch.open("rb") as data:
+                  assert hashlib.file_digest(data, "sha256").hexdigest() == delta["sha256"]
+              print(expected)
           PY
+          )"
           cp "$apk" renovation-ledger-latest.apk
           sha256sum -c "$checksums"
           [[ "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" == true ]]
-          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" "$apk" \
-            renovation-ledger-latest.apk update.json "$checksums"
+          assets=("$apk" renovation-ledger-latest.apk update.json "$checksums")
+          if [[ -n "$patch" ]]; then
+            assets+=("$patch")
+          fi
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" "${assets[@]}"

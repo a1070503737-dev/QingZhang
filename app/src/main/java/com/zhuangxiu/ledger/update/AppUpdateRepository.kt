@@ -28,11 +28,30 @@ class AppUpdateRepository @Inject constructor(
 
     suspend fun check(): AppRelease? = withContext(Dispatchers.IO) {
         val release = publicFeed.latest()
-        currentCoroutineContext().ensureActive()
+        val coroutine = currentCoroutineContext()
+        coroutine.ensureActive()
         release.takeIf {
             it.version > requireNotNull(AppVersion.parse(BuildConfig.VERSION_NAME)) &&
                 requireNotNull(it.versionCode) > BuildConfig.VERSION_CODE
+        }?.let { update ->
+            val delta = update.delta?.takeIf {
+                val base = installedApk(it) ?: return@takeIf false
+                try {
+                    VerifiedDownload.sha256(base) { coroutine.ensureActive() } == it.baseSha256
+                } catch (_: IOException) {
+                    false
+                } catch (_: SecurityException) {
+                    false
+                }
+            }
+            update.copy(delta = delta)
         }
+    }
+
+    private fun installedApk(delta: ApkDelta): File? {
+        val info = context.applicationInfo
+        if (delta.baseVersionCode != BuildConfig.VERSION_CODE.toLong() || !info.splitSourceDirs.isNullOrEmpty()) return null
+        return info.sourceDir?.let(::File)
     }
 
     suspend fun accessConfigured(): Boolean = withContext(Dispatchers.IO) { token().isNotBlank() }
@@ -57,19 +76,34 @@ class AppUpdateRepository @Inject constructor(
         return AppRelease.parse(json)?.takeIf { it.version > requireNotNull(AppVersion.parse(BuildConfig.VERSION_NAME)) }
     }
 
-    suspend fun download(release: AppRelease, onProgress: (Long) -> Unit, onVerifying: () -> Unit): File =
+    suspend fun download(
+        release: AppRelease,
+        onDownloading: (Long) -> Unit,
+        onProgress: (Long) -> Unit,
+        onVerifying: () -> Unit,
+    ): File =
         withContext(Dispatchers.IO) {
             downloadLock.withLock {
                 val file = File(directory, "update-${release.version}-${release.sha256.take(12)}.apk")
                 val coroutine = currentCoroutineContext()
                 try {
                     // A valid completed download can be reused after returning from system settings.
-                    if (!file.exists() || file.length() != release.size || VerifiedDownload.sha256(file) != release.sha256) {
+                    if (!file.exists() || file.length() != release.size ||
+                        VerifiedDownload.sha256(file) { coroutine.ensureActive() } != release.sha256) {
                         directory.listFiles()?.forEach { it.delete() }
-                        val client = if (release.versionCode != null) publicHttp else http
-                        client.open(release.downloadUrl, "application/octet-stream").use { response ->
-                            VerifiedDownload.copy(response.input, file, release.size, release.sha256,
-                                ensureActive = { coroutine.ensureActive() }, progress = onProgress)
+                        val delta = release.delta
+                        val base = delta?.let(::installedApk)
+                        val patched = delta != null && base != null && downloadDelta(
+                            release, delta, base, file, { coroutine.ensureActive() }, onDownloading, onProgress, onVerifying,
+                        )
+                        if (!patched) {
+                            coroutine.ensureActive()
+                            onDownloading(release.size)
+                            val client = if (release.versionCode != null) publicHttp else http
+                            client.open(release.downloadUrl, "application/octet-stream").use { response ->
+                                VerifiedDownload.copy(response.input, file, release.size, release.sha256,
+                                    ensureActive = { coroutine.ensureActive() }, progress = onProgress)
+                            }
                         }
                     }
                     coroutine.ensureActive()
@@ -82,6 +116,29 @@ class AppUpdateRepository @Inject constructor(
                 }
             }
         }
+
+    private fun downloadDelta(
+        release: AppRelease, delta: ApkDelta, base: File, target: File, ensureActive: () -> Unit,
+        onDownloading: (Long) -> Unit, onProgress: (Long) -> Unit, onVerifying: () -> Unit,
+    ): Boolean {
+        val patch = File(target.parentFile, delta.fileName)
+        return try {
+            ensureActive()
+            onDownloading(delta.size)
+            publicHttp.open(delta.downloadUrl(release.version), "application/octet-stream").use { response ->
+                VerifiedDownload.copy(response.input, patch, delta.size, delta.sha256, ensureActive, onProgress)
+            }
+            onVerifying()
+            ApkDeltaApplier.apply(base, patch, target, release.size, release.sha256, ensureActive)
+            true
+        } catch (_: IOException) {
+            false
+        } catch (_: SecurityException) {
+            false
+        } finally {
+            patch.delete()
+        }
+    }
 
     suspend fun verifyForInstall(file: File, release: AppRelease) = withContext(Dispatchers.IO) {
         UpdateApkVerifier.verify(context, file, release)

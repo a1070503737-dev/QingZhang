@@ -180,7 +180,8 @@ fun UpdateContent(
                         UpdateStage.CHECKING -> "正在检查更新…"
                         UpdateStage.CURRENT -> "当前已是最新版本"
                         UpdateStage.AVAILABLE -> "新版本 ${state.release?.version} 已发布"
-                        UpdateStage.DOWNLOADING -> "正在下载更新…"
+                        UpdateStage.DOWNLOADING -> if (state.downloadSize == state.release?.delta?.size)
+                            "正在下载增量更新…" else "正在下载更新…"
                         UpdateStage.VERIFYING -> "正在校验安装包…"
                         UpdateStage.READY -> "下载完成，可以安装"
                     }
@@ -188,7 +189,7 @@ fun UpdateContent(
                     when (state.stage) {
                         UpdateStage.CHECKING, UpdateStage.VERIFYING -> CircularProgressIndicator(Modifier.size(28.dp))
                         UpdateStage.DOWNLOADING -> {
-                            val total = state.release?.size ?: 1L
+                            val total = state.downloadSize.takeIf { it > 0 } ?: state.release?.size ?: 1L
                             val progress = (state.downloaded.toFloat() / total).coerceIn(0f, 1f)
                             Box(
                                 Modifier
@@ -214,7 +215,10 @@ fun UpdateContent(
                             ) { Text("取消下载") }
                         }
                         UpdateStage.AVAILABLE -> {
-                            Text("安装包 ${megabytes(state.release?.size ?: 0)} MB", style = MaterialTheme.typography.bodyMedium)
+                            val delta = state.release?.delta
+                            val size = delta?.size ?: state.release?.size ?: 0L
+                            val label = if (delta != null) "增量包" else "安装包"
+                            Text("$label ${megabytes(size)} MB", style = MaterialTheme.typography.bodyMedium)
                             LedgerButton(onClick = onDownload, modifier = Modifier.fillMaxWidth()) { Text("下载更新") }
                         }
                         UpdateStage.READY -> {

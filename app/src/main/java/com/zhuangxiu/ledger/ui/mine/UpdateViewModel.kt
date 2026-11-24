@@ -26,6 +26,7 @@ data class UpdateUiState(
     val stage: UpdateStage = UpdateStage.IDLE,
     val release: AppRelease? = null,
     val downloaded: Long = 0,
+    val downloadSize: Long = 0,
     val error: String? = null,
     val bundledAccess: Boolean = UpdateCredentials.bundled,
     val accessConfigured: Boolean = bundledAccess,
@@ -71,10 +72,14 @@ class UpdateViewModel @Inject constructor(private val repository: AppUpdateRepos
     fun download() {
         if (_state.value.busy) return
         val release = _state.value.release ?: return
-        _state.update { it.copy(stage = UpdateStage.DOWNLOADING, downloaded = 0, error = null) }
+        _state.update { it.copy(stage = UpdateStage.DOWNLOADING, downloaded = 0,
+            downloadSize = release.delta?.size ?: release.size, error = null) }
         downloadJob = viewModelScope.launch {
             try {
                 readyFile = repository.download(release,
+                    onDownloading = { size ->
+                        _state.update { it.copy(stage = UpdateStage.DOWNLOADING, downloaded = 0, downloadSize = size) }
+                    },
                     onProgress = { bytes -> _state.update { it.copy(downloaded = bytes) } },
                     onVerifying = { _state.update { it.copy(stage = UpdateStage.VERIFYING) } })
                 _state.update { it.copy(stage = UpdateStage.READY) }
