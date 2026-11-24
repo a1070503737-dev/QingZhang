@@ -80,17 +80,9 @@ android {
         buildConfig = true
     }
 
-    androidResources {
-        noCompress += "zip"
-    }
-
     packaging {
-        // JNA ships these legacy ABIs without a matching Vosk engine.
-        jniLibs.excludes += setOf(
-            "**/armeabi/libjnidispatch.so",
-            "**/mips/libjnidispatch.so",
-            "**/mips64/libjnidispatch.so",
-        )
+        // Keep the universal APK within the updater's download limit.
+        jniLibs.useLegacyPackaging = true
     }
 
     testOptions {
@@ -122,8 +114,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.hilt.navigation.compose)
-    implementation("com.alphacephei:vosk-android:0.3.75@aar")
-    implementation("net.java.dev.jna:jna:5.18.1@aar")
+    implementation(files("libs/sherpa-onnx-static-2.0.3.aar"))
 
     // Compose + Material 3
     implementation(platform(libs.compose.bom))

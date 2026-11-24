@@ -33,6 +33,8 @@ import com.zhuangxiu.ledger.ui.components.AmountKeypad
 import com.zhuangxiu.ledger.ui.daily.*
 import com.zhuangxiu.ledger.ui.navigation.*
 import com.zhuangxiu.ledger.ui.theme.RenovationLedgerTheme
+import com.zhuangxiu.ledger.ui.voice.HoldToTalkButton
+import com.zhuangxiu.ledger.ui.voice.VoiceCapture
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -49,6 +51,31 @@ import java.time.YearMonth
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class DailyScreenTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun homeVoiceHoldStartsBeforeReleaseAndDoesNotOpenManualInput() {
+        val events = mutableListOf<String>()
+        compose.setContent {
+            RenovationLedgerTheme {
+                var capture by remember { mutableStateOf(VoiceCapture.Idle) }
+                HoldToTalkButton(
+                    capture = capture,
+                    onHold = {
+                        events.add("start")
+                        capture = VoiceCapture.Recording
+                    },
+                    onEnd = { released ->
+                        events.add(if (released) "release" else "cancel")
+                        capture = VoiceCapture.Recognizing
+                    },
+                    onTap = { events.add("manual") },
+                )
+            }
+        }
+        compose.onNodeWithText("ai 记账").performTouchInput { longClick() }
+        compose.onNodeWithText("正在识别…").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(listOf("start", "release"), events) }
+    }
+
     private fun capture(name: String) {
         val file = File("build/reports/ui/$name.png"); file.parentFile!!.mkdirs()
         file.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }

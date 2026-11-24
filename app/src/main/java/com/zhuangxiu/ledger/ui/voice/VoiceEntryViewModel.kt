@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.data.db.DailyCategory
 import com.zhuangxiu.ledger.data.db.EntryKind
 import com.zhuangxiu.ledger.domain.ChineseVoiceParser
@@ -25,7 +26,6 @@ internal data class VoiceEntryState(
     val text: String = "",
     val drafts: List<EntryDraft> = emptyList(),
     val bookName: String? = null,
-    val loading: Boolean = true,
     val busy: Boolean = false,
     val confirmSimilar: Boolean = false,
     val complete: Boolean = false,
@@ -42,43 +42,41 @@ internal class VoiceEntryViewModel @Inject constructor(
     private val ledger: LedgerEntryService,
     private val saved: SavedStateHandle,
 ) : ViewModel() {
-    private val bookId = saved.get<Long>("bookId") ?: 1L
-    private val requestId = saved.get<String>("voiceRequestId") ?: UUID.randomUUID().toString().also {
-        saved["voiceRequestId"] = it
-    }
-    private val initialText = saved.get<String>("voiceText").orEmpty()
     private val _state = MutableStateFlow(
         VoiceEntryState(
-            text = initialText,
+            text = saved.get<String>("voiceText").orEmpty(),
             drafts = saved.get<ArrayList<Bundle>>("voiceDrafts")?.map(::decodeDraft).orEmpty(),
+            bookName = saved["voiceBookName"],
             complete = saved["voiceComplete"] ?: false,
         ),
     )
     val state = _state.asStateFlow()
 
-    init {
-        viewModelScope.launch {
-            try {
-                val book = ledger.writableBook(bookId)
-                _state.update { it.copy(bookName = book.name, loading = false) }
-                if (initialText.isNotBlank() && !saved.contains("voiceDrafts")) parse()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                _state.update { it.copy(loading = false, error = "这个日常账本当前无法记账") }
-            }
+    fun open(book: BookEntity, transcription: String = "") {
+        if (_state.value.busy) return
+        dismiss()
+        saved["voiceBookId"] = book.id
+        saved["voiceBookName"] = book.name
+        saved["voiceRequestId"] = UUID.randomUUID().toString()
+        _state.value = VoiceEntryState(bookName = book.name)
+        if (transcription.isNotBlank()) {
+            text(transcription.take(LedgerEntryService.MAX_TRANSCRIPT))
+            parse()
         }
+    }
+
+    fun dismiss() {
+        if (_state.value.busy) return
+        listOf("voiceBookId", "voiceBookName", "voiceRequestId", "voiceText", "voiceDrafts", "voiceComplete").forEach {
+            saved.remove<Any>(it)
+        }
+        _state.value = VoiceEntryState()
     }
 
     fun text(value: String) {
         if (_state.value.busy || value.length > LedgerEntryService.MAX_TRANSCRIPT) return
         saved["voiceText"] = value
         updateDrafts(emptyList(), value)
-    }
-
-    fun recognized(value: String) {
-        text(value.take(LedgerEntryService.MAX_TRANSCRIPT))
-        parse()
     }
 
     fun parse() {
@@ -107,6 +105,8 @@ internal class VoiceEntryViewModel @Inject constructor(
     fun save(allowSimilar: Boolean = false) {
         val state = _state.value
         if (!state.canSave) return
+        val bookId = saved.get<Long>("voiceBookId") ?: return
+        val requestId = saved.get<String>("voiceRequestId") ?: return
         _state.update { it.copy(busy = true, confirmSimilar = false, error = null) }
         viewModelScope.launch {
             try {

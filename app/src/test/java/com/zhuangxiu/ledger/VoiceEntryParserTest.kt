@@ -30,12 +30,30 @@ class VoiceEntryParserTest {
 
     @Test fun ambiguousDetailsStayIncomplete() {
         assertNull(ChineseVoiceParser.parse("十八元", today).single().kind)
-        assertEquals("", ChineseVoiceParser.parse("早餐8块5", today).single().amount)
         assertEquals("", ChineseVoiceParser.parse("早餐8元25元", today).single().amount)
         assertEquals("", ChineseVoiceParser.parse("早餐8元午饭25元合计33元", today).single().amount)
         assertEquals("", ChineseVoiceParser.parse("2月30日早餐8元", today).single().date)
         assertEquals("", ChineseVoiceParser.parse("公交-8元", today).single().amount)
         assertEquals("", ChineseVoiceParser.parse("打车一百二元", today).single().amount)
+    }
+
+    @Test fun colloquialAmountsUseExactCents() {
+        val drafts = ChineseVoiceParser.parse("早餐八块五午饭12块5毛3分，然后公交五毛", today)
+        assertEquals(listOf("8.5", "12.53", "0.5"), drafts.map { it.amount })
+        assertEquals(listOf(DailyCategory.FOOD, DailyCategory.FOOD, DailyCategory.TRANSPORT), drafts.map { it.category })
+        val implicit = ChineseVoiceParser.parse("早饭花了二十中饭三十", today)
+        assertEquals(listOf("20", "30"), implicit.map { it.amount })
+        assertEquals(listOf(DailyCategory.FOOD, DailyCategory.FOOD), implicit.map { it.category })
+        assertEquals("3.5", ChineseVoiceParser.parse("地铁三块半", today).single().amount)
+    }
+
+    @Test fun approximateAmountsRemainEditableAndDoNotHideTheNextItem() {
+        for (text in listOf("早餐大概二三十元", "打车四十多块", "外卖二三元", "公交5块到8", "公交负八块五", "早餐十块多")) {
+            assertEquals(text, "", ChineseVoiceParser.parse(text, today).single().amount)
+        }
+        val drafts = ChineseVoiceParser.parse("午饭25元左右公交3元", today)
+        assertEquals(listOf("", "3"), drafts.map { it.amount })
+        assertEquals(listOf("午饭25元左右", "公交"), drafts.map { it.note })
     }
 
     @Test fun offlineTokensCanSeparateMealsWithoutPunctuation() {

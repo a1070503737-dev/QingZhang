@@ -56,7 +56,6 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Replay
@@ -349,13 +348,13 @@ fun DailyHomeScreen(
     readOnly: Boolean = false,
     archivedBookIds: Set<Long> = emptySet(),
     onDelete: ((String) -> Unit)? = null,
-    onVoice: (() -> Unit)? = null,
+    voiceAction: (@Composable () -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     var addButtonHeight by remember { mutableIntStateOf(0) }
-    val showEntryActions = (canAdd || onVoice != null) && WindowInsets.ime.getBottom(density) == 0
+    val showEntryActions = (canAdd || voiceAction != null) && WindowInsets.ime.getBottom(density) == 0
     LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
@@ -368,19 +367,7 @@ fun DailyHomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        if (onVoice != null) {
-                            LedgerButton(
-                                onClick = onVoice,
-                                hapticFeedback = HapticFeedbackType.SegmentTick,
-                                shape = RoundedCornerShape(16.dp),
-                                minHeight = 54.dp,
-                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
-                            ) {
-                                Icon(Icons.Outlined.Mic, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("ai 记账", fontWeight = FontWeight.SemiBold)
-                            }
-                        }
+                        voiceAction?.invoke()
                         if (canAdd) {
                             LedgerButton(
                                 onClick = onAdd,

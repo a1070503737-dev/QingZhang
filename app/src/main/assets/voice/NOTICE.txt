@@ -1,14 +1,11 @@
-Vosk API for Android (com.alphacephei:vosk-android:0.3.75)
-Copyright Alpha Cephei Inc. and contributors
+sherpa-onnx 2.0.3 Android runtime and Zipformer CTC Chinese int8 model
 Licensed under the Apache License, Version 2.0.
-Source: https://github.com/alphacep/vosk-api
+Runtime source: https://github.com/k2-fsa/sherpa-onnx/tree/v2.0.3
+Runtime artifact: https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.3/sherpa-onnx-static-link-onnxruntime-2.0.3.aar
+Model card: https://huggingface.co/csukuangfj/sherpa-onnx-zipformer-ctc-small-zh-int8-2025-07-16
+Model archive: https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-ctc-small-zh-int8-2025-07-16.tar.bz2
 
-Vosk small Chinese speech recognition model (vosk-model-small-cn-0.22)
-Copyright Alpha Cephei Inc. and contributors
-Licensed under the Apache License, Version 2.0 and redistributed without modification.
-Source: https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip
-
-Java Native Access (net.java.dev.jna:jna:5.18.1)
-Copyright its respective contributors.
-Distributed under the Apache License, Version 2.0 option.
-Source: https://github.com/java-native-access/jna
+ONNX Runtime is included in the upstream Android runtime.
+Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the MIT License. See LICENSE-ONNX-Runtime.txt.
+Source: https://github.com/microsoft/onnxruntime

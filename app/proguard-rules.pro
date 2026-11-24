@@ -3,13 +3,5 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-# Vosk uses JNA direct native method registration.
--keep class org.vosk.LibVosk { *; }
--keep class com.sun.jna.* { *; }
--keepclassmembers class * extends com.sun.jna.* { public *; }
-
-# JNA's desktop window helpers are unused by the Android audio engine.
--dontwarn java.awt.Component
--dontwarn java.awt.GraphicsEnvironment
--dontwarn java.awt.HeadlessException
--dontwarn java.awt.Window
+# sherpa-onnx JNI looks up the Kotlin configuration and result classes by name.
+-keep class com.k2fsa.sherpa.onnx.** { *; }

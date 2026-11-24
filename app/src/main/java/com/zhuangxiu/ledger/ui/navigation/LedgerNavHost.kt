@@ -87,7 +87,7 @@ import com.zhuangxiu.ledger.ui.mine.MineScreen
 import com.zhuangxiu.ledger.ui.mine.ReminderScreen
 import com.zhuangxiu.ledger.ui.mine.UpdateScreen
 import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
-import com.zhuangxiu.ledger.ui.voice.VoiceEntryScreen
+import com.zhuangxiu.ledger.ui.voice.HomeVoiceEntry
 
 private enum class EntryBookPicker { Manual, Voice }
 
@@ -154,20 +154,16 @@ internal fun LedgerNavHost(
     val currentActiveBook = bookState.selected?.takeUnless { it.archived || bookState.all }
     val activeBooks = bookState.books.filterNot { it.archived }
     val activeDailyBooks = activeBooks.filter { it.kind == BookKind.DAILY }
-    val addVoiceEntry: (BookEntity) -> Unit = { book ->
-        navController.navigate(Routes.voiceEntry(book.id)) { launchSingleTop = true }
-    }
+    var voiceBookId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val voiceBook = currentActiveBook?.takeIf { it.kind == BookKind.DAILY }
+        ?: activeDailyBooks.firstOrNull { it.id == voiceBookId }
+        ?: activeDailyBooks.singleOrNull()
     val openQuickEntry: () -> Unit = {
         when {
             currentActiveBook != null -> addToBook(currentActiveBook)
             activeBooks.isNotEmpty() -> entryBookPicker = EntryBookPicker.Manual
             else -> switchTab(Routes.BOOKS)
         }
-    }
-    val openVoiceEntry: () -> Unit = {
-        val target = currentActiveBook?.takeIf { it.kind == BookKind.DAILY } ?: activeDailyBooks.singleOrNull()
-        if (target != null) addVoiceEntry(target)
-        else if (activeDailyBooks.isNotEmpty()) entryBookPicker = EntryBookPicker.Voice
     }
     entryBookPicker?.let { picker ->
         val books = if (picker == EntryBookPicker.Voice) activeDailyBooks else activeBooks
@@ -189,7 +185,10 @@ internal fun LedgerNavHost(
                         variant = SurfaceTone.Flat,
                         onClick = {
                             entryBookPicker = null
-                            if (picker == EntryBookPicker.Voice) addVoiceEntry(book) else addToBook(book)
+                            if (picker == EntryBookPicker.Voice) {
+                                voiceBookId = book.id
+                                Toast.makeText(appContext, "已选账本，长按「ai 记账」开始录音", Toast.LENGTH_SHORT).show()
+                            } else addToBook(book)
                         },
                     ) {
                         Row(
@@ -285,26 +284,32 @@ internal fun LedgerNavHost(
                             Routes.HOME -> {
                                 val archivedBook = bookState.selected?.takeIf { !bookState.all && it.archived }
                                 val projectBook = bookState.selected?.takeIf { !bookState.all && !it.archived && it.kind == BookKind.RENOVATION }
-                                DailyHomeScreen(
-                                    dailyState,
-                                    header,
-                                    dockSpacer,
-                                    dailyViewModel::month,
-                                    dailyViewModel::currentMonth,
-                                    onAdd = openQuickEntry,
-                                    onVoice = openVoiceEntry.takeIf { activeDailyBooks.isNotEmpty() },
-                                    onEdit = openEntryEdit,
-                                    onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
-                                    bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
-                                    canAdd = if (bookState.all) bookState.books.any { !it.archived } else bookState.selected?.archived == false,
-                                    readOnly = archivedBook != null,
-                                    archivedBookIds = bookState.books.filter { it.archived }.map { it.id }.toSet(),
-                                    onDelete = { id ->
-                                        dailyViewModel.deleteEntry(id) { message ->
-                                            Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                )
+                                HomeVoiceEntry(
+                                    book = voiceBook,
+                                    canRecord = activeDailyBooks.isNotEmpty(),
+                                    pickBook = { entryBookPicker = EntryBookPicker.Voice },
+                                ) { voiceAction ->
+                                    DailyHomeScreen(
+                                        dailyState,
+                                        header,
+                                        dockSpacer,
+                                        dailyViewModel::month,
+                                        dailyViewModel::currentMonth,
+                                        onAdd = openQuickEntry,
+                                        voiceAction = voiceAction,
+                                        onEdit = openEntryEdit,
+                                        onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
+                                        bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
+                                        canAdd = if (bookState.all) bookState.books.any { !it.archived } else bookState.selected?.archived == false,
+                                        readOnly = archivedBook != null,
+                                        archivedBookIds = bookState.books.filter { it.archived }.map { it.id }.toSet(),
+                                        onDelete = { id ->
+                                            dailyViewModel.deleteEntry(id) { message ->
+                                                Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                    )
+                                }
                             }
                             Routes.STATS -> {
                                 DailyStatsScreen(
@@ -377,9 +382,6 @@ internal fun LedgerNavHost(
                     navArgument("entryId") { type = NavType.StringType; defaultValue = "" },
                 ),
             ) { DailyEditScreen(onBack = back) }
-            composable(Routes.VOICE_ENTRY, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) {
-                VoiceEntryScreen(onBack = back, onSaved = back)
-            }
             composable(Routes.BILLS, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) { entry ->
                 val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
                 val billsViewModel: BillsViewModel = hiltViewModel()

@@ -1,7 +1,6 @@
 package com.zhuangxiu.ledger.ui.voice
 
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,10 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,8 +32,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhuangxiu.ledger.data.db.DailyCategory
 import com.zhuangxiu.ledger.data.db.EntryKind
 import com.zhuangxiu.ledger.domain.EntryDraft
@@ -42,39 +41,32 @@ import com.zhuangxiu.ledger.ui.components.ConfirmDialog
 import com.zhuangxiu.ledger.ui.components.LedgerButton
 import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.LedgerChip
-import com.zhuangxiu.ledger.ui.components.SubPageScaffold
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun VoiceEntryScreen(
-    onBack: () -> Unit,
-    onSaved: () -> Unit,
-    model: VoiceEntryViewModel = hiltViewModel(),
-) {
-    val state by model.state.collectAsStateWithLifecycle()
-    var speechIssue by remember { mutableStateOf<String?>(null) }
+internal fun VoiceReviewSheet(state: VoiceEntryState, model: VoiceEntryViewModel) {
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
     LaunchedEffect(state.complete) {
         if (state.complete) {
             haptics.performHapticFeedback(HapticFeedbackType.Confirm)
             Toast.makeText(context, "已保存 ${state.drafts.size} 笔账目", Toast.LENGTH_SHORT).show()
-            onSaved()
+            model.dismiss()
         }
     }
-    BackHandler(state.busy) {}
-    SubPageScaffold(title = "ai 记账", onBack = { if (!state.busy) onBack() }) { modifier ->
+    ModalBottomSheet(
+        onDismissRequest = model::dismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !state.busy }),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
         Column(
-            modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val bookName = state.bookName
-            if (state.loading) CircularProgressIndicator()
             if (bookName != null) {
+                Text("核对记账草稿", style = MaterialTheme.typography.titleLarge)
                 Text("账本 · $bookName", style = MaterialTheme.typography.labelLarge)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LocalSpeechButton(enabled = !state.busy, onText = model::recognized, onError = { speechIssue = it })
-                }
-                speechIssue?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 OutlinedTextField(
                     value = state.text,
                     onValueChange = model::text,
@@ -138,6 +130,9 @@ private fun ReviewEntry(
                 onValueChange = { amount -> onChange { it.copy(amount = amount) } },
                 label = { Text("金额（元）") },
                 isError = !validAmount(draft.amount),
+                supportingText = if (draft.amount.isBlank()) {
+                    { Text("请填写实际金额") }
+                } else null,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 enabled = enabled,

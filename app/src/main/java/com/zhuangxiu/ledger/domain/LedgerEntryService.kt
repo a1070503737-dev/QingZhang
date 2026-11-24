@@ -1,6 +1,5 @@
 package com.zhuangxiu.ledger.domain
 
-import com.zhuangxiu.ledger.data.db.BookKind
 import com.zhuangxiu.ledger.data.db.DailyEntryEntity
 import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.data.repository.DailyRepository
@@ -13,10 +12,6 @@ internal class LedgerEntryService @Inject constructor(private val repository: Da
         const val MAX_DRAFTS = 20
         const val MAX_TRANSCRIPT = 2_000
     }
-
-    suspend fun writableBook(bookId: Long) = requireNotNull(repository.book(bookId)?.takeIf {
-        it.kind == BookKind.DAILY && !it.archived
-    }) { "请选择可记账的日常账本" }
 
     suspend fun save(bookId: Long, requestId: String, drafts: List<EntryDraft>, allowSimilar: Boolean): Boolean {
         require(requestId.matches(Regex("[A-Za-z0-9-]{1,100}"))) { "记账请求编号无效" }
@@ -31,7 +26,6 @@ internal class LedgerEntryService @Inject constructor(private val repository: Da
         }
         return repository.saveReviewed(entries, allowSimilar)
     }
-
 }
 
 internal fun parseEntryDate(text: String): LocalDate? =

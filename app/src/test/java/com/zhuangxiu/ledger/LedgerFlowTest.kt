@@ -122,6 +122,7 @@ class LedgerFlowTest {
         awaitText("生活账本")
         compose.runOnIdle { Shadows.shadowOf(compose.activity.application).denyPermissions(Manifest.permission.RECORD_AUDIO) }
         compose.onNodeWithText("ai 记账").performClick()
+        awaitText("核对记账草稿")
         awaitText("识别文字，也可直接输入")
         compose.onNodeWithText("识别文字，也可直接输入").performTextInput("早餐 8 元，午饭 25 元")
         compose.onNodeWithText("解析文字").performClick()
@@ -129,6 +130,7 @@ class LedgerFlowTest {
         compose.waitUntil(15_000) {
             compose.onAllNodesWithContentDescription("本月支出 ¥33.00").fetchSemanticsNodes().isNotEmpty()
         }
+        compose.onNodeWithText("核对记账草稿").assertDoesNotExist()
     }
 
     @Test fun settingsShowsOnlyInAppFeatures() {
