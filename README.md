@@ -2,9 +2,9 @@
 
 > 一款面向 Android 的轻量记账应用。日常收支与装修账本放在一起管理，优先本地存储，支持按需备份和导入账单。
 
-**当前正式版：v1.3.31** ｜ **系统要求：Android 8.0（API 26）及以上** ｜ **包名：`com.zhuangxiu.ledger`**
+**当前正式版：v1.3.32** ｜ **系统要求：Android 8.0（API 26）及以上** ｜ **包名：`com.zhuangxiu.ledger`**
 
-[🌐 轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) · [⬇️ 下载 1.3.31 APK](https://github.com/a1070503737-dev/QingZhang/releases/download/v1.3.31/renovation-ledger-1.3.31-signed.apk) · [查看最新发行版](https://github.com/a1070503737-dev/QingZhang/releases/latest) · [版本列表](https://github.com/a1070503737-dev/QingZhang/releases)
+[🌐 轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) · [⬇️ 下载 1.3.32 APK](https://github.com/a1070503737-dev/QingZhang/releases/download/v1.3.32/renovation-ledger-1.3.32-signed.apk) · [查看最新发行版](https://github.com/a1070503737-dev/QingZhang/releases/latest) · [版本列表](https://github.com/a1070503737-dev/QingZhang/releases)
 
 ## ✨ 主要功能
 
