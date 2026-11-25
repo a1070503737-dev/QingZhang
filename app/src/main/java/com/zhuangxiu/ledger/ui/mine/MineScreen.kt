@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.outlined.Mic
 import com.zhuangxiu.ledger.BuildConfig
 import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import com.zhuangxiu.ledger.ui.components.LedgerCard
@@ -52,6 +53,7 @@ private val RENOVATION_ENTRIES = listOf(
 )
 
 private val APP_ENTRIES = listOf(
+    MineEntry(Icons.Outlined.Mic, "云端语音整理", "自选开启 DeepSeek", Routes.CLOUD_VOICE),
     MineEntry(Icons.Outlined.NotificationsNone, "提醒设置", "待付款到期提醒、预算预警", Routes.REMINDER),
     MineEntry(Icons.Outlined.SystemUpdate, "检查更新", "当前版本 ${BuildConfig.VERSION_NAME}", Routes.UPDATE),
     MineEntry(Icons.Outlined.Feedback, "意见反馈", "匿名填写，联系方式选填", Routes.FEEDBACK),

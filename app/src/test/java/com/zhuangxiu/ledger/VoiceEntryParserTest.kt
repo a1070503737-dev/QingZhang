@@ -98,4 +98,14 @@ class VoiceEntryParserTest {
             assertEquals("", draft.amount)
         }
     }
+
+    @Test fun distinguishesPiecesFromYuanInLocalMode() {
+        for (phrase in listOf("今晚吃了三块蛋糕", "买了3块瓷砖")) {
+            assertEquals(phrase, "", ChineseVoiceParser.parse(phrase, today).single().amount)
+        }
+        val payment = ChineseVoiceParser.parse("今晚吃了三块蛋糕花了25元", today).single()
+        assertEquals("25", payment.amount)
+        assertEquals(DailyCategory.FOOD, payment.category)
+        assertEquals("3", ChineseVoiceParser.parse("地铁三块钱", today).single().amount)
+    }
 }

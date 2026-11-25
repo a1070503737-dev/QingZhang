@@ -55,7 +55,7 @@ import com.zhuangxiu.ledger.ui.components.LedgerChip
 internal fun VoiceReviewSheet(state: VoiceEntryState, model: VoiceEntryViewModel) {
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
-    val canDismiss by rememberUpdatedState(!state.busy)
+    val canDismiss by rememberUpdatedState(!state.saving)
     LaunchedEffect(state.complete) {
         if (state.complete) {
             haptics.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -105,7 +105,10 @@ internal fun VoiceReviewSheet(state: VoiceEntryState, model: VoiceEntryViewModel
                         modifier = Modifier.fillMaxWidth(),
                     )
                     LedgerButton(onClick = model::parse, enabled = state.text.isNotBlank() && !state.busy) {
-                        Text("解析文字")
+                        Text(if (state.parsing) "正在云端整理…" else "解析文字")
+                    }
+                    state.notice?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall)
                     }
                     state.drafts.forEachIndexed { index, draft ->
                         ReviewEntry(index + 1, draft, enabled = !state.busy,
@@ -114,7 +117,7 @@ internal fun VoiceReviewSheet(state: VoiceEntryState, model: VoiceEntryViewModel
                     if (state.drafts.isNotEmpty()) {
                         LedgerButton(
                             onClick = { model.save() }, enabled = state.canSave, modifier = Modifier.fillMaxWidth(),
-                        ) { Text(if (state.busy) "正在保存…" else "确认保存 ${state.drafts.size} 笔") }
+                        ) { Text(if (state.saving) "正在保存…" else "确认保存 ${state.drafts.size} 笔") }
                     }
                 }
                 state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

@@ -40,7 +40,7 @@ internal object ChineseVoiceParser : VoiceTextParser {
     private val purchaseContext = Regex("(?:^|我|早上|中午|晚上|刚才|刚刚|又|去)买(?!单|不起|家|卖|方)")
     private val kitchenGoods = Regex("(?:咖啡|奶茶|面包|水果|火锅)(?:机|杯|壶|锅|刀|架|模具|滤纸|滤杯|色)")
     private val totalWords = listOf("一共", "合计", "总计", "共计", "总共", "单价", "其中", "包含")
-    private val quantity = Regex("^\\s*(?:个|件|杯|碗|盘|包|袋|份|盒|瓶|张|台|只|双|本|条|套|斤|公斤|克|升|次|天|小时|分钟|公里|寸|号)")
+    private val quantity = Regex("^\\s*(?:块|个|件|杯|碗|盘|包|袋|份|盒|瓶|张|台|只|双|本|条|套|斤|公斤|克|升|次|天|小时|分钟|公里|寸|号)")
     private val unconfirmed = Regex("(?:没(?:有)?|还没|不|打算|准备|计划|想|要不要)(?:去)?(?:买|吃|喝|花|付|支付|下单)")
     private val approximate = Regex(
         "大概|大约|大致|差不多|左右|上下|不到|将近|几[十百千元块圆]|[十百千万]几|" +
@@ -96,7 +96,7 @@ internal object ChineseVoiceParser : VoiceTextParser {
             if (line.isEmpty()) return@mapNotNull null
             if (unconfirmed.containsMatchIn(line)) return@mapNotNull EntryDraft(date = date, note = line)
 
-            val explicit = money.findAll(line).toList()
+            val explicit = statedMoney(line)
             val amountMatch = if (explicit.isNotEmpty()) explicit.singleOrNull() else {
                 (plainAmount.findAll(line) + listOfNotNull(bareChineseAmount.find(line)))
                     .filter { isBareAmount(line, it) }.singleOrNull()
@@ -136,6 +136,17 @@ internal object ChineseVoiceParser : VoiceTextParser {
         return (before.isEmpty() && after.isBlank()) || bareAmountPrefixes.any { before.endsWith(it) }
     }
 
+    private fun statedMoney(line: String): List<MatchResult> = money.findAll(line).filter { match ->
+        if (!match.value.endsWith('块')) return@filter true
+        val tail = line.substring(match.range.last + 1).trimStart()
+        val first = tail.firstOrNull()
+        if (first == null || first !in '\u3400'..'\u9fff' || first in CHINESE_NUMBER ||
+            tail.startsWith("钱") || approximateSuffix.containsMatchIn(tail)) return@filter true
+        // A following noun can make 块 a classifier, as in 三块蛋糕.
+        val nextTransaction = listOf("早餐", "早饭", "午饭", "午餐", "中饭", "晚饭", "晚餐", "打车", "买了")
+        nextTransaction.any { tail.startsWith(it) } && money.containsMatchIn(tail)
+    }.toList()
+
     private fun normalizeFractions(line: String): String {
         val withYuan = spokenFraction.replace(line) { match ->
             val whole = requireNotNull(match.groups["yuan"]).value
@@ -160,7 +171,7 @@ internal object ChineseVoiceParser : VoiceTextParser {
 
     private fun splitSpokenItems(line: String): List<String> {
         if (totalWords.any { it in line }) return listOf(line)
-        val explicit = money.findAll(line).toList()
+        val explicit = statedMoney(line)
         // Offline transcripts often have neither punctuation nor a currency unit.
         val implicit = amountAtItemEnd.findAll(line).filter { number ->
             explicit.none { number.range.first in it.range } && isBareAmount(line, number)

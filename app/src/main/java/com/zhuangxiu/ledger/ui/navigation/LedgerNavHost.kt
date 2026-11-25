@@ -87,6 +87,7 @@ import com.zhuangxiu.ledger.ui.mine.MineScreen
 import com.zhuangxiu.ledger.ui.mine.ReminderScreen
 import com.zhuangxiu.ledger.ui.mine.UpdateScreen
 import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
+import com.zhuangxiu.ledger.ui.voice.CloudVoiceScreen
 import com.zhuangxiu.ledger.ui.voice.HomeVoiceEntry
 
 private enum class EntryBookPicker { Manual, Voice }
@@ -439,6 +440,7 @@ internal fun LedgerNavHost(
             }
             composable(Routes.IMPORT) { ImportScreen(onBack = back) }
             composable(Routes.FEEDBACK) { FeedbackScreen(onBack = back) }
+            composable(Routes.CLOUD_VOICE) { CloudVoiceScreen(onBack = back) }
             composable(Routes.REMINDER) { ReminderScreen(onBack = back) }
             composable(Routes.UPDATE) { UpdateScreen(onBack = back) }
         }
