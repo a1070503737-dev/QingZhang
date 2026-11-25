@@ -90,7 +90,7 @@ import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
 import com.zhuangxiu.ledger.ui.voice.CloudVoiceScreen
 import com.zhuangxiu.ledger.ui.voice.HomeVoiceEntry
 
-private enum class EntryBookPicker { Manual, Voice }
+private enum class EntryBookPicker { Manual, Voice, Image }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -152,6 +152,7 @@ internal fun LedgerNavHost(
     }
 
     var entryBookPicker by rememberSaveable { mutableStateOf<EntryBookPicker?>(null) }
+    var showImageAfterBookChoice by rememberSaveable { mutableStateOf(false) }
     val currentActiveBook = bookState.selected?.takeUnless { it.archived || bookState.all }
     val activeBooks = bookState.books.filterNot { it.archived }
     val activeDailyBooks = activeBooks.filter { it.kind == BookKind.DAILY }
@@ -167,7 +168,7 @@ internal fun LedgerNavHost(
         }
     }
     entryBookPicker?.let { picker ->
-        val books = if (picker == EntryBookPicker.Voice) activeDailyBooks else activeBooks
+        val books = if (picker == EntryBookPicker.Manual) activeBooks else activeDailyBooks
         ModalBottomSheet(
             onDismissRequest = { entryBookPicker = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -186,10 +187,17 @@ internal fun LedgerNavHost(
                         variant = SurfaceTone.Flat,
                         onClick = {
                             entryBookPicker = null
-                            if (picker == EntryBookPicker.Voice) {
-                                voiceBookId = book.id
-                                Toast.makeText(appContext, "已选账本，长按「ai 记账」开始录音", Toast.LENGTH_SHORT).show()
-                            } else addToBook(book)
+                            when (picker) {
+                                EntryBookPicker.Manual -> addToBook(book)
+                                EntryBookPicker.Voice -> {
+                                    voiceBookId = book.id
+                                    Toast.makeText(appContext, "已选账本，长按「ai 记账」开始录音", Toast.LENGTH_SHORT).show()
+                                }
+                                EntryBookPicker.Image -> {
+                                    voiceBookId = book.id
+                                    showImageAfterBookChoice = true
+                                }
+                            }
                         },
                     ) {
                         Row(
@@ -289,7 +297,10 @@ internal fun LedgerNavHost(
                                     book = voiceBook,
                                     canRecord = activeDailyBooks.isNotEmpty(),
                                     pickBook = { entryBookPicker = EntryBookPicker.Voice },
-                                ) { voiceAction ->
+                                    pickImageBook = { entryBookPicker = EntryBookPicker.Image },
+                                    showImageAfterBookChoice = showImageAfterBookChoice,
+                                    onImageBookChoiceHandled = { showImageAfterBookChoice = false },
+                                ) { voiceAction, imageAction ->
                                     DailyHomeScreen(
                                         dailyState,
                                         header,
@@ -298,6 +309,7 @@ internal fun LedgerNavHost(
                                         dailyViewModel::currentMonth,
                                         onAdd = openQuickEntry,
                                         voiceAction = voiceAction,
+                                        imageAction = imageAction,
                                         onEdit = openEntryEdit,
                                         onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
                                         bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),

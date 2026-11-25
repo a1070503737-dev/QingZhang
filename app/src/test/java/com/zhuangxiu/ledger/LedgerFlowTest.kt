@@ -150,6 +150,28 @@ class LedgerFlowTest {
         compose.onNodeWithText("意见反馈").performScrollTo().assertIsDisplayed()
     }
 
+    @Test fun imageEntryCanOpenThePhotoPickerAndReviewRecognizedText() {
+        awaitText("生活账本")
+        compose.onNodeWithText("识图").performClick()
+        awaitText("图片记账")
+        compose.onNodeWithText("从相册选图").performClick()
+        compose.runOnIdle {
+            val shadow = Shadows.shadowOf(compose.activity)
+            val launched = checkNotNull(shadow.nextStartedActivityForResult)
+            val unreadable = Uri.fromFile(File(compose.activity.cacheDir, "missing-receipt.jpg"))
+            shadow.callOnActivityResult(launched.requestCode, Activity.RESULT_OK, Intent().setData(unreadable))
+        }
+        awaitText("核对图片账单")
+        awaitText("无法识别这张图片，请重新选择清晰的截图或小票")
+        compose.onNodeWithText("图片中的文字").performTextInput("付款成功\n实付：25.00\n商品：午餐\n支付方式：现金")
+        compose.onNodeWithText("解析文字").performClick()
+        compose.onNodeWithText("支付方式 · 现金 ▾").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("确认保存 1 笔").performScrollTo().assertIsEnabled().performClick()
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithContentDescription("本月支出 ¥25.00").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
     @Test fun recordRenovationDepositFromHomeThenOpenPendingAndNavigateTabs() {
         awaitText("生活账本")
         compose.onNodeWithText("账本").performClick()

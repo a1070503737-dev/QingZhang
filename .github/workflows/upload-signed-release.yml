@@ -42,6 +42,15 @@ jobs:
           version="${RELEASE_TAG#v}"
           apk="renovation-ledger-$version-signed.apk"
           checksums="SHA256SUMS-$version.txt"
+          if [[ ! -f "$apk" ]]; then
+            shopt -s nullglob
+            parts=("$apk".part-[0-9][0-9])
+            if (( ${#parts[@]} < 2 )); then
+              echo "Missing APK payload"
+              exit 1
+            fi
+            cat -- "${parts[@]}" > "$apk"
+          fi
           patch="$(python3 - "$version" "$apk" <<'PY'
           import hashlib
           import json

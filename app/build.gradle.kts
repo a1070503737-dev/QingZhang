@@ -43,8 +43,8 @@ android {
         applicationId = "com.zhuangxiu.ledger"
         minSdk = 26
         targetSdk = 37
-        versionCode = 53
-        versionName = "1.3.38"
+        versionCode = 54
+        versionName = "1.3.39"
         buildConfigField("String", "BUNDLED_GITHUB_TOKEN", "\"\"")
         val feedbackSubmitUrl = if (feedbackFormUrl.isEmpty()) "" else feedbackFormUrl.removeSuffix("viewform") + "formResponse"
         buildConfigField("String", "FEEDBACK_SUBMIT_URL", "\"$feedbackSubmitUrl\"")
@@ -139,6 +139,7 @@ dependencies {
     implementation(libs.work.runtime)
     implementation(libs.google.auth)
     implementation(libs.coroutines.play.services)
+    implementation(libs.mlkit.text.chinese)
 
     // CameraX 拍照 / Coil 图片加载
     implementation(libs.camerax.core)

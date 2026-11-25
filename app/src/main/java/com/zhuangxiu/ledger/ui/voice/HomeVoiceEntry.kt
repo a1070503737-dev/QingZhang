@@ -65,8 +65,11 @@ internal fun HomeVoiceEntry(
     book: BookEntity?,
     canRecord: Boolean,
     pickBook: () -> Unit,
+    pickImageBook: () -> Unit,
+    showImageAfterBookChoice: Boolean,
+    onImageBookChoiceHandled: () -> Unit,
     model: VoiceEntryViewModel = hiltViewModel(),
-    content: @Composable ((@Composable () -> Unit)?) -> Unit,
+    content: @Composable ((@Composable () -> Unit)?, (@Composable () -> Unit)?) -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -147,9 +150,18 @@ internal fun HomeVoiceEntry(
         }
     }
 
-    if (canRecord) content({
-        HoldToTalkButton(capture, onHold = ::begin, onEnd = ::finish, onTap = ::openManual)
-    }) else content(null)
+    if (canRecord) {
+        content(
+            { HoldToTalkButton(capture, onHold = ::begin, onEnd = ::finish, onTap = ::openManual) },
+            {
+                ReceiptImageAction(
+                    book, pickImageBook, showImageAfterBookChoice, onImageBookChoiceHandled,
+                    enabled = capture == VoiceCapture.Idle && review.bookName == null,
+                    onImage = model::openImage,
+                )
+            },
+        )
+    } else content(null, null)
 
     if (review.bookName != null) VoiceReviewSheet(review, model)
 }

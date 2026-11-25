@@ -1,5 +1,6 @@
 package com.zhuangxiu.ledger.ui.voice
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -11,6 +12,7 @@ import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.domain.ChineseVoiceParser
 import com.zhuangxiu.ledger.domain.EntryDraft
 import com.zhuangxiu.ledger.domain.LedgerEntryService
+import com.zhuangxiu.ledger.domain.ReceiptDraftParser
 import com.zhuangxiu.ledger.domain.parseEntryDate
 import com.zhuangxiu.ledger.domain.parseEntryTime
 import com.zhuangxiu.ledger.domain.validAmount
@@ -18,6 +20,7 @@ import com.zhuangxiu.ledger.voice.CloudVoiceException
 import com.zhuangxiu.ledger.voice.CloudVoiceSettings
 import com.zhuangxiu.ledger.voice.CloudVoiceClient
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.UUID
@@ -42,6 +45,7 @@ internal data class VoiceEntryState(
     val confirmSimilar: Boolean = false,
     val complete: Boolean = false,
     val error: String? = null,
+    val fromImage: Boolean = false,
 ) {
     val busy get() = saving || parsing
     val canSave get() = !busy && !complete && bookName != null && drafts.isNotEmpty() && drafts.all {
@@ -57,6 +61,7 @@ internal class VoiceEntryViewModel @Inject constructor(
     private val saved: SavedStateHandle,
     private val cloudSettings: CloudVoiceSettings,
     private val cloud: CloudVoiceClient,
+    private val images: ReceiptImageReader,
 ) : ViewModel() {
     private var parseJob: Job? = null
     private val _state = MutableStateFlow(
@@ -65,20 +70,65 @@ internal class VoiceEntryViewModel @Inject constructor(
             drafts = saved.get<ArrayList<Bundle>>("voiceDrafts")?.map(::decodeDraft).orEmpty(),
             bookName = saved["voiceBookName"],
             complete = saved["voiceComplete"] ?: false,
+            fromImage = saved["voiceFromImage"] ?: false,
         ),
     )
     val state = _state.asStateFlow()
 
     fun open(book: BookEntity, transcription: String = "") {
         if (_state.value.busy) return
+        openReview(book, fromImage = false)
+        if (transcription.isNotBlank()) {
+            text(transcription.take(LedgerEntryService.MAX_TRANSCRIPT))
+            parse()
+        }
+    }
+
+    private fun openReview(book: BookEntity, fromImage: Boolean) {
         dismiss()
         saved["voiceBookId"] = book.id
         saved["voiceBookName"] = book.name
         saved["voiceRequestId"] = UUID.randomUUID().toString()
-        _state.value = VoiceEntryState(bookName = book.name)
-        if (transcription.isNotBlank()) {
-            text(transcription.take(LedgerEntryService.MAX_TRANSCRIPT))
-            parse()
+        saved["voiceFromImage"] = fromImage
+        _state.value = VoiceEntryState(bookName = book.name, fromImage = fromImage)
+    }
+
+    fun openImage(book: BookEntity, uri: Uri, captured: File? = null) {
+        if (_state.value.busy) {
+            captured?.delete()
+            return
+        }
+        openReview(book, fromImage = true)
+        _state.update { it.copy(parsing = true) }
+        parseJob = viewModelScope.launch {
+            try {
+                val raw = images.read(uri).trim()
+                val limit = LedgerEntryService.MAX_TRANSCRIPT
+                val text = if (raw.length <= limit) raw else raw.take(limit / 2) + "\n" + raw.takeLast(limit / 2 - 1)
+                saved["voiceText"] = text
+                showReceipt(text)
+                if (raw.length > limit && _state.value.notice == null) {
+                    _state.update { it.copy(notice = "已保留小票开头和末尾的文字，请核对金额") }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _state.update { it.copy(error = "无法识别这张图片，请重新选择清晰的截图或小票") }
+            } catch (_: LinkageError) {
+                _state.update { it.copy(error = "设备无法加载图片识别组件，可以手动输入小票文字") }
+            } finally {
+                captured?.delete()
+                if (isActive) _state.update { it.copy(parsing = false) }
+            }
+        }
+    }
+
+    private fun showReceipt(text: String) {
+        val draft = ReceiptDraftParser.parse(text, LocalDate.now())
+        updateDrafts(listOfNotNull(draft), text)
+        when {
+            draft == null -> _state.update { it.copy(error = "图片里没有读到文字，可以手动输入") }
+            draft.amount.isBlank() -> _state.update { it.copy(notice = "没有识别到明确的实付金额，请核对后填写") }
         }
     }
 
@@ -86,7 +136,7 @@ internal class VoiceEntryViewModel @Inject constructor(
         if (_state.value.saving) return
         parseJob?.cancel()
         listOf("voiceBookId", "voiceBookName", "voiceRequestId", "voiceText", "voiceDrafts", "voiceComplete",
-            "voiceRecordedMinute").forEach {
+            "voiceRecordedMinute", "voiceFromImage").forEach {
             saved.remove<Any>(it)
         }
         _state.value = VoiceEntryState()
@@ -101,6 +151,10 @@ internal class VoiceEntryViewModel @Inject constructor(
     fun parse() {
         val state = _state.value
         if (state.busy || state.bookName == null || state.text.isBlank()) return
+        if (state.fromImage) {
+            showReceipt(state.text)
+            return
+        }
         val today = LocalDate.now()
         val local = ChineseVoiceParser.parse(state.text, today)
         if (!cloudSettings.status.value.enabled) {

@@ -349,12 +349,13 @@ fun DailyHomeScreen(
     archivedBookIds: Set<Long> = emptySet(),
     onDelete: ((String) -> Unit)? = null,
     voiceAction: (@Composable () -> Unit)? = null,
+    imageAction: (@Composable () -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     var addButtonHeight by remember { mutableIntStateOf(0) }
-    val showEntryActions = (canAdd || voiceAction != null) && WindowInsets.ime.getBottom(density) == 0
+    val showEntryActions = (canAdd || voiceAction != null || imageAction != null) && WindowInsets.ime.getBottom(density) == 0
     LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
@@ -368,6 +369,7 @@ fun DailyHomeScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         voiceAction?.invoke()
+                        imageAction?.invoke()
                         if (canAdd) {
                             LedgerButton(
                                 onClick = onAdd,

@@ -82,7 +82,7 @@ internal fun VoiceReviewSheet(state: VoiceEntryState, model: VoiceEntryViewModel
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("核对记账草稿", style = MaterialTheme.typography.titleLarge)
+                Text(if (state.fromImage) "核对图片账单" else "核对记账草稿", style = MaterialTheme.typography.titleLarge)
                 IconButton(onClick = model::dismiss, enabled = canDismiss) {
                     Icon(Icons.Outlined.Close, contentDescription = "关闭记账草稿")
                 }
@@ -101,13 +101,21 @@ internal fun VoiceReviewSheet(state: VoiceEntryState, model: VoiceEntryViewModel
                     OutlinedTextField(
                         value = state.text,
                         onValueChange = model::text,
-                        label = { Text("识别文字，也可直接输入") },
-                        placeholder = { Text("早餐 8 元用微信付，午饭 25 元付现金") },
+                        label = { Text(if (state.fromImage) "图片中的文字" else "识别文字，也可直接输入") },
+                        placeholder = {
+                            Text(if (state.fromImage) "可修改文字后重新解析" else "早餐 8 元用微信付，午饭 25 元付现金")
+                        },
+                        minLines = if (state.fromImage) 3 else 1,
+                        maxLines = if (state.fromImage) 6 else Int.MAX_VALUE,
                         enabled = !state.busy,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     LedgerButton(onClick = model::parse, enabled = state.text.isNotBlank() && !state.busy) {
-                        Text(if (state.parsing) "正在云端整理…" else "解析文字")
+                        Text(when {
+                            !state.parsing -> "解析文字"
+                            state.fromImage -> "正在识图…"
+                            else -> "正在云端整理…"
+                        })
                     }
                     state.notice?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall)
