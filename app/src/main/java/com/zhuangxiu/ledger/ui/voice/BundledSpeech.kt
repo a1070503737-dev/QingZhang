@@ -1,6 +1,7 @@
 package com.zhuangxiu.ledger.ui.voice
 
 import android.annotation.SuppressLint
+import android.app.ActivityManager
 import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -9,10 +10,13 @@ import android.os.SystemClock
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
+import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
 import com.k2fsa.sherpa.onnx.OfflineZipformerCtcModelConfig
 import com.zhuangxiu.ledger.domain.compactChineseSpeech
+import com.zhuangxiu.ledger.voice.OfflineSpeechModels
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -28,13 +32,15 @@ private const val MAX_RECORDING_SECONDS = 45
 internal object BundledSpeech {
     suspend fun listen(
         context: Context,
+        models: OfflineSpeechModels,
         stop: AtomicBoolean,
         onRecording: () -> Unit,
         onDecoding: () -> Unit,
+        onFallback: (String) -> Unit,
     ): String = coroutineScope {
         val audio = CompletableDeferred<FloatArray>()
         val recognition = async(Dispatchers.Default, start = CoroutineStart.LAZY) {
-            val recognizer = createRecognizer(context)
+            val recognizer = createRecognizer(context, models, onFallback)
             try {
                 decode(recognizer, audio.await())
             } finally {
@@ -98,7 +104,40 @@ internal object BundledSpeech {
         return samples.copyOf(size)
     }
 
-    private fun createRecognizer(context: Context): OfflineRecognizer {
+    private suspend fun createRecognizer(
+        context: Context,
+        models: OfflineSpeechModels,
+        onFallback: (String) -> Unit,
+    ): OfflineRecognizer {
+        if (models.wantsSenseVoice) {
+            if (!hasMemoryForSenseVoice(context)) {
+                withContext(Dispatchers.Main.immediate) { onFallback("可用内存较少，本次使用内置模型") }
+            } else {
+                val recognizer = try {
+                    models.withSenseVoice { files ->
+                        OfflineRecognizer(assetManager = null, config = OfflineRecognizerConfig(
+                            modelConfig = OfflineModelConfig(
+                                senseVoice = OfflineSenseVoiceModelConfig(
+                                    model = files.model.absolutePath,
+                                    language = "auto",
+                                    useInverseTextNormalization = true,
+                                ),
+                                tokens = files.tokens.absolutePath,
+                                numThreads = 2,
+                            ),
+                        ))
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                } catch (_: LinkageError) {
+                    null
+                }
+                if (recognizer != null) return recognizer
+                withContext(Dispatchers.Main.immediate) { onFallback("SenseVoice 暂不可用，本次使用内置模型") }
+            }
+        }
         val config = OfflineRecognizerConfig(
             modelConfig = OfflineModelConfig(
                 zipformerCtc = OfflineZipformerCtcModelConfig(model = "voice/model.int8.onnx"),
@@ -107,6 +146,13 @@ internal object BundledSpeech {
             ),
         )
         return OfflineRecognizer(assetManager = context.assets, config = config)
+    }
+
+    private fun hasMemoryForSenseVoice(context: Context): Boolean {
+        val manager = context.getSystemService(ActivityManager::class.java) ?: return true
+        val info = ActivityManager.MemoryInfo().also(manager::getMemoryInfo)
+        // Long recordings can use over 400 MiB during inference.
+        return !info.lowMemory && info.availMem >= 640L * 1024 * 1024
     }
 
     private fun decode(recognizer: OfflineRecognizer, samples: FloatArray): String {

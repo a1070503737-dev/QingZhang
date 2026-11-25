@@ -103,12 +103,13 @@ internal fun HomeVoiceEntry(
         task = scope.launch {
             try {
                 val text = BundledSpeech.listen(
-                    context, stop,
+                    context, model.speechModels, stop,
                     onRecording = {
                         capture = VoiceCapture.Recording
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
                     onDecoding = { capture = VoiceCapture.Recognizing },
+                    onFallback = ::message,
                 )
                 if (text.isBlank()) message("没有听清，请长按说完再松手")
                 else model.open(target, text)

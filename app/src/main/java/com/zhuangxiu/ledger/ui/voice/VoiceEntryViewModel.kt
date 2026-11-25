@@ -19,6 +19,7 @@ import com.zhuangxiu.ledger.domain.validAmount
 import com.zhuangxiu.ledger.voice.CloudVoiceException
 import com.zhuangxiu.ledger.voice.CloudVoiceSettings
 import com.zhuangxiu.ledger.voice.CloudVoiceClient
+import com.zhuangxiu.ledger.voice.OfflineSpeechModels
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import java.time.LocalDate
@@ -62,6 +63,7 @@ internal class VoiceEntryViewModel @Inject constructor(
     private val cloudSettings: CloudVoiceSettings,
     private val cloud: CloudVoiceClient,
     private val images: ReceiptImageReader,
+    val speechModels: OfflineSpeechModels,
 ) : ViewModel() {
     private var parseJob: Job? = null
     private val _state = MutableStateFlow(

@@ -19,7 +19,11 @@
 
 ## 离线模型
 
-轻账内置 Zipformer 中文 CTC int8 模型，通过 sherpa-onnx 2.0.3 在本机识别。安装后可在飞行模式下使用。录音在内存中以 16 kHz 单声道 PCM 处理，转写后由本地规则生成草稿。许可证与上游来源位于安装包的 `assets/voice` 目录。
+轻账内置 Zipformer 中文 CTC int8 模型，通过 sherpa-onnx 2.0.3 在本机识别。安装后可在飞行模式下使用。录音在内存中以 16 kHz 单声道 PCM 处理，转写后由本地规则生成草稿。内置模型的许可证与上游来源位于安装包的 `assets/voice` 目录。
+
+在「设置 → 离线语音模型」点「下载并使用」可启用约 237 MB 的 SenseVoice Small INT8。下载支持暂停和继续，轻账校验模型和词表后才会启用。回到首页长按「ai 记账」即可用新模型离线转写普通话或粤语。设置中可以切回内置模型，也可以删除下载文件。当前设备内存不足或模型无法加载时，会使用内置模型完成本次转写。
+
+SenseVoice 文件来自固定的上游版本，单独保存于应用的免备份目录。模型和词表的校验值记录于 `SenseVoiceDownload.kt`。[SenseVoice INT8 上游模型](https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09/tree/355f4d4884d8afd08aef04b9007a8556d7b463b2)
 
 | 构建文件 | SHA-256 |
 | --- | --- |

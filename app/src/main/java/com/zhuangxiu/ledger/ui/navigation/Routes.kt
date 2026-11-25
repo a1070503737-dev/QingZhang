@@ -33,6 +33,7 @@ object Routes {
     const val CATEGORIES = "categories"
     const val BACKUP = "backup"
     const val FEEDBACK = "feedback"
+    const val OFFLINE_SPEECH = "offline-speech"
     const val CLOUD_VOICE = "cloud-voice"
     const val REMINDER = "reminder"
     const val UPDATE = "update"

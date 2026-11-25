@@ -148,6 +148,10 @@ class LedgerFlowTest {
         settingsTab.performClick().assertIsSelected()
         compose.onNodeWithText("系统助手").assertDoesNotExist()
         compose.onNodeWithText("意见反馈").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("离线语音模型").performScrollTo().performClick()
+        awaitText("SenseVoice Small INT8")
+        compose.onNodeWithText("内置 Zipformer").assertIsDisplayed()
+        compose.onNodeWithText("下载并使用").performScrollTo().assertIsEnabled()
     }
 
     @Test fun imageEntryCanOpenThePhotoPickerAndReviewRecognizedText() {
