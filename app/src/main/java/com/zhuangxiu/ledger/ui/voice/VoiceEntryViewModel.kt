@@ -14,7 +14,7 @@ import com.zhuangxiu.ledger.domain.parseEntryDate
 import com.zhuangxiu.ledger.domain.validAmount
 import com.zhuangxiu.ledger.voice.CloudVoiceException
 import com.zhuangxiu.ledger.voice.CloudVoiceSettings
-import com.zhuangxiu.ledger.voice.DeepSeekVoiceClient
+import com.zhuangxiu.ledger.voice.CloudVoiceClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.util.UUID
@@ -52,7 +52,7 @@ internal class VoiceEntryViewModel @Inject constructor(
     private val ledger: LedgerEntryService,
     private val saved: SavedStateHandle,
     private val cloudSettings: CloudVoiceSettings,
-    private val cloud: DeepSeekVoiceClient,
+    private val cloud: CloudVoiceClient,
 ) : ViewModel() {
     private var parseJob: Job? = null
     private val _state = MutableStateFlow(
@@ -105,11 +105,12 @@ internal class VoiceEntryViewModel @Inject constructor(
         _state.update { it.copy(parsing = true, error = null, notice = null) }
         parseJob = viewModelScope.launch {
             try {
-                val key = withContext(Dispatchers.IO) { cloudSettings.activeKey() }
-                if (key == null) showParsed(local)
+                val access = withContext(Dispatchers.IO) { cloudSettings.active() }
+                if (access == null) showParsed(local)
                 else {
-                    showParsed(cloud.parse(key, state.text, today, local))
-                    _state.update { it.copy(notice = "已由 DeepSeek 整理，请核对后保存") }
+                    val result = cloud.parse(access, state.text, today, local)
+                    showParsed(result.drafts)
+                    _state.update { it.copy(notice = "已由 ${result.modelLabel} 整理，请核对后保存") }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
