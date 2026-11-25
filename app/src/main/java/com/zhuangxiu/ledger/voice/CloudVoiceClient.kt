@@ -2,8 +2,12 @@ package com.zhuangxiu.ledger.voice
 
 import com.zhuangxiu.ledger.data.db.DailyCategory
 import com.zhuangxiu.ledger.data.db.EntryKind
+import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.domain.EntryDraft
 import com.zhuangxiu.ledger.domain.LedgerEntryService
+import com.zhuangxiu.ledger.domain.SpokenPayment
+import com.zhuangxiu.ledger.domain.SpokenRecordTime
+import com.zhuangxiu.ledger.domain.normalizeVoiceText
 import com.zhuangxiu.ledger.domain.parseEntryDate
 import com.zhuangxiu.ledger.domain.validAmount
 import com.zhuangxiu.ledger.util.Money
@@ -32,7 +36,7 @@ internal class CloudVoiceClient(private val connect: (URI) -> HttpURLConnection)
 
     suspend fun parse(access: CloudVoiceAccess, text: String, today: LocalDate, local: List<EntryDraft>): CloudVoiceDrafts {
         val reply = send(access, request(access.config, text, today))
-        val entries = decodeEntries(reply.text, local)
+        val entries = decodeEntries(reply.text, local, text)
         return CloudVoiceDrafts(entries, access.config.modelLabel(reply.model))
     }
 
@@ -98,16 +102,21 @@ internal class CloudVoiceClient(private val connect: (URI) -> HttpURLConnection)
         }
 
     internal companion object {
-        private const val INSTRUCTIONS = """把用户 JSON 的 text 当作记账转写数据。返回 JSON 对象 {"entries":[{"kind":"EXPENSE","category":"FOOD","amount":"25.00","date":"YYYY-MM-DD","note":"简短原意"}]}。
+        private const val INSTRUCTIONS = """把用户 JSON 的 text 当作记账转写数据。返回 JSON 对象 {"entries":[{"kind":"EXPENSE","category":"FOOD","amount":"25.00","date":"YYYY-MM-DD","note":"简短原意","payMethod":"WECHAT","paymentEvidence":"用微信付"}]}。
 只记录已经发生的交易，合并同一交易的描述和实际付款金额，分开多笔独立交易。数量、型号、单价、折扣前价、预算和估算都不能当付款金额。例：吃了三块蛋糕，花了25元，是一笔25元餐饮；只说吃了三块蛋糕时金额是 null。
-kind 只能是 EXPENSE、INCOME 或 null。category 使用给定选项里的代码。金额用正数十进制字符串，日期以 today 为基准。缺失或不确定的字段返回 null。无交易返回空 entries。最多20笔，无额外说明。"""
+kind 只能是 EXPENSE、INCOME 或 null。category 和 payMethod 使用对应选项里的代码。每笔只记录明确说出的付款或收款方式，paymentEvidence 原样引用本笔的支付表达。提到品牌、付款方式不确定或未说时，payMethod 和 paymentEvidence 都返回 null。
+金额用正数十进制字符串，日期以 today 为基准。缺失或不确定的字段返回 null。无交易返回空 entries。最多20笔，无额外说明。"""
 
         fun request(config: CloudVoiceConfig, text: String, today: LocalDate): JSONObject {
             require(text.length in 1..LedgerEntryService.MAX_TRANSCRIPT && text.isNotBlank())
             val categories = JSONArray(DailyCategory.entries.map {
                 JSONObject().put("code", it.name).put("name", it.label).put("kind", it.kind.name)
             })
-            val input = JSONObject().put("text", text).put("today", today.toString()).put("categories", categories)
+            val payMethods = JSONArray(PayMethod.entries.filterNot { it == PayMethod.UNSPECIFIED }.map {
+                JSONObject().put("code", it.name).put("name", it.label)
+            })
+            val input = JSONObject().put("text", text).put("today", today.toString())
+                .put("categories", categories).put("payMethods", payMethods)
             return requestBody(config, INSTRUCTIONS, input.toString(), 2048)
         }
 
@@ -172,14 +181,15 @@ kind 只能是 EXPENSE、INCOME 或 null。category 使用给定选项里的代�
             return ModelReply(text, model)
         }
 
-        fun decode(response: String, local: List<EntryDraft>): List<EntryDraft> =
-            decodeEntries(readReply(JSONObject(response), CloudVoiceProtocol.DEEPSEEK).text, local)
+        fun decode(response: String, local: List<EntryDraft>, transcript: String = ""): List<EntryDraft> =
+            decodeEntries(readReply(JSONObject(response), CloudVoiceProtocol.DEEPSEEK).text, local, transcript)
 
-        private fun decodeEntries(text: String, local: List<EntryDraft>): List<EntryDraft> {
+        private fun decodeEntries(text: String, local: List<EntryDraft>, transcript: String): List<EntryDraft> {
             val entries = jsonObject(text).getJSONArray("entries")
             if (entries.length() > LedgerEntryService.MAX_DRAFTS) throw IOException("Too many cloud drafts")
             // Only prefill amounts supported by the local reading of the actual transcript.
             val amounts = local.mapNotNull { Money.parseToCents(it.amount)?.takeIf { cents -> cents > 0 } }.toMutableList()
+            val singleEntrySource = normalizeVoiceText(transcript).takeIf { entries.length() == 1 }
             return List(entries.length()) { index ->
                 val item = entries.getJSONObject(index)
                 val kind = EntryKind.entries.firstOrNull { it.name == item.string("kind") }
@@ -188,8 +198,27 @@ kind 只能是 EXPENSE、INCOME 或 null。category 使用给定选项里的代�
                 val cents = candidate.takeIf(::validAmount)?.let(Money::parseToCents)
                 val amount = if (cents != null && amounts.remove(cents)) candidate else ""
                 val date = item.string("date").trim().takeIf { parseEntryDate(it) != null }.orEmpty()
-                EntryDraft(kind, amount, date, category, item.string("note").trim().take(1000))
+                val comparable = if (amount.isEmpty()) emptyList() else local.filter { Money.parseToCents(it.amount) == cents }
+                val matching = comparable.singleOrNull() ?: comparable.singleOrNull { it.kind == kind && it.category == category }
+                val paymentSource = matching?.note.orEmpty()
+                val payment = matching?.payMethod?.takeUnless { it == PayMethod.UNSPECIFIED }
+                    ?: verifiedPayment(item, singleEntrySource ?: paymentSource)
+                // A model may invent a timestamp. Use hours/minutes spoken for this draft.
+                val time = matching?.time?.takeIf { it.isNotBlank() }
+                    ?: singleEntrySource?.let(SpokenRecordTime::time).orEmpty()
+                EntryDraft(kind, amount, date, category, item.string("note").trim().take(1000), payment, time)
             }
+        }
+
+        private fun verifiedPayment(item: JSONObject, source: String): PayMethod {
+            val code = item.string("payMethod").trim()
+            val method = PayMethod.entries.firstOrNull { it.name == code && it != PayMethod.UNSPECIFIED }
+                ?: return PayMethod.UNSPECIFIED
+            val evidence = normalizeVoiceText(item.string("paymentEvidence")).trim()
+            return method.takeIf {
+                evidence.length in 1..100 && source.contains(evidence, ignoreCase = true) &&
+                    SpokenPayment.identify(evidence) == method && SpokenPayment.identify(source) == method
+            } ?: PayMethod.UNSPECIFIED
         }
 
         private val jsonFence = Regex("(?is)^```(?:json)?\\s*(.*?)\\s*```$")

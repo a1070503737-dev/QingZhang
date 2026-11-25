@@ -394,12 +394,14 @@ fun AmountInputDialog(
 @Composable
 fun PaymentMethodPicker(
     method: PayMethod,
+    enabled: Boolean = true,
     onChange: (PayMethod) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         LedgerButton(
             onClick = { expanded = true },
+            enabled = enabled,
             prominent = false,
             minHeight = 40.dp,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),

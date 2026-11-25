@@ -44,11 +44,13 @@ import com.zhuangxiu.ledger.data.db.DailyCategory
 import com.zhuangxiu.ledger.data.db.EntryKind
 import com.zhuangxiu.ledger.domain.EntryDraft
 import com.zhuangxiu.ledger.domain.parseEntryDate
+import com.zhuangxiu.ledger.domain.parseEntryTime
 import com.zhuangxiu.ledger.domain.validAmount
 import com.zhuangxiu.ledger.ui.components.ConfirmDialog
 import com.zhuangxiu.ledger.ui.components.LedgerButton
 import com.zhuangxiu.ledger.ui.components.LedgerCard
 import com.zhuangxiu.ledger.ui.components.LedgerChip
+import com.zhuangxiu.ledger.ui.components.PaymentMethodPicker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,7 +102,7 @@ internal fun VoiceReviewSheet(state: VoiceEntryState, model: VoiceEntryViewModel
                         value = state.text,
                         onValueChange = model::text,
                         label = { Text("识别文字，也可直接输入") },
-                        placeholder = { Text("早餐 8 元，午饭 25 元") },
+                        placeholder = { Text("早餐 8 元用微信付，午饭 25 元付现金") },
                         enabled = !state.busy,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -185,10 +187,28 @@ private fun ReviewEntry(
                     }
                 }
             }
+            PaymentMethodPicker(draft.payMethod, enabled = enabled) { method ->
+                onChange { it.copy(payMethod = method) }
+            }
             OutlinedTextField(
                 value = draft.date, onValueChange = { date -> onChange { it.copy(date = date) } },
                 label = { Text("日期（年-月-日）") }, singleLine = true,
                 isError = parseEntryDate(draft.date) == null, enabled = enabled, modifier = Modifier.fillMaxWidth(),
+            )
+            val timeInvalid = draft.time.isNotBlank() && parseEntryTime(draft.time) == null
+            OutlinedTextField(
+                value = draft.time,
+                onValueChange = { time -> if (time.length <= 80) onChange { it.copy(time = time) } },
+                label = { Text("时间（24 小时制）") },
+                supportingText = when {
+                    timeInvalid -> { { Text("请输入有效时间，例如 18:30") } }
+                    draft.time.isBlank() -> { { Text("保存时自动记录当前时间") } }
+                    else -> null
+                },
+                singleLine = true,
+                isError = timeInvalid,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = draft.note, onValueChange = { note -> if (note.length <= 1000) onChange { it.copy(note = note) } },

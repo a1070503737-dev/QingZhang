@@ -7,16 +7,19 @@ import androidx.lifecycle.viewModelScope
 import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.data.db.DailyCategory
 import com.zhuangxiu.ledger.data.db.EntryKind
+import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.domain.ChineseVoiceParser
 import com.zhuangxiu.ledger.domain.EntryDraft
 import com.zhuangxiu.ledger.domain.LedgerEntryService
 import com.zhuangxiu.ledger.domain.parseEntryDate
+import com.zhuangxiu.ledger.domain.parseEntryTime
 import com.zhuangxiu.ledger.domain.validAmount
 import com.zhuangxiu.ledger.voice.CloudVoiceException
 import com.zhuangxiu.ledger.voice.CloudVoiceSettings
 import com.zhuangxiu.ledger.voice.CloudVoiceClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -43,7 +46,8 @@ internal data class VoiceEntryState(
     val busy get() = saving || parsing
     val canSave get() = !busy && !complete && bookName != null && drafts.isNotEmpty() && drafts.all {
         it.kind != null && it.category?.kind == it.kind && validAmount(it.amount) &&
-            parseEntryDate(it.date) != null && it.note.length <= 1000
+            parseEntryDate(it.date) != null && (it.time.isBlank() || parseEntryTime(it.time) != null) &&
+            it.note.length <= 1000
     }
 }
 
@@ -81,7 +85,8 @@ internal class VoiceEntryViewModel @Inject constructor(
     fun dismiss() {
         if (_state.value.saving) return
         parseJob?.cancel()
-        listOf("voiceBookId", "voiceBookName", "voiceRequestId", "voiceText", "voiceDrafts", "voiceComplete").forEach {
+        listOf("voiceBookId", "voiceBookName", "voiceRequestId", "voiceText", "voiceDrafts", "voiceComplete",
+            "voiceRecordedMinute").forEach {
             saved.remove<Any>(it)
         }
         _state.value = VoiceEntryState()
@@ -152,10 +157,13 @@ internal class VoiceEntryViewModel @Inject constructor(
         if (!state.canSave) return
         val bookId = saved.get<Long>("voiceBookId") ?: return
         val requestId = saved.get<String>("voiceRequestId") ?: return
+        val recordedMinute = saved.get<Int>("voiceRecordedMinute") ?: (LocalTime.now().toSecondOfDay() / 60).also {
+            saved["voiceRecordedMinute"] = it
+        }
         _state.update { it.copy(saving = true, confirmSimilar = false, error = null) }
         viewModelScope.launch {
             try {
-                val committed = ledger.save(bookId, requestId, state.drafts, allowSimilar)
+                val committed = ledger.save(bookId, requestId, state.drafts, allowSimilar, recordedMinute)
                 if (committed) saved["voiceComplete"] = true
                 _state.update { it.copy(complete = committed, confirmSimilar = !committed) }
             } catch (cancelled: CancellationException) {
@@ -178,6 +186,8 @@ internal class VoiceEntryViewModel @Inject constructor(
                 putString("date", draft.date)
                 putString("category", draft.category?.name)
                 putString("note", draft.note)
+                putString("payMethod", draft.payMethod.name)
+                putString("time", draft.time)
             }
         })
         _state.update { it.copy(text = text, drafts = drafts, error = null, notice = null, confirmSimilar = false) }
@@ -189,5 +199,7 @@ internal class VoiceEntryViewModel @Inject constructor(
         date = bundle.getString("date").orEmpty(),
         category = bundle.getString("category")?.let(DailyCategory::valueOf),
         note = bundle.getString("note").orEmpty(),
+        payMethod = PayMethod.entries.firstOrNull { it.name == bundle.getString("payMethod") } ?: PayMethod.UNSPECIFIED,
+        time = bundle.getString("time").orEmpty(),
     )
 }

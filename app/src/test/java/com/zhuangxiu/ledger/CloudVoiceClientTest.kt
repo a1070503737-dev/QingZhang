@@ -3,6 +3,7 @@ package com.zhuangxiu.ledger
 import android.app.Application
 import android.content.Context
 import com.zhuangxiu.ledger.data.db.DailyCategory
+import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.domain.ChineseVoiceParser
 import com.zhuangxiu.ledger.voice.CloudVoiceAccess
 import com.zhuangxiu.ledger.voice.CloudVoiceClient
@@ -43,7 +44,8 @@ class CloudVoiceClientTest {
         val messages = request.getJSONArray("messages")
         assertEquals(2, messages.length())
         val input = JSONObject(messages.getJSONObject(1).getString("content"))
-        assertEquals(setOf("text", "today", "categories"), input.keys().asSequence().toSet())
+        assertEquals(setOf("text", "today", "categories", "payMethods"), input.keys().asSequence().toSet())
+        assertEquals(PayMethod.entries.size - 1, input.getJSONArray("payMethods").length())
         assertEquals(transcript, input.getString("text"))
     }
 
@@ -62,6 +64,24 @@ class CloudVoiceClientTest {
         assertThrows(IOException::class.java) {
             CloudVoiceClient.decode(response(entry("25"), reason = "length"), emptyList())
         }
+    }
+
+    @Test fun retainsSpokenPaymentAndTimeWhenTheModelOmitsOrChangesThem() {
+        val spoken = "昨晚七点半微信付了25元吃饭，今天打车30元付现金"
+        val modelDraft = entry("25").put("payMethod", "ALIPAY").put("paymentEvidence", "支付宝")
+        val drafts = CloudVoiceClient.decode(response(modelDraft, entry("30")), ChineseVoiceParser.parse(spoken, today), spoken)
+        assertEquals(listOf(PayMethod.WECHAT, PayMethod.CASH), drafts.map { it.payMethod })
+        assertEquals(listOf("19:30", ""), drafts.map { it.time })
+    }
+
+    @Test fun onlyAcceptsPaymentEvidenceFromTheActualSpokenTransaction() {
+        val spoken = "买了晚饭，微信付的，花了25元"
+        val local = ChineseVoiceParser.parse(spoken, today)
+        val modelDraft = entry("25").put("payMethod", "WECHAT").put("paymentEvidence", "微信付的")
+        assertEquals(PayMethod.WECHAT, CloudVoiceClient.decode(response(modelDraft), local, spoken).single().payMethod)
+        val unspecified = "买了微信会员，花了25元"
+        assertEquals(PayMethod.UNSPECIFIED, CloudVoiceClient.decode(response(modelDraft),
+            ChineseVoiceParser.parse(unspecified, today), unspecified).single().payMethod)
     }
 
     @Test fun connectivityUsesEachGenerationEndpointAndReturnsTheReportedModel() {

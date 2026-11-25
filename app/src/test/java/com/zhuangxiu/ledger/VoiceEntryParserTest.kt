@@ -2,7 +2,9 @@ package com.zhuangxiu.ledger
 
 import com.zhuangxiu.ledger.data.db.DailyCategory
 import com.zhuangxiu.ledger.data.db.EntryKind
+import com.zhuangxiu.ledger.data.db.PayMethod
 import com.zhuangxiu.ledger.domain.ChineseVoiceParser
+import com.zhuangxiu.ledger.domain.parseEntryTime
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -107,5 +109,42 @@ class VoiceEntryParserTest {
         assertEquals("25", payment.amount)
         assertEquals(DailyCategory.FOOD, payment.category)
         assertEquals("3", ChineseVoiceParser.parse("地铁三块钱", today).single().amount)
+    }
+
+    @Test fun assignsPaymentToEachTransactionEvenWithoutPunctuation() {
+        val drafts = ChineseVoiceParser.parse("早餐8块微信支付午饭25元支付宝付的，刷信用卡买了电影票39元，打车15元付现金", today)
+        assertEquals(listOf("8", "25", "39", "15"), drafts.map { it.amount })
+        assertEquals(listOf(PayMethod.WECHAT, PayMethod.ALIPAY, PayMethod.BANK, PayMethod.CASH), drafts.map { it.payMethod })
+        val income = ChineseVoiceParser.parse("支付宝收到退款18元", today).single()
+        assertEquals(EntryKind.INCOME, income.kind)
+        assertEquals(PayMethod.ALIPAY, income.payMethod)
+    }
+
+    @Test fun missingAmbiguousAndUnrelatedPaymentMethodsStayUnspecified() {
+        for (phrase in listOf("早餐8元", "买了微信会员20元", "吃饭30元用微信还是支付宝", "微信还是支付宝付了30元")) {
+            assertEquals(phrase, PayMethod.UNSPECIFIED, ChineseVoiceParser.parse(phrase, today).single().payMethod)
+        }
+        assertEquals("", ChineseVoiceParser.parse("用微信买了小米15", today).single().amount)
+    }
+
+    @Test fun retainsDatesAndTimeForEachEntryAndIgnoresUnstatedTimes() {
+        val drafts = ChineseVoiceParser.parse("昨晚八点半，吃饭25元，用微信付的，今天18：05打车30元，买了奶茶8元", today)
+        assertEquals(listOf("2026-11-22", "2026-11-23", "2026-11-23"), drafts.map { it.date })
+        assertEquals(listOf("20:30", "18:05", ""), drafts.map { it.time })
+        assertEquals(listOf("25", "30", "8"), drafts.map { it.amount })
+        assertEquals(PayMethod.WECHAT, drafts.first().payMethod)
+        val trailing = ChineseVoiceParser.parse("打车30元，下午两点，现金", today).single()
+        assertEquals("14:00", trailing.time)
+        assertEquals(PayMethod.CASH, trailing.payMethod)
+    }
+
+    @Test fun separatesSpokenMoneyFromClockTimeAndLeavesInvalidClockEditable() {
+        val fare = ChineseVoiceParser.parse("下午三点一刻地铁六点五元", today).single()
+        assertEquals("15:15", fare.time)
+        assertEquals("6.5", fare.amount)
+        val invalid = ChineseVoiceParser.parse("25:67吃饭25元", today).single()
+        assertEquals("25:67", invalid.time)
+        assertNull(parseEntryTime(invalid.time))
+        assertEquals("25", invalid.amount)
     }
 }

@@ -243,7 +243,7 @@ fun EditScreen(onBack: () -> Unit, viewModel: EditViewModel = hiltViewModel()) {
                         state.status == PaymentStatus.PAID &&
                         (Money.parseToCents(state.amountText) ?: 0L) > state.existingPaidCents)
                 ) {
-                    PaymentMethodPicker(state.payMethod, viewModel::setPayMethod)
+                    PaymentMethodPicker(state.payMethod, onChange = viewModel::setPayMethod)
                 }
 
                 PickerRow(

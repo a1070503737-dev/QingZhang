@@ -137,7 +137,7 @@ internal fun CloudVoiceScreen(onBack: () -> Unit, model: CloudVoiceViewModel = h
             LedgerCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("模型 API", style = MaterialTheme.typography.titleMedium)
-                    Text("开启后，轻账在手机上听写，再将当次文字、当天日期和分类选项发给你选择的模型。原始录音和账本历史留在本机。测试只发送一条固定消息，按服务商用量计费。")
+                    Text("开启后，轻账在手机上听写，再将当次文字、当天日期、分类和支付方式选项发给你选择的模型。原始录音和账本历史留在本机。测试只发送一条固定消息，按服务商用量计费。")
                     if (status.configured) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically) {

@@ -51,20 +51,24 @@ class DailyDatabaseTest {
     @Test fun reviewedBatchesAreAtomicAndRetrySafe() = runTest {
         val ledger = LedgerEntryService(repo)
         val day = java.time.LocalDate.of(2026, 11, 23)
-        val drafts = ChineseVoiceParser.parse("早餐8元，午饭25元", day)
-        assertTrue(ledger.save(1, "original", drafts, allowSimilar = false))
-        assertTrue(ledger.save(1, "original", drafts, allowSimilar = false))
+        val drafts = ChineseVoiceParser.parse("早上八点半早餐8元微信付的，午饭25元付现金", day)
+        val recordedMinute = 13 * 60 + 10
+        assertTrue(ledger.save(1, "original", drafts, allowSimilar = false, recordedMinute))
+        assertTrue(ledger.save(1, "original", drafts, allowSimilar = false, recordedMinute))
+        val saved = db.dailyDao().all().sortedBy { it.amountCents }
+        assertEquals(listOf(PayMethod.WECHAT, PayMethod.CASH), saved.map { it.payMethod })
+        assertEquals(listOf(8 * 60 + 30, recordedMinute), saved.map { it.minute })
         assertTrue(runCatching {
-            ledger.save(1, "original", drafts + drafts.first(), allowSimilar = true)
+            ledger.save(1, "original", drafts + drafts.first(), allowSimilar = true, recordedMinute)
         }.isFailure)
-        assertFalse(ledger.save(1, "retry", drafts, allowSimilar = false))
+        assertFalse(ledger.save(1, "retry", drafts, allowSimilar = false, recordedMinute))
         assertEquals(2, db.dailyDao().all().size)
         assertEquals(3300L, DailyStatistics.calculate(db.dailyDao().all(), 1, YearMonth.from(day)).totals.expense)
         assertTrue(runCatching {
-            ledger.save(1, "invalid", listOf(drafts.first(), drafts.last().copy(amount = "")), allowSimilar = true)
+            ledger.save(1, "invalid", listOf(drafts.first(), drafts.last().copy(amount = "")), allowSimilar = true, recordedMinute)
         }.isFailure)
         assertEquals(2, db.dailyDao().all().size)
-        assertTrue(ledger.save(1, "retry", drafts, allowSimilar = true))
+        assertTrue(ledger.save(1, "retry", drafts, allowSimilar = true, recordedMinute))
         assertEquals(4, db.dailyDao().all().size)
     }
 
