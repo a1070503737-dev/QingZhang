@@ -15,10 +15,10 @@ import com.k2fsa.sherpa.onnx.OfflineZipformerCtcModelConfig
 import com.zhuangxiu.ledger.domain.compactChineseSpeech
 import com.zhuangxiu.ledger.voice.OfflineSpeechModels
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -33,8 +33,7 @@ internal object BundledSpeech {
     suspend fun listen(
         context: Context,
         models: OfflineSpeechModels,
-        stop: AtomicBoolean,
-        cancelled: AtomicBoolean = AtomicBoolean(false),
+        confirmed: Deferred<Unit>,
         onRecording: () -> Unit,
         onDecoding: () -> Unit,
         onFallback: (String) -> Unit,
@@ -49,15 +48,13 @@ internal object BundledSpeech {
             }
         }
         val samples = withContext(Dispatchers.IO) {
-            record(stop) {
+            record(confirmed) {
                 onRecording()
                 recognition.start()
             }
         }
-        if (cancelled.get()) {
-            recognition.cancel()
-            throw CancellationException("Voice capture cancelled")
-        }
+        // The recording limit stops the microphone, but only a release inside the button accepts the audio.
+        confirmed.await()
         if (samples.size < SAMPLE_RATE / 5) {
             recognition.cancel()
             return@coroutineScope ""
@@ -68,9 +65,9 @@ internal object BundledSpeech {
     }
 
     @SuppressLint("MissingPermission") // HomeVoiceEntry requests RECORD_AUDIO before starting.
-    private suspend fun record(stop: AtomicBoolean, onRecording: () -> Unit): FloatArray {
+    private suspend fun record(confirmed: Deferred<Unit>, onRecording: () -> Unit): FloatArray {
         currentCoroutineContext().ensureActive()
-        if (stop.get()) return FloatArray(0)
+        if (confirmed.isCompleted) return FloatArray(0)
 
         val channel = AudioFormat.CHANNEL_IN_MONO
         val encoding = AudioFormat.ENCODING_PCM_16BIT
@@ -92,7 +89,7 @@ internal object BundledSpeech {
             if (microphone.recordingState != AudioRecord.RECORDSTATE_RECORDING) throw IOException("麦克风无法录音")
             withContext(Dispatchers.Main.immediate) { onRecording() }
             val deadline = SystemClock.elapsedRealtime() + MAX_RECORDING_SECONDS * 1000L
-            while (!stop.get() && size < samples.size && SystemClock.elapsedRealtime() < deadline) {
+            while (!confirmed.isCompleted && size < samples.size && SystemClock.elapsedRealtime() < deadline) {
                 currentCoroutineContext().ensureActive()
                 val count = microphone.read(buffer, 0, minOf(buffer.size, samples.size - size))
                 if (count < 0) throw IOException("读取麦克风失败")

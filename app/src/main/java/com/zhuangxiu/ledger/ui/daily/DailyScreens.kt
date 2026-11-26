@@ -348,29 +348,24 @@ fun DailyHomeScreen(
     readOnly: Boolean = false,
     archivedBookIds: Set<Long> = emptySet(),
     onDelete: ((String) -> Unit)? = null,
-    voiceAction: (@Composable () -> Unit)? = null,
-    imageAction: (@Composable () -> Unit)? = null,
+    entryAction: (@Composable () -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     var addButtonHeight by remember { mutableIntStateOf(0) }
-    val showEntryActions = (canAdd || voiceAction != null || imageAction != null) && WindowInsets.ime.getBottom(density) == 0
+    val showEntryAction = (canAdd || entryAction != null) && WindowInsets.ime.getBottom(density) == 0
     LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = header,
             bottomBar = bottomBar,
             floatingActionButton = {
-                if (showEntryActions) {
-                    FlowRow(
-                        modifier = Modifier.onSizeChanged { addButtonHeight = it.height },
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        voiceAction?.invoke()
-                        imageAction?.invoke()
-                        if (canAdd) {
+                if (showEntryAction) {
+                    Box(Modifier.onSizeChanged { addButtonHeight = it.height }) {
+                        if (entryAction != null) {
+                            entryAction()
+                        } else {
                             LedgerButton(
                                 onClick = onAdd,
                                 hapticFeedback = HapticFeedbackType.SegmentTick,
@@ -388,7 +383,7 @@ fun DailyHomeScreen(
                 }
             },
         ) { padding ->
-            val bottomClearance = if (showEntryActions) {
+            val bottomClearance = if (showEntryAction) {
                 with(density) { addButtonHeight.toDp() }.coerceAtLeast(54.dp) + 32.dp
             } else {
                 24.dp

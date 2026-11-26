@@ -58,7 +58,7 @@ class DailyScreenTest {
                 HoldToTalkButton(VoiceCapture.Idle, onHold = {}, onEnd = {}, onTap = {})
             }
         }
-        val label = compose.onNodeWithText("ai 记账", useUnmergedTree = true)
+        val label = compose.onNodeWithText("记一笔", useUnmergedTree = true)
         val idleWidth = label.fetchSemanticsNode().boundsInRoot.width
         compose.mainClock.autoAdvance = false
         label.performTouchInput { down(center) }
@@ -69,7 +69,7 @@ class DailyScreenTest {
         assertEquals(idleWidth, label.fetchSemanticsNode().boundsInRoot.width, 0.5f)
     }
 
-    @Test fun homeVoiceHoldStartsBeforeReleaseAndDoesNotOpenManualInput() {
+    @Test fun homeVoiceHoldStartsBeforeReleaseAndDoesNotOpenEntryMenu() {
         val events = mutableListOf<String>()
         compose.setContent {
             RenovationLedgerTheme {
@@ -84,11 +84,11 @@ class DailyScreenTest {
                         events.add(if (released) "release" else "cancel")
                         capture = VoiceCapture.Recognizing
                     },
-                    onTap = { events.add("manual") },
+                    onTap = { events.add("menu") },
                 )
             }
         }
-        compose.onNodeWithText("ai 记账").performTouchInput { longClick() }
+        compose.onNodeWithText("记一笔").performTouchInput { longClick() }
         compose.onNodeWithText("正在识别…").assertIsDisplayed()
         compose.runOnIdle { assertEquals(listOf("start", "release"), events) }
     }
@@ -116,14 +116,14 @@ class DailyScreenTest {
                                 events.add(if (released) "release" else "cancel")
                                 capture = if (released) VoiceCapture.Recognizing else VoiceCapture.Idle
                             },
-                            onTap = { events.add("manual") },
+                            onTap = { events.add("menu") },
                         )
                     }
                 }
             }
         }
 
-        val button = compose.onNodeWithText("ai 记账")
+        val button = compose.onNodeWithText("记一笔")
         button.performTouchInput {
             down(center)
             advanceEventTime(viewConfiguration.longPressTimeoutMillis + 50L)
@@ -132,11 +132,11 @@ class DailyScreenTest {
         compose.onNodeWithText("松手取消").assertIsDisplayed()
         compose.runOnIdle { assertEquals(listOf(HapticFeedbackType.SegmentTick), ticks) }
         compose.onNodeWithText("松手取消").performTouchInput { up() }
-        compose.onNodeWithText("ai 记账").assertIsDisplayed()
+        compose.onNodeWithText("记一笔").assertIsDisplayed()
         compose.runOnIdle { assertEquals(listOf("start", "cancel"), events) }
 
         // 滑出取消区后，松手前滑回按钮内，应恢复「松手识别」并正常识别
-        compose.onNodeWithText("ai 记账").performTouchInput {
+        compose.onNodeWithText("记一笔").performTouchInput {
             down(center)
             advanceEventTime(viewConfiguration.longPressTimeoutMillis + 50L)
             moveTo(center + Offset(-160.dp.toPx(), 0f))
@@ -171,7 +171,7 @@ class DailyScreenTest {
                                             events.add(if (released) "release" else "cancel")
                                             capture = VoiceCapture.Idle
                                         },
-                                        onTap = { events.add("manual") },
+                                        onTap = { events.add("menu") },
                                     )
                                 }
                             }
@@ -182,7 +182,7 @@ class DailyScreenTest {
         }
 
         val home = compose.onNodeWithText("首页").assertIsSelected()
-        compose.onNodeWithText("ai 记账").performTouchInput {
+        compose.onNodeWithText("记一笔").performTouchInput {
             down(center)
             advanceEventTime(viewConfiguration.longPressTimeoutMillis + 50L)
             moveTo(center + Offset(-180.dp.toPx(), 0f))
@@ -192,12 +192,12 @@ class DailyScreenTest {
         home.assertIsSelected()
         compose.runOnIdle { assertEquals(listOf("start", "cancel"), events) }
 
-        compose.onNodeWithText("ai 记账").performTouchInput {
+        compose.onNodeWithText("记一笔").performTouchInput {
             down(center)
             advanceEventTime(viewConfiguration.longPressTimeoutMillis + 50L)
             cancel()
         }
-        compose.onNodeWithText("ai 记账").assertIsDisplayed()
+        compose.onNodeWithText("记一笔").assertIsDisplayed()
         compose.runOnIdle { assertEquals(listOf("start", "cancel", "start", "cancel"), events) }
     }
 

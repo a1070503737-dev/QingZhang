@@ -7,17 +7,9 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -30,7 +22,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.ui.components.LedgerButton
@@ -45,8 +36,8 @@ internal fun ReceiptImageAction(
     pickBook: () -> Unit,
     showAfterBookChoice: Boolean,
     onBookChoiceHandled: () -> Unit,
-    enabled: Boolean,
     onImage: (BookEntity, Uri, File?) -> Unit,
+    content: @Composable (() -> Unit) -> Unit,
 ) {
     val context = LocalContext.current
     var sources by rememberSaveable { mutableStateOf(false) }
@@ -65,18 +56,7 @@ internal fun ReceiptImageAction(
             onBookChoiceHandled()
         }
     }
-    LedgerButton(
-        onClick = { if (book == null) pickBook() else sources = true },
-        enabled = enabled,
-        prominent = false,
-        shape = RoundedCornerShape(16.dp),
-        minHeight = 54.dp,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp),
-    ) {
-        Icon(Icons.Outlined.ImageSearch, "图片记账", Modifier.size(20.dp))
-        Spacer(Modifier.width(6.dp))
-        Text("识图", fontWeight = FontWeight.SemiBold)
-    }
+    content { if (book == null) pickBook() else sources = true }
     if (sources && book != null) {
         ModalBottomSheet(
             onDismissRequest = { sources = false },

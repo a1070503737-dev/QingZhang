@@ -294,6 +294,7 @@ internal fun LedgerNavHost(
                             Routes.HOME -> {
                                 val archivedBook = bookState.selected?.takeIf { !bookState.all && it.archived }
                                 val projectBook = bookState.selected?.takeIf { !bookState.all && !it.archived && it.kind == BookKind.RENOVATION }
+                                val canAdd = if (bookState.all) activeBooks.isNotEmpty() else bookState.selected?.archived == false
                                 HomeVoiceEntry(
                                     book = voiceBook,
                                     canRecord = activeDailyBooks.isNotEmpty(),
@@ -301,7 +302,8 @@ internal fun LedgerNavHost(
                                     pickImageBook = { entryBookPicker = EntryBookPicker.Image },
                                     showImageAfterBookChoice = showImageAfterBookChoice,
                                     onImageBookChoiceHandled = { showImageAfterBookChoice = false },
-                                ) { voiceAction, imageAction ->
+                                    onAdd = openQuickEntry.takeIf { canAdd },
+                                ) { entryAction ->
                                     DailyHomeScreen(
                                         dailyState,
                                         header,
@@ -309,12 +311,11 @@ internal fun LedgerNavHost(
                                         dailyViewModel::month,
                                         dailyViewModel::currentMonth,
                                         onAdd = openQuickEntry,
-                                        voiceAction = voiceAction,
-                                        imageAction = imageAction,
+                                        entryAction = entryAction,
                                         onEdit = openEntryEdit,
                                         onProjects = projectBook?.let { book -> { navController.navigate(Routes.projects(book.id)) } },
                                         bookNames = if (bookState.all) bookState.books.associate { it.id to it.name } else emptyMap(),
-                                        canAdd = if (bookState.all) bookState.books.any { !it.archived } else bookState.selected?.archived == false,
+                                        canAdd = canAdd,
                                         readOnly = archivedBook != null,
                                         archivedBookIds = bookState.books.filter { it.archived }.map { it.id }.toSet(),
                                         onDelete = { id ->

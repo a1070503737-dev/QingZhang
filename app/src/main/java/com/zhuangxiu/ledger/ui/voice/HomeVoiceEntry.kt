@@ -10,6 +10,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
@@ -18,8 +19,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,7 +64,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.ui.components.LedgerPanel
 import com.zhuangxiu.ledger.ui.components.SurfaceTone
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
@@ -77,8 +81,9 @@ internal fun HomeVoiceEntry(
     pickImageBook: () -> Unit,
     showImageAfterBookChoice: Boolean,
     onImageBookChoiceHandled: () -> Unit,
+    onAdd: (() -> Unit)?,
     model: VoiceEntryViewModel = hiltViewModel(),
-    content: @Composable ((@Composable () -> Unit)?, (@Composable () -> Unit)?) -> Unit,
+    content: @Composable ((@Composable () -> Unit)?) -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -87,14 +92,13 @@ internal fun HomeVoiceEntry(
     val review by model.state.collectAsStateWithLifecycle()
     var capture by remember { mutableStateOf(VoiceCapture.Idle) }
     var task by remember { mutableStateOf<Job?>(null) }
-    val stop = remember { AtomicBoolean() }
-    val cancelSlide = remember { AtomicBoolean() }
+    var releaseSignal by remember { mutableStateOf<CompletableDeferred<Unit>?>(null) }
     val currentBook by rememberUpdatedState(book)
     val chooseBook by rememberUpdatedState(pickBook)
     fun message(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
 
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        message(if (granted) "已授权，长按「ai 记账」开始录音" else "麦克风未授权，轻点可输入文字")
+        message(if (granted) "已授权，长按「记一笔」开始录音" else "麦克风未授权，无法语音记账")
     }
 
     fun begin() {
@@ -108,14 +112,13 @@ internal fun HomeVoiceEntry(
             permission.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
-        stop.set(false)
-        cancelSlide.set(false)
+        val confirmed = CompletableDeferred<Unit>()
+        releaseSignal = confirmed
         capture = VoiceCapture.Starting
         task = scope.launch {
             try {
                 val text = BundledSpeech.listen(
-                    context, model.speechModels, stop,
-                    cancelled = cancelSlide,
+                    context, model.speechModels, confirmed,
                     onRecording = {
                         capture = VoiceCapture.Recording
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -123,40 +126,34 @@ internal fun HomeVoiceEntry(
                     onDecoding = { capture = VoiceCapture.Recognizing },
                     onFallback = ::message,
                 )
-                if (text.isBlank()) message("没有听清，请长按说完再松手")
-                else model.open(target, text)
+                if (text.isBlank()) message("没有听清，可以修改文字或重试")
+                model.open(target, text)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: SecurityException) {
-                message("轻账无法访问麦克风，轻点可输入文字")
+                message("轻账无法访问麦克风")
             } catch (_: LinkageError) {
-                message("这台设备无法加载离线语音引擎，轻点可输入文字")
+                message("这台设备无法加载离线语音引擎")
+                if (confirmed.isCompleted) model.open(target)
             } catch (_: Exception) {
-                message("离线识别未完成，可以重试或输入文字")
+                message("离线识别未完成，请重试")
+                if (confirmed.isCompleted) model.open(target)
             } finally {
+                releaseSignal = null
                 task = null
                 capture = VoiceCapture.Idle
             }
         }
     }
 
-    fun finish(released: Boolean) {
+    fun finish(shouldRecognize: Boolean) {
         val activeTask = task
         if (activeTask == null || !activeTask.isActive || capture == VoiceCapture.Recognizing) return
-        if (released) {
-            stop.set(true)
+        if (shouldRecognize) {
+            releaseSignal?.complete(Unit)
         } else {
-            cancelSlide.set(true)
             activeTask.cancel()
-            stop.set(true)
             message("已取消语音识别")
-        }
-    }
-
-    fun openManual() {
-        if (task == null) {
-            val target = currentBook
-            if (target != null) model.open(target) else chooseBook()
         }
     }
 
@@ -172,32 +169,48 @@ internal fun HomeVoiceEntry(
     }
 
     if (canRecord) {
-        content(
-            {
-                HoldToTalkButton(
-                    capture = capture,
-                    onHold = ::begin,
-                    onEnd = ::finish,
-                    onTap = ::openManual,
-                    onCancelPreviewChange = cancelSlide::set,
-                )
-            },
-            {
-                ReceiptImageAction(
-                    book, pickImageBook, showImageAfterBookChoice, onImageBookChoiceHandled,
-                    enabled = capture == VoiceCapture.Idle && review.bookName == null,
-                    onImage = model::openImage,
-                )
-            },
-        )
-    } else content(null, null)
+        content {
+            var menuOpen by remember { mutableStateOf(false) }
+            ReceiptImageAction(
+                book, pickImageBook, showImageAfterBookChoice, onImageBookChoiceHandled,
+                onImage = model::openImage,
+            ) { openImage ->
+                Box {
+                    HoldToTalkButton(capture, onHold = ::begin, onEnd = ::finish, onTap = {
+                        if (task == null && review.bookName == null) menuOpen = true
+                    })
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        if (onAdd != null) {
+                            DropdownMenuItem(
+                                text = { Text("常规记账") },
+                                leadingIcon = { Icon(Icons.Outlined.Add, null) },
+                                onClick = {
+                                    menuOpen = false
+                                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                    onAdd()
+                                },
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("图片记账") },
+                            leadingIcon = { Icon(Icons.Outlined.ImageSearch, null) },
+                            onClick = {
+                                menuOpen = false
+                                openImage()
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    } else content(null)
 
     if (review.bookName != null) VoiceReviewSheet(review, model)
 }
 
 private enum class InitialPressResult { Tap, Cancelled }
 
-internal fun isSlideCancelling(
+private fun isSlideCancelling(
     position: Offset,
     size: IntSize,
     currentlyCancelling: Boolean,
@@ -216,12 +229,10 @@ internal fun HoldToTalkButton(
     onHold: () -> Unit,
     onEnd: (Boolean) -> Unit,
     onTap: () -> Unit,
-    onCancelPreviewChange: (Boolean) -> Unit = {},
 ) {
     val start by rememberUpdatedState(onHold)
     val end by rememberUpdatedState(onEnd)
     val tap by rememberUpdatedState(onTap)
-    val cancelPreview by rememberUpdatedState(onCancelPreviewChange)
     val currentCapture by rememberUpdatedState(capture)
     val haptics by rememberUpdatedState(LocalHapticFeedback.current)
     val colors = MaterialTheme.colorScheme
@@ -255,7 +266,7 @@ internal fun HoldToTalkButton(
             .heightIn(min = 54.dp)
             .semantics(mergeDescendants = true) {
                 role = Role.Button
-                onClick(label = "输入文字记账") { tap(); true }
+                onClick(label = "选择记账方式") { tap(); true }
             }
             .pointerInput(Unit) {
                 val cancelMargin = 12.dp.toPx()
@@ -341,7 +352,6 @@ internal fun HoldToTalkButton(
                                 if (nextSlidingOut != slidingOut) {
                                     slidingOut = nextSlidingOut
                                     cancelPending = nextSlidingOut
-                                    cancelPreview(nextSlidingOut)
                                     if (currentCapture == VoiceCapture.Starting || currentCapture == VoiceCapture.Recording) {
                                         haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                                     }
@@ -349,7 +359,6 @@ internal fun HoldToTalkButton(
                             }
                         } finally {
                             cancelPending = false
-                            cancelPreview(false)
                             release.complete(Unit)
                             if (longPressed) end(completed)
                         }
@@ -364,12 +373,17 @@ internal fun HoldToTalkButton(
         variant = SurfaceTone.Accent(containerColor),
     ) {
         Row(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (cancelling) Icons.Outlined.Close else Icons.Outlined.Mic, null, tint = contentColor)
+            val icon = when {
+                cancelling -> Icons.Outlined.Close
+                capture == VoiceCapture.Idle -> Icons.Outlined.Add
+                else -> Icons.Outlined.Mic
+            }
+            Icon(icon, null, tint = contentColor)
             Spacer(Modifier.width(8.dp))
             Text(
                 when {
                     cancelling -> "松手取消"
-                    capture == VoiceCapture.Idle -> "ai 记账"
+                    capture == VoiceCapture.Idle -> "记一笔"
                     capture == VoiceCapture.Starting -> "准备录音…"
                     capture == VoiceCapture.Recording -> "松手识别"
                     else -> "正在识别…"
