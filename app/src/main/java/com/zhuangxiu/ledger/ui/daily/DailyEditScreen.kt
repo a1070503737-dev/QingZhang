@@ -210,12 +210,6 @@ fun DailyEditContent(
                 LedgerIconButton(onClick = { deleteDialog = true }, enabled = !state.busy) {
                     Icon(Icons.Outlined.DeleteOutline, "删除账目")
                 }
-            } else if (!editing && receiptBook != null) {
-                ReceiptImageAction(
-                    book = receiptBook,
-                    enabled = !state.loading && !state.missing && !state.busy && !state.complete,
-                    onOpen = finishNote,
-                )
             }
         },
     ) { modifier ->
@@ -396,6 +390,13 @@ fun DailyEditContent(
                         Icon(Icons.Outlined.Schedule, "记账时间", Modifier.size(17.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(if (state.minute < 0) "时间未指定" else "%02d:%02d".format(state.minute / 60, state.minute % 60))
+                    }
+                    if (!editing && receiptBook != null) {
+                        ReceiptImageAction(
+                            book = receiptBook,
+                            enabled = !state.busy && !state.complete,
+                            onOpen = finishNote,
+                        )
                     }
                 }
 

@@ -60,8 +60,8 @@ internal fun ReceiptImageAction(
             sources = true
         },
         enabled = enabled && review.bookName == null,
-        prominent = false,
-        minHeight = 40.dp,
+        tint = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Icon(Icons.Outlined.ImageSearch, contentDescription = null, modifier = Modifier.size(18.dp))

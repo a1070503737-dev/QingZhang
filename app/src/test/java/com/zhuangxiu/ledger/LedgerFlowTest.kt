@@ -125,7 +125,11 @@ class LedgerFlowTest {
         awaitText("账本 · 生活账本")
         compose.onNodeWithContentDescription("日常记账金额").assertIsDisplayed()
         compose.onNodeWithText("常规记账").assertDoesNotExist()
-        compose.onNodeWithText("图片记账").assertIsDisplayed().assertIsEnabled()
+        val time = compose.onNodeWithContentDescription("记账时间").fetchSemanticsNode().boundsInRoot
+        val image = compose.onNodeWithText("图片记账").assertIsDisplayed().assertIsEnabled()
+            .fetchSemanticsNode().boundsInRoot
+        assertEquals(time.center.y, image.center.y, 1f)
+        assertTrue(image.left > time.right)
         compose.onNodeWithText("核对记账草稿").assertDoesNotExist()
     }
 
