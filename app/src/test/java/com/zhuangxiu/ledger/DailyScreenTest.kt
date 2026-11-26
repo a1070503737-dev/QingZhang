@@ -69,7 +69,7 @@ class DailyScreenTest {
         assertEquals(idleWidth, label.fetchSemanticsNode().boundsInRoot.width, 0.5f)
     }
 
-    @Test fun homeVoiceHoldStartsBeforeReleaseAndDoesNotOpenEntryMenu() {
+    @Test fun homeVoiceHoldStartsBeforeReleaseAndDoesNotOpenForm() {
         val events = mutableListOf<String>()
         compose.setContent {
             RenovationLedgerTheme {
@@ -84,7 +84,7 @@ class DailyScreenTest {
                         events.add(if (released) "release" else "cancel")
                         capture = VoiceCapture.Recognizing
                     },
-                    onTap = { events.add("menu") },
+                    onTap = { events.add("form") },
                 )
             }
         }
@@ -116,7 +116,7 @@ class DailyScreenTest {
                                 events.add(if (released) "release" else "cancel")
                                 capture = if (released) VoiceCapture.Recognizing else VoiceCapture.Idle
                             },
-                            onTap = { events.add("menu") },
+                            onTap = { events.add("form") },
                         )
                     }
                 }
@@ -171,7 +171,7 @@ class DailyScreenTest {
                                             events.add(if (released) "release" else "cancel")
                                             capture = VoiceCapture.Idle
                                         },
-                                        onTap = { events.add("menu") },
+                                        onTap = { events.add("form") },
                                     )
                                 }
                             }

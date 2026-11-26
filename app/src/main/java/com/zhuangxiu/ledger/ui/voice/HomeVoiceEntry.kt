@@ -10,7 +10,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
@@ -21,10 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.ImageSearch
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -78,10 +74,7 @@ internal fun HomeVoiceEntry(
     book: BookEntity?,
     canRecord: Boolean,
     pickBook: () -> Unit,
-    pickImageBook: () -> Unit,
-    showImageAfterBookChoice: Boolean,
-    onImageBookChoiceHandled: () -> Unit,
-    onAdd: (() -> Unit)?,
+    onAdd: () -> Unit,
     model: VoiceEntryViewModel = hiltViewModel(),
     content: @Composable ((@Composable () -> Unit)?) -> Unit,
 ) {
@@ -170,38 +163,12 @@ internal fun HomeVoiceEntry(
 
     if (canRecord) {
         content {
-            var menuOpen by remember { mutableStateOf(false) }
-            ReceiptImageAction(
-                book, pickImageBook, showImageAfterBookChoice, onImageBookChoiceHandled,
-                onImage = model::openImage,
-            ) { openImage ->
-                Box {
-                    HoldToTalkButton(capture, onHold = ::begin, onEnd = ::finish, onTap = {
-                        if (task == null && review.bookName == null) menuOpen = true
-                    })
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        if (onAdd != null) {
-                            DropdownMenuItem(
-                                text = { Text("常规记账") },
-                                leadingIcon = { Icon(Icons.Outlined.Add, null) },
-                                onClick = {
-                                    menuOpen = false
-                                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                                    onAdd()
-                                },
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("图片记账") },
-                            leadingIcon = { Icon(Icons.Outlined.ImageSearch, null) },
-                            onClick = {
-                                menuOpen = false
-                                openImage()
-                            },
-                        )
-                    }
+            HoldToTalkButton(capture, onHold = ::begin, onEnd = ::finish, onTap = {
+                if (task == null && review.bookName == null) {
+                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    onAdd()
                 }
-            }
+            })
         }
     } else content(null)
 
@@ -266,7 +233,7 @@ internal fun HoldToTalkButton(
             .heightIn(min = 54.dp)
             .semantics(mergeDescendants = true) {
                 role = Role.Button
-                onClick(label = "选择记账方式") { tap(); true }
+                onClick(label = "打开记账表单") { tap(); true }
             }
             .pointerInput(Unit) {
                 val cancelMargin = 12.dp.toPx()

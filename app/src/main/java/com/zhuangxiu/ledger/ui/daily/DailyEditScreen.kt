@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zhuangxiu.ledger.data.db.BookEntity
 import com.zhuangxiu.ledger.data.db.DailyCategory
 import com.zhuangxiu.ledger.data.db.EntryKind
 import com.zhuangxiu.ledger.data.db.PayMethod
@@ -82,10 +83,15 @@ import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
 import com.zhuangxiu.ledger.ui.components.hasAmountOperation
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import com.zhuangxiu.ledger.ui.theme.LedgerTheme
+import com.zhuangxiu.ledger.ui.voice.ReceiptImageAction
 import java.time.LocalDate
 
 @Composable
-fun DailyEditScreen(onBack: () -> Unit, viewModel: DailyEditViewModel = hiltViewModel()) {
+fun DailyEditScreen(
+    onBack: () -> Unit,
+    viewModel: DailyEditViewModel = hiltViewModel(),
+    receiptBook: BookEntity? = null,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
@@ -105,6 +111,7 @@ fun DailyEditScreen(onBack: () -> Unit, viewModel: DailyEditViewModel = hiltView
         onKind = viewModel::kind,
         onSave = viewModel::save,
         onDelete = viewModel::delete,
+        receiptBook = receiptBook,
     )
 }
 
@@ -117,6 +124,7 @@ fun DailyEditContent(
     onKind: (EntryKind) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
+    receiptBook: BookEntity? = null,
 ) {
     var noteFocused by remember { mutableStateOf(false) }
     var datePicker by rememberSaveable { mutableStateOf(false) }
@@ -202,6 +210,12 @@ fun DailyEditContent(
                 LedgerIconButton(onClick = { deleteDialog = true }, enabled = !state.busy) {
                     Icon(Icons.Outlined.DeleteOutline, "删除账目")
                 }
+            } else if (!editing && receiptBook != null) {
+                ReceiptImageAction(
+                    book = receiptBook,
+                    enabled = !state.loading && !state.missing && !state.busy && !state.complete,
+                    onOpen = finishNote,
+                )
             }
         },
     ) { modifier ->

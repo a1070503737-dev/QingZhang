@@ -91,7 +91,7 @@ import com.zhuangxiu.ledger.ui.voice.CloudVoiceScreen
 import com.zhuangxiu.ledger.ui.voice.OfflineSpeechScreen
 import com.zhuangxiu.ledger.ui.voice.HomeVoiceEntry
 
-private enum class EntryBookPicker { Manual, Voice, Image }
+private enum class EntryBookPicker { Manual, Voice }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -153,7 +153,6 @@ internal fun LedgerNavHost(
     }
 
     var entryBookPicker by rememberSaveable { mutableStateOf<EntryBookPicker?>(null) }
-    var showImageAfterBookChoice by rememberSaveable { mutableStateOf(false) }
     val currentActiveBook = bookState.selected?.takeUnless { it.archived || bookState.all }
     val activeBooks = bookState.books.filterNot { it.archived }
     val activeDailyBooks = activeBooks.filter { it.kind == BookKind.DAILY }
@@ -192,11 +191,7 @@ internal fun LedgerNavHost(
                                 EntryBookPicker.Manual -> addToBook(book)
                                 EntryBookPicker.Voice -> {
                                     voiceBookId = book.id
-                                    Toast.makeText(appContext, "已选账本，长按「ai 记账」开始录音", Toast.LENGTH_SHORT).show()
-                                }
-                                EntryBookPicker.Image -> {
-                                    voiceBookId = book.id
-                                    showImageAfterBookChoice = true
+                                    Toast.makeText(appContext, "已选账本，长按「记一笔」开始录音", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
@@ -299,10 +294,7 @@ internal fun LedgerNavHost(
                                     book = voiceBook,
                                     canRecord = activeDailyBooks.isNotEmpty(),
                                     pickBook = { entryBookPicker = EntryBookPicker.Voice },
-                                    pickImageBook = { entryBookPicker = EntryBookPicker.Image },
-                                    showImageAfterBookChoice = showImageAfterBookChoice,
-                                    onImageBookChoiceHandled = { showImageAfterBookChoice = false },
-                                    onAdd = openQuickEntry.takeIf { canAdd },
+                                    onAdd = openQuickEntry,
                                 ) { entryAction ->
                                     DailyHomeScreen(
                                         dailyState,
@@ -396,7 +388,11 @@ internal fun LedgerNavHost(
                     navArgument("bookId") { type = NavType.LongType; defaultValue = 1L },
                     navArgument("entryId") { type = NavType.StringType; defaultValue = "" },
                 ),
-            ) { DailyEditScreen(onBack = back) }
+            ) { entry ->
+                val bookId = entry.arguments?.getLong("bookId")
+                val receiptBook = activeDailyBooks.firstOrNull { it.id == bookId }
+                DailyEditScreen(onBack = back, receiptBook = receiptBook)
+            }
             composable(Routes.BILLS, arguments = listOf(navArgument("bookId") { type = NavType.LongType })) { entry ->
                 val bookId = requireNotNull(entry.arguments?.getLong("bookId"))
                 val billsViewModel: BillsViewModel = hiltViewModel()

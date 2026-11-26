@@ -117,13 +117,15 @@ class LedgerFlowTest {
         settingsTab.assertIsSelected()
     }
 
-    @Test fun homeHasOneEntryButtonWithRegularAndImageOptionsOnTap() {
+    @Test fun tappingHomeEntryOpensTheFormWithImageAction() {
         awaitText("生活账本")
         compose.onNodeWithText("ai 记账").assertDoesNotExist()
         compose.onNodeWithText("识图").assertDoesNotExist()
         compose.onNodeWithText("记一笔").performTouchInput { click() }
-        compose.onNodeWithText("常规记账").assertIsDisplayed()
-        compose.onNodeWithText("图片记账").assertIsDisplayed()
+        awaitText("账本 · 生活账本")
+        compose.onNodeWithContentDescription("日常记账金额").assertIsDisplayed()
+        compose.onNodeWithText("常规记账").assertDoesNotExist()
+        compose.onNodeWithText("图片记账").assertIsDisplayed().assertIsEnabled()
         compose.onNodeWithText("核对记账草稿").assertDoesNotExist()
     }
 
@@ -138,11 +140,13 @@ class LedgerFlowTest {
         compose.onNodeWithText("下载并使用").performScrollTo().assertIsEnabled()
     }
 
-    @Test fun imageEntryCanOpenThePhotoPickerAndReviewRecognizedText() {
+    @Test fun imageEntryFromTheFormSavesTheReceiptAndKeepsTheManualDraft() {
         awaitText("生活账本")
         compose.onNodeWithText("记一笔").performClick()
+        awaitText("账本 · 生活账本")
+        compose.onNodeWithContentDescription("数字键1", useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription("数字键7", useUnmergedTree = true).performClick()
         compose.onNodeWithText("图片记账").performClick()
-        awaitText("图片记账")
         compose.onNodeWithText("从文件选图").assertIsDisplayed()
         compose.onNodeWithText("从相册选图").performClick()
         compose.runOnIdle {
@@ -157,6 +161,11 @@ class LedgerFlowTest {
         compose.onNodeWithText("解析文字").performClick()
         compose.onNodeWithText("支付方式 · 现金 ▾").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("确认保存 1 笔").performScrollTo().assertIsEnabled().performClick()
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithText("核对图片账单").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithContentDescription("日常记账金额").assertTextContains("17")
+        compose.onNodeWithContentDescription("返回").performClick()
         compose.waitUntil(15_000) {
             compose.onAllNodesWithContentDescription("本月支出 ¥25.00").fetchSemanticsNodes().isNotEmpty()
         }
@@ -175,7 +184,6 @@ class LedgerFlowTest {
         compose.onNodeWithText("首页").performClick()
         awaitText("装修项目")
         compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
-        compose.onNodeWithText("常规记账").performClick()
         awaitText("记装修账")
         awaitText("装修阶段")
         compose.onNodeWithText("餐饮").assertDoesNotExist()
@@ -185,7 +193,6 @@ class LedgerFlowTest {
         compose.onNodeWithText("全部账本").performClick()
         awaitText("全部账本")
         compose.onNodeWithText("记一笔", useUnmergedTree = true).performClick()
-        compose.onNodeWithText("常规记账").performClick()
         awaitText("记到哪个账本？")
         compose.onNodeWithText("装修测试").performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("账单总金额").fetchSemanticsNodes().isNotEmpty() }
