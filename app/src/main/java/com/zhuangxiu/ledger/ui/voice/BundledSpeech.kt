@@ -34,6 +34,7 @@ internal object BundledSpeech {
         context: Context,
         models: OfflineSpeechModels,
         stop: AtomicBoolean,
+        cancelled: AtomicBoolean = AtomicBoolean(false),
         onRecording: () -> Unit,
         onDecoding: () -> Unit,
         onFallback: (String) -> Unit,
@@ -52,6 +53,10 @@ internal object BundledSpeech {
                 onRecording()
                 recognition.start()
             }
+        }
+        if (cancelled.get()) {
+            recognition.cancel()
+            throw CancellationException("Voice capture cancelled")
         }
         if (samples.size < SAMPLE_RATE / 5) {
             recognition.cancel()

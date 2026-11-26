@@ -8,7 +8,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,8 +33,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.isOutOfBounds
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -42,6 +47,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -55,7 +61,10 @@ import com.zhuangxiu.ledger.ui.components.LedgerPanel
 import com.zhuangxiu.ledger.ui.components.SurfaceTone
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 internal enum class VoiceCapture { Idle, Starting, Recording, Recognizing }
@@ -79,6 +88,7 @@ internal fun HomeVoiceEntry(
     var capture by remember { mutableStateOf(VoiceCapture.Idle) }
     var task by remember { mutableStateOf<Job?>(null) }
     val stop = remember { AtomicBoolean() }
+    val cancelSlide = remember { AtomicBoolean() }
     val currentBook by rememberUpdatedState(book)
     val chooseBook by rememberUpdatedState(pickBook)
     fun message(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
@@ -99,11 +109,13 @@ internal fun HomeVoiceEntry(
             return
         }
         stop.set(false)
+        cancelSlide.set(false)
         capture = VoiceCapture.Starting
         task = scope.launch {
             try {
                 val text = BundledSpeech.listen(
                     context, model.speechModels, stop,
+                    cancelled = cancelSlide,
                     onRecording = {
                         capture = VoiceCapture.Recording
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -129,8 +141,16 @@ internal fun HomeVoiceEntry(
     }
 
     fun finish(released: Boolean) {
-        if (task == null || capture == VoiceCapture.Recognizing) return
-        if (released) stop.set(true) else task?.cancel()
+        val activeTask = task
+        if (activeTask == null || !activeTask.isActive || capture == VoiceCapture.Recognizing) return
+        if (released) {
+            stop.set(true)
+        } else {
+            cancelSlide.set(true)
+            activeTask.cancel()
+            stop.set(true)
+            message("已取消语音识别")
+        }
     }
 
     fun openManual() {
@@ -153,7 +173,15 @@ internal fun HomeVoiceEntry(
 
     if (canRecord) {
         content(
-            { HoldToTalkButton(capture, onHold = ::begin, onEnd = ::finish, onTap = ::openManual) },
+            {
+                HoldToTalkButton(
+                    capture = capture,
+                    onHold = ::begin,
+                    onEnd = ::finish,
+                    onTap = ::openManual,
+                    onCancelPreviewChange = cancelSlide::set,
+                )
+            },
             {
                 ReceiptImageAction(
                     book, pickImageBook, showImageAfterBookChoice, onImageBookChoiceHandled,
@@ -167,23 +195,54 @@ internal fun HomeVoiceEntry(
     if (review.bookName != null) VoiceReviewSheet(review, model)
 }
 
+private enum class InitialPressResult { Tap, Cancelled }
+
+internal fun isSlideCancelling(
+    position: Offset,
+    size: IntSize,
+    currentlyCancelling: Boolean,
+    margin: Float,
+): Boolean {
+    val padding = if (currentlyCancelling) 0f else margin
+    return position.x < -padding ||
+        position.x > size.width + padding ||
+        position.y < -padding ||
+        position.y > size.height + padding
+}
+
 @Composable
 internal fun HoldToTalkButton(
     capture: VoiceCapture,
     onHold: () -> Unit,
     onEnd: (Boolean) -> Unit,
     onTap: () -> Unit,
+    onCancelPreviewChange: (Boolean) -> Unit = {},
 ) {
     val start by rememberUpdatedState(onHold)
     val end by rememberUpdatedState(onEnd)
     val tap by rememberUpdatedState(onTap)
+    val cancelPreview by rememberUpdatedState(onCancelPreviewChange)
+    val currentCapture by rememberUpdatedState(capture)
+    val haptics by rememberUpdatedState(LocalHapticFeedback.current)
     val colors = MaterialTheme.colorScheme
     var pressed by remember { mutableStateOf(false) }
+    var cancelPending by remember { mutableStateOf(false) }
     val active = pressed && capture != VoiceCapture.Recognizing
-    val contentColor = if (active) colors.onSecondaryContainer else colors.onPrimaryContainer
+    val cancelling = cancelPending && (capture == VoiceCapture.Starting || capture == VoiceCapture.Recording)
+    val containerColor = when {
+        cancelling -> colors.errorContainer
+        active -> colors.secondaryContainer
+        else -> colors.primaryContainer
+    }
+    val contentColor = when {
+        cancelling -> colors.onErrorContainer
+        active -> colors.onSecondaryContainer
+        else -> colors.onPrimaryContainer
+    }
     val scale by animateFloatAsState(
         targetValue = when {
             !active -> 1f
+            cancelling -> 0.98f
             capture == VoiceCapture.Recording -> 1.09f
             else -> 1.055f
         },
@@ -199,37 +258,121 @@ internal fun HoldToTalkButton(
                 onClick(label = "输入文字记账") { tap(); true }
             }
             .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        var released = false
-                        try {
-                            released = tryAwaitRelease()
-                        } finally {
-                            pressed = false
-                            end(released)
+                val cancelMargin = 12.dp.toPx()
+                coroutineScope {
+                    var activePresses = 0
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
+                        val pointerId = down.id
+                        var longPressed = false
+                        var completed = false
+                        var slidingOut = false
+                        val release = CompletableDeferred<Unit>()
+                        launch(start = CoroutineStart.UNDISPATCHED) {
+                            activePresses++
+                            pressed = true
+                            try {
+                                release.await()
+                            } finally {
+                                activePresses--
+                                if (activePresses == 0) {
+                                    pressed = false
+                                    cancelPending = false
+                                }
+                            }
                         }
-                    },
-                    onLongPress = { start() },
-                    onTap = { tap() },
-                )
+                        try {
+                            val beforeLongPress = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == pointerId }
+                                        ?: return@withTimeoutOrNull InitialPressResult.Cancelled
+                                    if (change.isConsumed) {
+                                        return@withTimeoutOrNull InitialPressResult.Cancelled
+                                    }
+                                    if (!change.pressed) {
+                                        return@withTimeoutOrNull if (change.isOutOfBounds(size, extendedTouchPadding)) {
+                                            InitialPressResult.Cancelled
+                                        } else {
+                                            change.consume()
+                                            InitialPressResult.Tap
+                                        }
+                                    }
+                                    if (
+                                        change.isOutOfBounds(size, extendedTouchPadding) ||
+                                        (change.position - down.position).getDistance() > viewConfiguration.touchSlop
+                                    ) {
+                                        return@withTimeoutOrNull InitialPressResult.Cancelled
+                                    }
+                                }
+                                @Suppress("UNREACHABLE_CODE")
+                                InitialPressResult.Cancelled
+                            }
+
+                            when (beforeLongPress) {
+                                InitialPressResult.Tap -> {
+                                    tap()
+                                    return@awaitEachGesture
+                                }
+                                InitialPressResult.Cancelled -> return@awaitEachGesture
+                                null -> {
+                                    longPressed = true
+                                    start()
+                                }
+                            }
+
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                                val nextSlidingOut = isSlideCancelling(
+                                    position = change.position,
+                                    size = size,
+                                    currentlyCancelling = slidingOut,
+                                    margin = cancelMargin,
+                                )
+                                if (!change.pressed) {
+                                    if (change.changedToUp()) {
+                                        change.consume()
+                                        completed = !nextSlidingOut
+                                    }
+                                    break
+                                }
+                                change.consume()
+                                if (nextSlidingOut != slidingOut) {
+                                    slidingOut = nextSlidingOut
+                                    cancelPending = nextSlidingOut
+                                    cancelPreview(nextSlidingOut)
+                                    if (currentCapture == VoiceCapture.Starting || currentCapture == VoiceCapture.Recording) {
+                                        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                    }
+                                }
+                            }
+                        } finally {
+                            cancelPending = false
+                            cancelPreview(false)
+                            release.complete(Unit)
+                            if (longPressed) end(completed)
+                        }
+                    }
+                }
             }
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             },
         shape = RoundedCornerShape(16.dp),
-        variant = SurfaceTone.Accent(if (active) colors.secondaryContainer else colors.primaryContainer),
+        variant = SurfaceTone.Accent(containerColor),
     ) {
         Row(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.Mic, null, tint = contentColor)
+            Icon(if (cancelling) Icons.Outlined.Close else Icons.Outlined.Mic, null, tint = contentColor)
             Spacer(Modifier.width(8.dp))
             Text(
-                when (capture) {
-                    VoiceCapture.Idle -> "ai 记账"
-                    VoiceCapture.Starting -> "准备录音…"
-                    VoiceCapture.Recording -> "松手识别"
-                    VoiceCapture.Recognizing -> "正在识别…"
+                when {
+                    cancelling -> "松手取消"
+                    capture == VoiceCapture.Idle -> "ai 记账"
+                    capture == VoiceCapture.Starting -> "准备录音…"
+                    capture == VoiceCapture.Recording -> "松手识别"
+                    else -> "正在识别…"
                 },
                 modifier = Modifier.widthIn(min = labelWidth),
                 color = contentColor,

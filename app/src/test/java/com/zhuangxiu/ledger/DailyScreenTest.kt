@@ -93,6 +93,114 @@ class DailyScreenTest {
         compose.runOnIdle { assertEquals(listOf("start", "release"), events) }
     }
 
+    @Test fun homeVoiceHoldSlidesAwayToCancelAndReturnsToRecognize() {
+        val events = mutableListOf<String>()
+        val ticks = mutableListOf<HapticFeedbackType>()
+        val feedback = object : HapticFeedback {
+            override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+                ticks.add(hapticFeedbackType)
+            }
+        }
+        compose.setContent {
+            RenovationLedgerTheme {
+                CompositionLocalProvider(LocalHapticFeedback provides feedback) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        var capture by remember { mutableStateOf(VoiceCapture.Idle) }
+                        HoldToTalkButton(
+                            capture = capture,
+                            onHold = {
+                                events.add("start")
+                                capture = VoiceCapture.Recording
+                            },
+                            onEnd = { released ->
+                                events.add(if (released) "release" else "cancel")
+                                capture = if (released) VoiceCapture.Recognizing else VoiceCapture.Idle
+                            },
+                            onTap = { events.add("manual") },
+                        )
+                    }
+                }
+            }
+        }
+
+        val button = compose.onNodeWithText("ai 记账")
+        button.performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 50L)
+            moveTo(center + Offset(0f, -100.dp.toPx()))
+        }
+        compose.onNodeWithText("松手取消").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(listOf(HapticFeedbackType.SegmentTick), ticks) }
+        compose.onNodeWithText("松手取消").performTouchInput { up() }
+        compose.onNodeWithText("ai 记账").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(listOf("start", "cancel"), events) }
+
+        // 滑出取消区后，松手前滑回按钮内，应恢复「松手识别」并正常识别
+        compose.onNodeWithText("ai 记账").performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 50L)
+            moveTo(center + Offset(-160.dp.toPx(), 0f))
+        }
+        compose.onNodeWithText("松手取消").assertIsDisplayed()
+        compose.onNodeWithText("松手取消").performTouchInput {
+            moveTo(center)
+        }
+        compose.onNodeWithText("松手识别").assertIsDisplayed()
+        compose.onNodeWithText("松手识别").performTouchInput { up() }
+        compose.onNodeWithText("正在识别…").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(listOf("start", "cancel", "start", "release"), events) }
+    }
+
+    @Test fun homeVoiceHoldSlideCancelDoesNotSwipeTabsAndHandlesPointerCancel() {
+        val events = mutableListOf<String>()
+        compose.setContent {
+            RenovationLedgerTheme {
+                NavHost(rememberNavController(), startDestination = Routes.HOME) {
+                    composable(Routes.HOME) { entry ->
+                        LedgerTabPages(entry, Routes.HOME) { route, _, _ ->
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                if (route == Routes.HOME) {
+                                    var capture by remember { mutableStateOf(VoiceCapture.Idle) }
+                                    HoldToTalkButton(
+                                        capture = capture,
+                                        onHold = {
+                                            events.add("start")
+                                            capture = VoiceCapture.Recording
+                                        },
+                                        onEnd = { released ->
+                                            events.add(if (released) "release" else "cancel")
+                                            capture = VoiceCapture.Idle
+                                        },
+                                        onTap = { events.add("manual") },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        val home = compose.onNodeWithText("首页").assertIsSelected()
+        compose.onNodeWithText("ai 记账").performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 50L)
+            moveTo(center + Offset(-180.dp.toPx(), 0f))
+        }
+        compose.onNodeWithText("松手取消").assertIsDisplayed()
+        compose.onNodeWithText("松手取消").performTouchInput { up() }
+        home.assertIsSelected()
+        compose.runOnIdle { assertEquals(listOf("start", "cancel"), events) }
+
+        compose.onNodeWithText("ai 记账").performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 50L)
+            cancel()
+        }
+        compose.onNodeWithText("ai 记账").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(listOf("start", "cancel", "start", "cancel"), events) }
+    }
+
     private fun capture(name: String) {
         val file = File("build/reports/ui/$name.png"); file.parentFile!!.mkdirs()
         file.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
