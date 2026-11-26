@@ -9,7 +9,9 @@
 
 在首页点「识图」从相册或文件选择一张单笔交易详情截图，或拍一张小票。轻账在手机上识别文字，再提取能确认的实付金额、日期、时间、支付方式和商品或商户信息。每张图片生成一份可编辑的草稿。金额不明确时留空，需核对后保存。
 
-中文 OCR 随应用安装，可离线使用。图片和识别结果在手机上处理。可以修改提取到的文字再点「解析文字」。
+中文 OCR 随应用安装，可离线使用。ML Kit 无法运行或没有读到文字时，轻账会自动用内置的 Tesseract 中英文识别。图片和识别结果在手机上处理。可以修改提取到的文字再点「解析文字」。
+
+备用识别使用 Tesseract4Android 4.9.0 与固定版本的 tessdata_fast 4.1.0，许可证随安装包保存在 `assets/ocr/licenses` 下。[Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android/releases/tag/4.9.0) · [文字模型](https://github.com/tesseract-ocr/tessdata_fast/tree/65727574dfcd264acbb0c3e07860e4e9e9b22185)
 
 ## 可选云端整理
 

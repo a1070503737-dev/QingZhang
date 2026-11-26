@@ -79,4 +79,22 @@ class ReceiptDraftParserTest {
         assertEquals("09:07", draft.time)
         assertEquals(PayMethod.ALIPAY, draft.payMethod)
     }
+
+    @Test fun findsFullTimestampWhenOcrPlacesItBeforeItsLabel() {
+        val draft = requireNotNull(ReceiptDraftParser.parse("""
+            09:41
+            微 信 支 付
+            -¥25.68
+            支付 成 功
+            商品 说 明 午餐
+            商户 名 称 星河 餐饮
+            2026-11-24 18:35:07
+            付款 时 间
+            付款 方式
+        """.trimIndent(), today))
+        assertEquals("25.68", draft.amount)
+        assertEquals("2026-11-24", draft.date)
+        assertEquals("18:35", draft.time)
+        assertEquals(PayMethod.WECHAT, draft.payMethod)
+    }
 }

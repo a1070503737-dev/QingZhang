@@ -4,9 +4,11 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.ColorSpace
+import android.graphics.Rect
 import android.net.Uri
 import com.zhuangxiu.ledger.ui.voice.ReceiptImageDecoder
 import com.zhuangxiu.ledger.ui.voice.ReceiptImageException
+import com.zhuangxiu.ledger.ui.voice.formatReceiptLines
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import org.junit.Assert.assertEquals
@@ -60,5 +62,14 @@ class ReceiptImageDecoderTest {
         }
         assertEquals("图片格式无法解码，请试试原始 PNG 或 JPG 截图", error.message)
         assertTrue(context.cacheDir.listFiles().orEmpty().none { it.name.startsWith("receipt-ocr-") })
+    }
+
+    @Test fun combinesReceiptLabelAndValueWithDifferentFontHeights() {
+        val rows = listOf(
+            Rect(420, 550, 620, 568) to "2026-11-24 18:35:07",
+            Rect(10, 550, 110, 590) to "付款时间",
+            Rect(10, 615, 110, 645) to "付款方式",
+        )
+        assertEquals("付款时间 2026-11-24 18:35:07\n付款方式", formatReceiptLines(rows))
     }
 }

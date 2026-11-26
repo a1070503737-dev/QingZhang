@@ -71,7 +71,8 @@ internal object ReceiptDraftParser {
                 }
             }.distinct().singleOrNull() ?: PayMethod.UNSPECIFIED
         }
-        val timestamps = fields(lines, transactionTime).ifEmpty { fields(lines, receiptTime) }
+        val timestamps = fields(lines, transactionTime).filter(::hasTimestamp)
+            .ifEmpty { fields(lines, receiptTime).filter(::hasTimestamp) }
             .ifEmpty { lines.filter { date.containsMatchIn(it) } }
         val dates = timestamps.flatMap { date.findAll(it).toList() }.map { match ->
             val (_, year, month, day) = match.groupValues
@@ -93,6 +94,8 @@ internal object ReceiptDraftParser {
     }
 
     private data class Amount(val cents: Long, val sign: String)
+
+    private fun hasTimestamp(value: String) = date.containsMatchIn(value) || time.containsMatchIn(value)
 
     private fun readMoney(value: String): Amount? {
         val (_, leadingSign, innerSign, number) = currency.matchEntire(value)?.groupValues ?: return null

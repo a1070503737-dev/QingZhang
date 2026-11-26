@@ -5,3 +5,7 @@
 
 # sherpa-onnx JNI looks up the Kotlin configuration and result classes by name.
 -keep class com.k2fsa.sherpa.onnx.** { *; }
+
+# Tesseract and Leptonica look up bridge classes and callbacks from JNI.
+-keep class com.googlecode.tesseract.android.** { *; }
+-keep class com.googlecode.leptonica.android.** { *; }
