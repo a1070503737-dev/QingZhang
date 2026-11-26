@@ -114,8 +114,10 @@ internal class VoiceEntryViewModel @Inject constructor(
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (error: ReceiptImageException) {
+                _state.update { it.copy(error = error.message) }
             } catch (_: Exception) {
-                _state.update { it.copy(error = "无法识别这张图片，请重新选择清晰的截图或小票") }
+                _state.update { it.copy(error = "图片账单处理失败，可以修改已识别的文字后再解析") }
             } catch (_: LinkageError) {
                 _state.update { it.copy(error = "设备无法加载图片识别组件，可以手动输入小票文字") }
             } finally {

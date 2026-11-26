@@ -158,6 +158,7 @@ class LedgerFlowTest {
         awaitText("生活账本")
         compose.onNodeWithText("识图").performClick()
         awaitText("图片记账")
+        compose.onNodeWithText("从文件选图").assertIsDisplayed()
         compose.onNodeWithText("从相册选图").performClick()
         compose.runOnIdle {
             val shadow = Shadows.shadowOf(compose.activity)
@@ -166,7 +167,7 @@ class LedgerFlowTest {
             shadow.callOnActivityResult(launched.requestCode, Activity.RESULT_OK, Intent().setData(unreadable))
         }
         awaitText("核对图片账单")
-        awaitText("无法识别这张图片，请重新选择清晰的截图或小票")
+        awaitText("读取图片失败，请先把原图保存到手机相册再试")
         compose.onNodeWithText("图片中的文字").performTextInput("付款成功\n实付：25.00\n商品：午餐\n支付方式：现金")
         compose.onNodeWithText("解析文字").performClick()
         compose.onNodeWithText("支付方式 · 现金 ▾").performScrollTo().assertIsDisplayed()

@@ -52,11 +52,13 @@ internal fun ReceiptImageAction(
     var sources by rememberSaveable { mutableStateOf(false) }
     var camera by rememberSaveable { mutableStateOf(false) }
     var targetBookId by rememberSaveable { mutableStateOf<Long?>(null) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    fun picked(uri: Uri?) {
         val target = book?.takeIf { it.id == targetBookId }
         targetBookId = null
         if (target != null && uri != null) onImage(target, uri, null)
     }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia(), onResult = ::picked)
+    val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument(), onResult = ::picked)
     LaunchedEffect(showAfterBookChoice, book?.id) {
         if (showAfterBookChoice && book != null) {
             sources = true
@@ -86,7 +88,7 @@ internal fun ReceiptImageAction(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text("图片记账", style = MaterialTheme.typography.titleLarge)
-                Text("在手机上识别付款截图或小票", style = MaterialTheme.typography.bodyMedium)
+                Text("选择单笔交易详情截图或小票", style = MaterialTheme.typography.bodyMedium)
                 LedgerButton(
                     onClick = {
                         targetBookId = book.id
@@ -95,6 +97,15 @@ internal fun ReceiptImageAction(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("从相册选图") }
+                LedgerButton(
+                    onClick = {
+                        targetBookId = book.id
+                        sources = false
+                        files.launch(arrayOf("image/*"))
+                    },
+                    prominent = false,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("从文件选图") }
                 if (context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)) {
                     LedgerButton(
                         onClick = {

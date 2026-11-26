@@ -2,27 +2,41 @@ package com.zhuangxiu.ledger.ui.voice
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.ImageDecoder
 import android.graphics.Rect
-import android.media.ExifInterface
 import android.net.Uri
-import android.os.Build
+import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.IOException
 import javax.inject.Inject
 import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
-internal class ReceiptImageReader @Inject constructor(@param:ApplicationContext private val context: Context) {
+internal class ReceiptImageReader @Inject constructor(@ApplicationContext context: Context) {
+    private val decoder = ReceiptImageDecoder(context)
+
     suspend fun read(uri: Uri): String = withContext(Dispatchers.IO) {
-        val (bitmap, rotation) = decode(uri)
+        val job = currentCoroutineContext()
+        val (bitmap, rotation) = decoder.decode(uri, job::ensureActive)
+        try {
+            receiptLines(recognize(bitmap, rotation))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: MlKitException) {
+            throw ReceiptImageException("本机文字识别失败（OCR ${error.errorCode}），请重新打开轻账后再试")
+        } catch (_: Exception) {
+            throw ReceiptImageException("本机文字识别无法启动，请重新打开轻账后再试")
+        }
+    }
+
+    private suspend fun recognize(bitmap: Bitmap, rotation: Int): Text {
         val recognizer = try {
             TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
         } catch (error: Throwable) {
@@ -41,7 +55,7 @@ internal class ReceiptImageReader @Inject constructor(@param:ApplicationContext 
             recognizer.close()
             bitmap.recycle()
         }
-        receiptLines(task.await())
+        return task.await()
     }
 
     private fun receiptLines(result: Text): String {
@@ -64,41 +78,5 @@ internal class ReceiptImageReader @Inject constructor(@param:ApplicationContext 
         return rows.joinToString("\n") { row ->
             row.sortedBy { it.first.left }.joinToString(" ") { it.second }
         }
-    }
-
-    private fun decode(uri: Uri): Pair<Bitmap, Int> {
-        val resolver = context.contentResolver
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, uri)) { decoder, info, _ ->
-                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                decoder.setTargetSampleSize(sampleSize(info.size.width, info.size.height))
-            }
-            return bitmap to 0
-        }
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        val options = BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight) }
-        val rotation = try {
-            resolver.openInputStream(uri)?.use { input ->
-                when (ExifInterface(input).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
-                    ExifInterface.ORIENTATION_ROTATE_90 -> 90
-                    ExifInterface.ORIENTATION_ROTATE_180 -> 180
-                    ExifInterface.ORIENTATION_ROTATE_270 -> 270
-                    else -> 0
-                }
-            } ?: 0
-        } catch (_: IOException) {
-            0
-        }
-        val bitmap = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
-            ?: throw IOException("图片无法打开")
-        return bitmap to rotation
-    }
-
-    private fun sampleSize(width: Int, height: Int): Int {
-        if (width <= 0 || height <= 0) throw IOException("图片尺寸无效")
-        var sample = 1
-        while (maxOf(width, height) / sample > 3600) sample *= 2
-        return sample
     }
 }
