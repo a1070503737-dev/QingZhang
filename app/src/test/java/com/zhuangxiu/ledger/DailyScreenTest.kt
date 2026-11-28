@@ -44,6 +44,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
+import java.time.LocalDate
 import java.time.YearMonth
 
 @RunWith(RobolectricTestRunner::class)
@@ -241,18 +242,22 @@ class DailyScreenTest {
             }
         }
         val list = compose.onNode(hasScrollToIndexAction())
-        val recentSummary = hasText(recent.toString()) and hasText("支出 ¥21.00") and hasText("收入 ¥123.45")
-        val earlierSummary = hasText(earlier.toString()) and hasText("支出 ¥1.23") and hasText("收入 ¥0.00")
+        val recentLabel = formatDailyGroupDate(recent.toEpochDay())
+        val earlierLabel = formatDailyGroupDate(earlier.toEpochDay())
+        val recentSummary = hasText(recentLabel) and hasText("支出 ¥21.00") and hasText("收入 ¥123.45")
+        val earlierSummary = hasText(earlierLabel) and hasText("支出 ¥1.23") and hasText("收入 ¥0.00")
         list.performScrollToNode(earlierSummary)
         compose.onNode(earlierSummary).assertIsDisplayed()
         list.performScrollToNode(recentSummary)
         compose.onNode(recentSummary).assertIsDisplayed()
+        compose.onAllNodesWithText(recent.toString(), substring = true).assertCountEquals(0)
+        compose.onNodeWithText("12:00 · 支付宝").assertIsDisplayed()
         capture("qingzhang-daily-group-totals")
 
         val search = hasContentDescription("搜索本月账目、分类或备注")
         list.performScrollToNode(search)
         compose.onNode(search).performTextInput("午餐")
-        val filtered = hasText(recent.toString()) and hasText("支出 ¥12.04") and hasText("收入 ¥0.00")
+        val filtered = hasText(recentLabel) and hasText("支出 ¥12.04") and hasText("收入 ¥0.00")
         list.performScrollToNode(filtered)
         compose.onNode(filtered).assertIsDisplayed()
         compose.onNode(earlierSummary).assertDoesNotExist()
@@ -533,9 +538,7 @@ class DailyScreenTest {
         compose.runOnIdle { assertEquals(listOf(entry.id), edited) }
         row.performTouchInput { longClick() }
         compose.onNodeWithText("删除账目").performClick()
-        compose.onNodeWithText("删除这笔账目？").assertIsDisplayed()
-        compose.runOnIdle { assertTrue(deleted.isEmpty()) }
-        compose.onNodeWithText("删除").performClick()
+        compose.onNodeWithText("删除这笔账目？").assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(listOf(entry.id), deleted)
             assertEquals(List(2) { HapticFeedbackType.LongPress }, ticks)
@@ -734,5 +737,35 @@ class DailyScreenTest {
         pressKey("数字键3")
         save.assertTextContains("保存收入").assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(listOf(EntryKind.EXPENSE to "6", EntryKind.INCOME to "3"), saved) }
+    }
+
+    @Test fun formatDailyGroupDateShowsFriendlyChineseWeekdayAndRelativeLabels() {
+        val today = LocalDate.of(2026, 11, 28)
+        assertEquals("11月28日 周六 · 今天", formatDailyGroupDate(today.toEpochDay(), today))
+        assertEquals("11月27日 周五 · 昨天", formatDailyGroupDate(today.minusDays(1).toEpochDay(), today))
+        assertEquals("11月16日 周一", formatDailyGroupDate(LocalDate.of(2026, 11, 16).toEpochDay(), today))
+        assertEquals("2025年11月16日 周日", formatDailyGroupDate(LocalDate.of(2025, 11, 16).toEpochDay(), today))
+    }
+
+    @Test fun filterAndGroupDailyEntriesFiltersByKeywordAndComputesDayTotals() {
+        val day1 = LocalDate.of(2026, 11, 16).toEpochDay()
+        val day2 = LocalDate.of(2026, 11, 15).toEpochDay()
+        val entries = listOf(
+            DailyEntryEntity("1", 1, 2550, EntryKind.EXPENSE, DailyCategory.FOOD, day1, 720, PayMethod.WECHAT, note = "午饭"),
+            DailyEntryEntity("2", 1, 10000, EntryKind.INCOME, DailyCategory.SALARY, day1, 700, PayMethod.BANK),
+            DailyEntryEntity("3", 1, 990, EntryKind.EXPENSE, DailyCategory.TRANSPORT, day2, 600, PayMethod.ALIPAY, note = "地铁"),
+        )
+        val allGroups = filterAndGroupDailyEntries(entries, "  ")
+        assertEquals(2, allGroups.size)
+        assertEquals(2550L, allGroups[0].totals.expense)
+        assertEquals(10000L, allGroups[0].totals.income)
+
+        val byNote = filterAndGroupDailyEntries(entries, "地铁")
+        assertEquals(1, byNote.size)
+        assertEquals(listOf("3"), byNote[0].entries.map { it.id })
+
+        val byAmount = filterAndGroupDailyEntries(entries, "25.5")
+        assertEquals(1, byAmount.size)
+        assertEquals(listOf("1"), byAmount[0].entries.map { it.id })
     }
 }

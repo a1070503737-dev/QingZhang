@@ -73,6 +73,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -132,6 +135,7 @@ import com.zhuangxiu.ledger.ui.components.ledgerTextFieldColors
 import com.zhuangxiu.ledger.ui.components.ledgerContainer
 import com.zhuangxiu.ledger.ui.theme.LedgerTheme
 import com.zhuangxiu.ledger.util.Money
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
@@ -333,6 +337,52 @@ private fun Metric(label: String, cents: Long, income: Boolean, modifier: Modifi
     }
 }
 
+internal data class DailyDayGroup(
+    val day: Long,
+    val totals: DailyTotals,
+    val entries: List<DailyEntryEntity>,
+)
+
+internal fun formatDailyGroupDate(day: Long, today: LocalDate = LocalDate.now()): String {
+    val date = LocalDate.ofEpochDay(day)
+    val weekday = when (date.dayOfWeek) {
+        DayOfWeek.MONDAY -> "周一"
+        DayOfWeek.TUESDAY -> "周二"
+        DayOfWeek.WEDNESDAY -> "周三"
+        DayOfWeek.THURSDAY -> "周四"
+        DayOfWeek.FRIDAY -> "周五"
+        DayOfWeek.SATURDAY -> "周六"
+        DayOfWeek.SUNDAY -> "周日"
+    }
+    val base = if (date.year == today.year) {
+        "${date.monthValue}月${date.dayOfMonth}日 $weekday"
+    } else {
+        "${date.year}年${date.monthValue}月${date.dayOfMonth}日 $weekday"
+    }
+    return when (date) {
+        today -> "$base · 今天"
+        today.minusDays(1) -> "$base · 昨天"
+        else -> base
+    }
+}
+
+private fun matchesDailyQuery(entry: DailyEntryEntity, term: String): Boolean {
+    if (term.isEmpty()) return true
+    return entry.displayCategory.contains(term, ignoreCase = true) ||
+        entry.note.contains(term, ignoreCase = true) ||
+        entry.displayPayment.contains(term, ignoreCase = true) ||
+        entry.sourceCategory?.contains(term, ignoreCase = true) == true ||
+        Money.toInput(entry.amountCents).contains(term, ignoreCase = true)
+}
+
+internal fun filterAndGroupDailyEntries(entries: List<DailyEntryEntity>, query: String): List<DailyDayGroup> {
+    val term = query.trim()
+    val filtered = if (term.isEmpty()) entries else entries.filter { matchesDailyQuery(it, term) }
+    return filtered.groupBy { it.day }.map { (day, dayEntries) ->
+        DailyDayGroup(day = day, totals = DailyStatistics.totals(dayEntries), entries = dayEntries)
+    }
+}
+
 @Composable
 fun DailyHomeScreen(
     state: DailyState,
@@ -349,17 +399,29 @@ fun DailyHomeScreen(
     archivedBookIds: Set<Long> = emptySet(),
     onDelete: ((String) -> Unit)? = null,
     entryAction: (@Composable () -> Unit)? = null,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     var addButtonHeight by remember { mutableIntStateOf(0) }
     val showEntryAction = (canAdd || entryAction != null) && WindowInsets.ime.getBottom(density) == 0
+    val summaryEntries = state.summary?.entries.orEmpty()
+    val dayGroups = remember(query, summaryEntries) {
+        filterAndGroupDailyEntries(summaryEntries, query)
+    }
     LedgerBackground {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = header,
             bottomBar = bottomBar,
+            snackbarHost = {
+                SnackbarHost(snackbarHostState) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        shape = RoundedCornerShape(16.dp),
+                    )
+                }
+            },
             floatingActionButton = {
                 if (showEntryAction) {
                     Box(Modifier.onSizeChanged { addButtonHeight = it.height }) {
@@ -443,12 +505,7 @@ fun DailyHomeScreen(
                             },
                         )
                     }
-                    val term = query.trim()
-                    val days = state.summary.entries.filter {
-                        term.isEmpty() ||
-                            "${it.displayCategory} ${it.note} ${it.displayPayment} ${it.sourceCategory.orEmpty()} ${Money.toInput(it.amountCents)}".contains(term, true)
-                    }.groupBy { it.day }
-                    if (days.isEmpty()) {
+                    if (dayGroups.isEmpty()) {
                         item {
                             LedgerPanel(
                                 modifier = Modifier.fillMaxWidth(),
@@ -474,34 +531,24 @@ fun DailyHomeScreen(
                             }
                         }
                     }
-                    days.forEach { (day, entries) ->
-                        item(key = "day-$day", contentType = "day-summary") {
-                            DailyGroupHeader(day, DailyStatistics.totals(entries))
+                    dayGroups.forEach { group ->
+                        item(key = "day-${group.day}", contentType = "day-summary") {
+                            DailyGroupHeader(group.day, group.totals)
                         }
-                        items(entries, key = { "entry-${it.id}" }, contentType = { "entry" }) { entry ->
+                        items(group.entries, key = { "entry-${it.id}" }, contentType = { "entry" }) { entry ->
                             val showActions = !readOnly && entry.bookId !in archivedBookIds
                             DailyEntryRow(
                                 entry,
                                 bookNames[entry.bookId],
                                 onClick = if (readOnly) null else ({ onEdit(entry.id) }),
                                 showActions = showActions,
-                                onDelete = if (showActions && onDelete != null) ({ pendingDeleteId = entry.id }) else null,
+                                onDelete = if (showActions && onDelete != null) ({ onDelete(entry.id) }) else null,
                             )
                         }
                     }
                 }
             }
         }
-    }
-    if (pendingDeleteId != null && !readOnly) {
-        DeleteDailyEntryDialog(
-            onConfirm = {
-                val id = pendingDeleteId
-                pendingDeleteId = null
-                if (id != null) onDelete?.invoke(id)
-            },
-            onDismiss = { pendingDeleteId = null },
-        )
     }
 }
 
@@ -520,7 +567,7 @@ private fun DailyGroupHeader(day: Long, totals: DailyTotals) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(LocalDate.ofEpochDay(day).toString(), style = style, color = colors.onSurfaceVariant)
+            Text(formatDailyGroupDate(day), style = style, color = colors.onSurfaceVariant)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("支出 ${Money.format(totals.expense)}", style = style, color = amounts.expense)
                 Text("收入 ${Money.format(totals.income)}", style = style, color = amounts.income)
@@ -541,6 +588,7 @@ private fun DailyEntryRow(
     val income = entry.kind == EntryKind.INCOME
     val projectPayment = entry.id.startsWith("payment:")
     val time = if (entry.minute < 0) null else "%02d:%02d".format(entry.minute / 60, entry.minute % 60)
+    val subtitle = listOfNotNull(time, bookName, entry.displayPayment).joinToString(" · ")
     var menuOpen by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth()) {
         LedgerPanel(
@@ -563,13 +611,15 @@ private fun DailyEntryRow(
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(entry.displayCategory, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        listOfNotNull(LocalDate.ofEpochDay(entry.day).toString(), time).joinToString(" · "),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.onSurfaceVariant,
-                    )
-                    Text(listOfNotNull(bookName, entry.displayPayment).joinToString(" · "),
-                        style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                    if (subtitle.isNotEmpty()) {
+                        Text(
+                            subtitle,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.onSurfaceVariant,
+                        )
+                    }
                     if (entry.note.isNotBlank()) {
                         Text(entry.note, maxLines = 2, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)

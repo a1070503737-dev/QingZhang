@@ -2,9 +2,9 @@
 
 > 一款面向 Android 的轻量记账应用。日常收支与装修账本放在一起管理，优先本地存储，支持按需备份和导入账单。
 
-**当前正式版：v1.3.37** ｜ **系统要求：Android 8.0（API 26）及以上** ｜ **包名：`com.zhuangxiu.ledger`**
+**当前正式版：v1.3.47** ｜ **系统要求：Android 8.0（API 26）及以上** ｜ **包名：`com.zhuangxiu.ledger`**
 
-[🌐 轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) · [⬇️ 下载 1.3.37 APK](https://github.com/a1070503737-dev/QingZhang/releases/download/v1.3.37/renovation-ledger-1.3.37-signed.apk) · [查看最新发行版](https://github.com/a1070503737-dev/QingZhang/releases/latest) · [版本列表](https://github.com/a1070503737-dev/QingZhang/releases)
+[🌐 轻账下载官网](https://a1070503737-dev.github.io/QingZhang/) · [⬇️ 下载最新 APK](https://github.com/a1070503737-dev/QingZhang/releases/latest/download/renovation-ledger-latest.apk) · [查看最新发行版](https://github.com/a1070503737-dev/QingZhang/releases/latest) · [版本列表](https://github.com/a1070503737-dev/QingZhang/releases)
 
 ## ✨ 主要功能
 
@@ -18,7 +18,7 @@
 | 应用内更新 | 从 GitHub Releases 检查更新，匹配时优先下载增量包，安装前由 Android 确认 |
 | 意见反馈 | 在应用内匿名提交使用体验和建议，联系方式选填 |
 
-应用支持在首页「本月明细」长按账目呼出编辑、删除操作，并为长按及保存成功添加轻震反馈。
+应用支持在首页「本月明细」长按账目编辑或删除（删除后可通过底部提示即时撤销），首页右下角按钮点按手动记账、长按语音记账（滑离按钮可取消识别），记账页内支持图片识图记账。
 
 ## 📲 安装与更新
 

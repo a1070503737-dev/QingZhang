@@ -37,11 +37,16 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -90,6 +95,7 @@ import com.zhuangxiu.ledger.ui.viewer.ViewerScreen
 import com.zhuangxiu.ledger.ui.voice.CloudVoiceScreen
 import com.zhuangxiu.ledger.ui.voice.OfflineSpeechScreen
 import com.zhuangxiu.ledger.ui.voice.HomeVoiceEntry
+import kotlinx.coroutines.launch
 
 private enum class EntryBookPicker { Manual, Voice }
 
@@ -106,6 +112,8 @@ internal fun LedgerNavHost(
     val bookState by dailyViewModel.books.collectAsStateWithLifecycle()
     val dailyState by dailyViewModel.daily.collectAsStateWithLifecycle()
     val appContext = LocalContext.current.applicationContext
+    val scope = rememberCoroutineScope()
+    val homeSnackbarHostState = remember { SnackbarHostState() }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
@@ -310,9 +318,27 @@ internal fun LedgerNavHost(
                                         canAdd = canAdd,
                                         readOnly = archivedBook != null,
                                         archivedBookIds = bookState.books.filter { it.archived }.map { it.id }.toSet(),
+                                        snackbarHostState = homeSnackbarHostState,
                                         onDelete = { id ->
-                                            dailyViewModel.deleteEntry(id) { message ->
-                                                Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+                                            dailyViewModel.deleteEntry(id) { result ->
+                                                val deleted = result.deleted
+                                                if (deleted == null) {
+                                                    Toast.makeText(appContext, result.message, Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    scope.launch {
+                                                        homeSnackbarHostState.currentSnackbarData?.dismiss()
+                                                        val outcome = homeSnackbarHostState.showSnackbar(
+                                                            message = result.message,
+                                                            actionLabel = "撤销",
+                                                            duration = SnackbarDuration.Short,
+                                                        )
+                                                        if (outcome == SnackbarResult.ActionPerformed) {
+                                                            dailyViewModel.restoreEntry(deleted) { restoreMessage ->
+                                                                Toast.makeText(appContext, restoreMessage, Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         },
                                     )

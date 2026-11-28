@@ -22,6 +22,7 @@ data class BookState(
     val loaded: Boolean = false,
 )
 data class DailyState(val month: YearMonth = YearMonth.now(), val summary: DailySummary? = null, val error: String? = null)
+data class DeleteEntryResult(val deleted: DailyEntryEntity? = null, val message: String)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -61,15 +62,29 @@ class DailyViewModel @Inject constructor(
     }
     fun currentMonth() { saved["month"] = YearMonth.now().toString() }
 
-    fun deleteEntry(id: String, onResult: (String) -> Unit) {
+    fun deleteEntry(id: String, onResult: (DeleteEntryResult) -> Unit) {
         viewModelScope.launch {
-            val message = try {
-                repository.deleteFromActiveBook(id)
-                "已删除账目"
+            val result = try {
+                val deleted = repository.deleteFromActiveBook(id)
+                if (deleted != null) DeleteEntryResult(deleted = deleted, message = "已删除账目")
+                else DeleteEntryResult(message = "这笔记录已被删除")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                e.message ?: "删除失败，请重试"
+                DeleteEntryResult(message = e.message ?: "删除失败，请重试")
+            }
+            onResult(result)
+        }
+    }
+
+    fun restoreEntry(entry: DailyEntryEntity, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val message = try {
+                if (repository.restoreToActiveBook(entry)) "已恢复账目" else "这笔账目已在账本中"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.message ?: "恢复失败，请重试"
             }
             onResult(message)
         }

@@ -128,10 +128,12 @@ class DailyFlowTest {
         expenseRow.performTouchInput { longClick() }
         compose.onNodeWithText("编辑账目").assertIsDisplayed()
         compose.onNodeWithText("删除账目").performClick()
-        compose.onNodeWithText("取消").performClick()
-        expenseRow.assertIsDisplayed().performTouchInput { longClick() }
+        awaitDescription("本月结余 ¥100.00")
+        awaitText("撤销")
+        compose.onNodeWithText("撤销").performClick()
+        awaitDescription("本月结余 ¥80.00")
+        compose.onNodeWithText("餐饮").performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("删除账目").performClick()
-        compose.onNodeWithText("删除", useUnmergedTree = true).performClick()
         awaitDescription("本月结余 ¥100.00")
         compose.onNodeWithContentDescription("切换账本").performClick()
         compose.onNodeWithText("全部账本").performClick()
